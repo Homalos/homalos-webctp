@@ -98,8 +98,8 @@ CTP Callback → Queue → Background Task → WebSocket Send
 ### 1. 克隆项目
 
 ```bash
-git clone https://github.com/openctp/webctp.git
-cd webctp
+git clone https://github.com/Homalos/homalos-webctp.git
+cd homalos-webctp
 ```
 
 ### 2. 安装依赖
@@ -107,9 +107,6 @@ cd webctp
 **使用 uv (推荐)**
 
 ```bash
-# 安装 uv
-pip install uv
-
 # 同步依赖
 uv sync
 ```
@@ -132,8 +129,8 @@ cp config.sample.yaml config_td.yaml
 编辑配置文件，填入正确的信息：
 
 ```yaml
-TdFrontAddress: tcp://180.168.146.187:10130
-MdFrontAddress: tcp://180.168.146.187:10131
+TdFrontAddress: tcp://182.254.243.31:40001
+MdFrontAddress: tcp://182.254.243.31:40011
 BrokerID: "9999"
 AuthCode: "0000000000000000"
 AppID: simnow_client_test
@@ -422,5 +419,4 @@ A:
 
 ## 联系方式
 
-- 项目主页: https://github.com/openctp/webctp
-- 问题反馈: https://github.com/openctp/webctp/issues
+- 项目主页: https://github.com/Homalos/homalos-webctp
