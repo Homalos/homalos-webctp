@@ -7,7 +7,7 @@
 
 #### 请求
 
-行情登录不需要UserID和Password，但是建议提供UserID来作为con file的名称，否则会用随机的uuid作为con file的名称
+行情登录不需要 UserID 和 Password，但是建议提供 UserID 来作为 con file 的名称，否则会用随机的 uuid 作为 con file 的名称
 
 ```json
 {
@@ -23,17 +23,28 @@
 
 ```json
 {
-  "MsgType": "RspUserLogin",
-  "RspInfo": {
-    "ErrorID": 0,
-    "ErrorMsg": "成功"
-  },
-  "RspUserLogin": {
-    "BrokerID": "",
-    "UserID": "",
-    "TradingDay": "20230318",
-    "SystemName": "MdServer"
-  }
+    "MsgType": "RspUserLogin",
+    "RspInfo": {
+        "ErrorID": 0,
+        "ErrorMsg": "CTP:No Error"
+    },
+    "IsLast": true,
+    "RspUserLogin": {
+        "BrokerID": "",
+        "CZCETime": "",
+        "DCETime": "",
+        "FFEXTime": "",
+        "FrontID": 0,
+        "INETime": "",
+        "LoginTime": "",
+        "MaxOrderRef": "",
+        "SessionID": 0,
+        "SHFETime": "",
+        "SystemName": "",
+        "SysVersion": "",
+        "TradingDay": "20251201",
+        "UserID": ""
+    }
 }
 ```
 
@@ -45,9 +56,9 @@
 {
   "MsgType": "SubscribeMarketData",
   "InstrumentID": [
-    "au2305",
-    "rb2305",
-    "TA305"
+    "au2602",
+    "rb2605",
+    "TA601"
   ]
 }
 ```
@@ -56,18 +67,75 @@
 
 ```json
 {
-  "MsgType": "RspSubscribeMarketData",
-  "SpecificInstrument": {
-    "InstrumentID": "au2305"
-  },
-  "RspInfo": {
-    "ErrorID": 0,
-    "ErrorMsg": ""
-  },
-  "RequestID": 0,
-  "IsLast": true
+    "MsgType": "RspSubMarketData",
+    "RspInfo": {
+        "ErrorID": 0,
+        "ErrorMsg": "CTP:No Error"
+    },
+    "SpecificInstrument": {
+        "InstrumentID": "au2602"
+    }
 }
 ```
+
+### 深度行情推送
+
+```json
+{
+    "MsgType": "RtnDepthMarketData",
+    "DepthMarketData": {
+        "ActionDay": "20251130",
+        "AskPrice1": 962.7,
+        "AskPrice2": 0,
+        "AskPrice3": 0,
+        "AskPrice4": 0,
+        "AskPrice5": 0,
+        "AskVolume1": 5,
+        "AskVolume2": 0,
+        "AskVolume3": 0,
+        "AskVolume4": 0,
+        "AskVolume5": 0,
+        "AveragePrice": 958095.5959201817,
+        "BandingLowerPrice": 0.0,
+        "BandingUpperPrice": 0.0,
+        "BidPrice1": 962.68,
+        "BidPrice2": 0,
+        "BidPrice3": 0,
+        "BidPrice4": 0,
+        "BidPrice5": 0,
+        "BidVolume1": 2,
+        "BidVolume2": 0,
+        "BidVolume3": 0,
+        "BidVolume4": 0,
+        "BidVolume5": 0,
+        "ClosePrice": 0.0,
+        "CurrDelta": 0.0,
+        "ExchangeID": "",
+        "ExchangeInstID": "",
+        "HighestPrice": 968.16,
+        "InstrumentID": "au2602",
+        "LastPrice": 962.7,
+        "LowerLimitPrice": 817.52,
+        "LowestPrice": 948.14,
+        "OpenInterest": 205287.0,
+        "OpenPrice": 951.92,
+        "PreClosePrice": 953.92,
+        "PreDelta": 0.0,
+        "PreOpenInterest": 202129.0,
+        "PreSettlementPrice": 950.62,
+        "SettlementPrice": 0.0,
+        "TradingDay": "20251201",
+        "Turnover": 310361654960.0,
+        "UpdateMillisec": 0,
+        "UpdateTime": "18:06:31",
+        "UpperLimitPrice": 1083.7,
+        "Volume": 323936,
+        "reserve1": "au2602",
+        "reserve2": ""
+    }
+}
+```
+
 
 ### 取消订阅行情
 
@@ -77,9 +145,9 @@
 {
   "MsgType": "UnSubscribeMarketData",
   "InstrumentID": [
-    "au2305",
-    "rb2305",
-    "TA305"
+    "au2602",
+    "rb2605",
+    "TA601"
   ]
 }
 ```
@@ -88,73 +156,13 @@
 
 ```json
 {
-  "MsgType": "RspUnSubscribeMarketData",
-  "SpecificInstrument": {
-    "InstrumentID": "au2305"
-  },
-  "RspInfo": {
-    "ErrorID": 0,
-    "ErrorMsg": ""
-  },
-  "RequestID": 0,
-  "IsLast": true
-}
-```
-
-### 行情推送
-
-```json
-{
-  "MsgType": "RtnDepthMarketData",
-  "DepthMarketData": {
-    "ActionDay": "20230410",
-    "AskPrice1": 5535.000000000001,
-    "AskPrice2": 0.0,
-    "AskPrice3": 0.0,
-    "AskPrice4": 0.0,
-    "AskPrice5": 0.0,
-    "AskVolume1": 114,
-    "AskVolume2": 0,
-    "AskVolume3": 0,
-    "AskVolume4": 0,
-    "AskVolume5": 0,
-    "AveragePrice": 82908.07260063748,
-    "BandingLowerPrice": 0.0,
-    "BandingUpperPrice": 0.0,
-    "BidPrice1": 5534.000000000001,
-    "BidPrice2": 0.0,
-    "BidPrice3": 0.0,
-    "BidPrice4": 0.0,
-    "BidPrice5": 0.0,
-    "BidVolume1": 23,
-    "BidVolume2": 0,
-    "BidVolume3": 0,
-    "BidVolume4": 0,
-    "BidVolume5": 0,
-    "ClosePrice": 0.0,
-    "CurrDelta": 0.0,
-    "ExchangeID": "",
-    "ExchangeInstID": "",
-    "HighestPrice": 5537.000000000001,
-    "InstrumentID": "ag2306",
-    "LastPrice": 5534.000000000001,
-    "LowerLimitPrice": 5045.0,
-    "LowestPrice": 5518.000000000001,
-    "OpenInterest": 614690.0,
-    "OpenPrice": 5531.0,
-    "PreClosePrice": 5528.0,
-    "PreDelta": 0.0,
-    "PreOpenInterest": 613692.0,
-    "PreSettlementPrice": 5544.0,
-    "SettlementPrice": 0.0,
-    "TradingDay": "20230411",
-    "Turnover": 3511571415.0,
-    "UpdateMillisec": 0,
-    "UpdateTime": "21:10:58",
-    "UpperLimitPrice": 6042.0,
-    "Volume": 42355,
-    "reserve1": "",
-    "reserve2": ""
-  }
+    "MsgType": "RspUnSubMarketData",
+    "RspInfo": {
+        "ErrorID": 0,
+        "ErrorMsg": "CTP:No Error"
+    },
+    "SpecificInstrument": {
+        "InstrumentID": "au2602"
+    }
 }
 ```
