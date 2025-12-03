@@ -190,7 +190,7 @@ homalos-webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP �
    >账户资金：初始资金两千万，支持入金，每日最多三次。
    > 
    > 见 [SimNow官网](https://www.simnow.com.cn/product.action)
-   <details>
+   </details>
 
    创建自己的行情配置 config_md.yaml :
 
