@@ -148,7 +148,7 @@ webctp 是一个基于 ctp 开发的提供 websocket 接口的 CTP 服务。
    
    创建自己的行情配置 config_md.yaml :
    
-      ```yaml 
+   ```yaml 
    TdFrontAddress: tcp://182.254.243.31:40001 # 交易前置地址
 MdFrontAddress: tcp://182.254.243.31:40011 # 行情前置地址
    BrokerID: "9999"
@@ -157,11 +157,11 @@ AuthCode: "0000000000000000"
    Port: 8080         # the listening port, default 8080
    Host: 127.0.0.1      # the bind ip address, default 127.0.0.1
    LogLevel: INFO     # NOTSET, DEBUG, INFO, WARN, ERROR, CRITICAL
-      ```
+   ```
    
    创建自己的交易配置 config_td.yaml :
    
-      ```yaml 
+   ```yaml 
    TdFrontAddress: tcp://182.254.243.31:40001 # 交易前置地址
    MdFrontAddress: tcp://182.254.243.31:40011 # 行情前置地址
    BrokerID: "9999"
@@ -170,7 +170,7 @@ AuthCode: "0000000000000000"
    Port: 8081         # the listening port, default 8081
    Host: 127.0.0.1      # the bind ip address, default 127.0.0.1
    LogLevel: INFO     # NOTSET, DEBUG, INFO, WARN, ERROR, CRITICAL
-      ```
+   ```
 
 ### 运行
 
