@@ -640,8 +640,6 @@ ErrorID="16" ErrorMsg="CTP:找不到合约"
 
 [行情服务协议文档](./docs/md_protocol.md)
 
-# 开发说明
-
 ## 项目结构
 
 ```
@@ -662,55 +660,13 @@ homalos-webctp
 - **TdClient/MdClient (services)**: 处理 WebSocket 消息和 CTP 客户端的交互
 - **TdClient/MdClient (clients)**: 封装 CTP API 调用
 
-## 开发指南
-
-### 本地开发
-
-1. 安装开发依赖
-   ```bash
-   # 激活 python 环境
-   $ .venv\Scripts\activate
-   ```
-# 安装依赖
-   $ uv sync --dev
-   ```
-   
-2. 配置文件
-   ```bash
-   # 编辑配置文件，填入正确的前置地址和认证信息
-   $ cp config.sample.yaml config_md.yaml
-   $ cp config.sample.yaml config_td.yaml
-   ```
-
-3. 启动服务
-   ```bash
-   # 启动行情服务
-   $ python main.py --config config/config_md.yaml --app_type md
-   # 启动交易服务
-   $ python main.py --config ./config/config_td.yaml --app_type td
-   ```
-
-### 代码规范
-
-- 使用类型注解 (Type Hints)
-- 遵循 PEP 8 代码风格
-- 使用有意义的变量和函数名
-- 添加必要的文档字符串
-
-### 添加新的 API
-
-1. 在 `clients/` 中添加 CTP API 封装方法
-2. 在 `services/` 的 `_init_call_map` 中注册新方法
-3. 在 `constants/` 中添加相应的常量定义
-4. 更新协议文档
-
-### 测试
+## 测试
 
 建议在 SimNow 仿真环境中进行充分测试后再接入生产环境。
 
 更多详细信息请参考 [开发文档](./docs/development.md)
 
-# 其他说明
+## 其他说明
 
 * 由于精力有限，只进行了 SimNow 平台的简单的测试，请自行充分测试后再接入生产环境。
 * 使用 webctp 进行实盘交易的后果完全有使用者自行承担。
