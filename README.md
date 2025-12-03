@@ -268,6 +268,33 @@ $ python main.py --config=config_md.yaml --app_type=md
 }
 ```
 
+```json
+{
+    "MsgType": "RspSubMarketData",
+    "RspInfo": {
+        "ErrorID": 0,
+        "ErrorMsg": "CTP:No Error"
+    },
+    "SpecificInstrument": {
+        "InstrumentID": "rb2605"
+    }
+}
+```
+
+```json
+{
+    "MsgType": "RspSubMarketData",
+    "RspInfo": {
+        "ErrorID": 0,
+        "ErrorMsg": "CTP:No Error"
+    },
+    "IsLast": true,
+    "SpecificInstrument": {
+        "InstrumentID": "TA601"
+    }
+}
+```
+
 深度行情应答
 
 ```json
@@ -324,7 +351,118 @@ $ python main.py --config=config_md.yaml --app_type=md
         "reserve2": ""
     }
 }
-...
+```
+
+```json
+{
+    "MsgType": "RtnDepthMarketData",
+    "DepthMarketData": {
+        "ActionDay": "20251203",
+        "AskPrice1": 3170.0,
+        "AskPrice2": 0,
+        "AskPrice3": 0,
+        "AskPrice4": 0,
+        "AskPrice5": 0,
+        "AskVolume1": 261,
+        "AskVolume2": 0,
+        "AskVolume3": 0,
+        "AskVolume4": 0,
+        "AskVolume5": 0,
+        "AveragePrice": 31645.592201667798,
+        "BandingLowerPrice": 0.0,
+        "BandingUpperPrice": 0.0,
+        "BidPrice1": 3169.0,
+        "BidPrice2": 0,
+        "BidPrice3": 0,
+        "BidPrice4": 0,
+        "BidPrice5": 0,
+        "BidVolume1": 624,
+        "BidVolume2": 0,
+        "BidVolume3": 0,
+        "BidVolume4": 0,
+        "BidVolume5": 0,
+        "ClosePrice": 0,
+        "CurrDelta": 1.7976931348623157e+308,
+        "ExchangeID": "",
+        "ExchangeInstID": "",
+        "HighestPrice": 3174.0,
+        "InstrumentID": "rb2605",
+        "LastPrice": 3170.0,
+        "LowerLimitPrice": 3010.0,
+        "LowestPrice": 3154.0,
+        "OpenInterest": 1288823.0,
+        "OpenPrice": 3167.0,
+        "PreClosePrice": 3169.0,
+        "PreDelta": 0.0,
+        "PreOpenInterest": 1175559.0,
+        "PreSettlementPrice": 3169.0,
+        "SettlementPrice": 0,
+        "TradingDay": "20251203",
+        "Turnover": 18507703080.0,
+        "UpdateMillisec": 500,
+        "UpdateTime": "13:41:23",
+        "UpperLimitPrice": 3327.0,
+        "Volume": 584843,
+        "reserve1": "rb2605",
+        "reserve2": ""
+    }
+}
+```
+
+```json
+{
+    "MsgType": "RtnDepthMarketData",
+    "DepthMarketData": {
+        "ActionDay": "20251203",
+        "AskPrice1": 4734.0,
+        "AskPrice2": 0.0,
+        "AskPrice3": 0.0,
+        "AskPrice4": 0.0,
+        "AskPrice5": 0.0,
+        "AskVolume1": 300,
+        "AskVolume2": 0,
+        "AskVolume3": 0,
+        "AskVolume4": 0,
+        "AskVolume5": 0,
+        "AveragePrice": 4734.0,
+        "BandingLowerPrice": 0.0,
+        "BandingUpperPrice": 0.0,
+        "BidPrice1": 4732.0,
+        "BidPrice2": 0.0,
+        "BidPrice3": 0.0,
+        "BidPrice4": 0.0,
+        "BidPrice5": 0.0,
+        "BidVolume1": 282,
+        "BidVolume2": 0,
+        "BidVolume3": 0,
+        "BidVolume4": 0,
+        "BidVolume5": 0,
+        "ClosePrice": 0,
+        "CurrDelta": 1.7976931348623157e+308,
+        "ExchangeID": "",
+        "ExchangeInstID": "",
+        "HighestPrice": 4754.0,
+        "InstrumentID": "TA601",
+        "LastPrice": 4734.0,
+        "LowerLimitPrice": 4466.0,
+        "LowestPrice": 4716.0,
+        "OpenInterest": 885382.0,
+        "OpenPrice": 4742.0,
+        "PreClosePrice": 4752.0,
+        "PreDelta": 0.0,
+        "PreOpenInterest": 899833.0,
+        "PreSettlementPrice": 4752.0,
+        "SettlementPrice": 4736.0,
+        "TradingDay": "20251203",
+        "Turnover": 1930738230.0,
+        "UpdateMillisec": 500,
+        "UpdateTime": "13:41:23",
+        "UpperLimitPrice": 5038.0,
+        "Volume": 407845,
+        "reserve1": "TA601",
+        "reserve2": ""
+    }
+}
 ```
 </details>
 
@@ -357,7 +495,33 @@ $ python main.py --config=config_md.yaml --app_type=md
         "InstrumentID": "au2602"
     }
 }
-...
+```
+
+```json
+{
+    "MsgType": "RspUnSubMarketData",
+    "RspInfo": {
+        "ErrorID": 0,
+        "ErrorMsg": "CTP:No Error"
+    },
+    "SpecificInstrument": {
+        "InstrumentID": "rb2605"
+    }
+}
+```
+
+```json
+{
+    "MsgType": "RspUnSubMarketData",
+    "RspInfo": {
+        "ErrorID": 0,
+        "ErrorMsg": "CTP:No Error"
+    },
+    "IsLast": true,
+    "SpecificInstrument": {
+        "InstrumentID": "TA601"
+    }
+}
 ```
 </details>
 
