@@ -44,8 +44,8 @@ webctp 是一个基于 ctp 开发的提供 websocket 接口的 CTP 服务。
    
 4. 配置
 
-      > :pushpin: 项目使用 pyproject.toml 管理依赖，默认使用 ctp 6.7.10  参考示例 config.example.yaml
-      > :pushpin: 示例中行情和交易前置地址，默认配置的是 SimNow 7x24 环境， 更多 SimNow 环境参考 [SimNow官网](https://www.simnow.com.cn/product.action)、[openctp环境监控](http://121.37.80.177)，可根据需变更为其他支持CTPAPI(官方实现)的柜台环境。
+      > :pushpin: 项目使用 pyproject.toml 管理依赖，默认使用 ctp 6.7.10
+      > :pushpin: 配置参考示例 config.example.yaml，示例中行情和交易前置地址，默认配置的是 SimNow 7x24 环境， 更多 SimNow 环境详细信息参考 [SimNow官网](https://www.simnow.com.cn/product.action)、[openctp环境监控](http://121.37.80.177)，可根据需变更为其他支持CTPAPI(官方实现)的柜台环境。
       >
       > :pushpin: SimNow 7x24 环境：
       > 
