@@ -40,7 +40,7 @@ async def main(config_file_path: str, app_type: str):
 
 if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser("webctp", description="WebCTP")
-    arg_parser.add_argument("--config", type=str, default="./config.yaml", help="config file path")
+    arg_parser.add_argument("--config", type=str, default="./config/config_td.yaml", help="config file path")
     arg_parser.add_argument("--app_type", type=str, default="td", help="app type, td or md")
     parsed_args = arg_parser.parse_args(sys.argv[1:])
     anyio.run(main, parsed_args.config, parsed_args.app_type)

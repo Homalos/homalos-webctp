@@ -644,9 +644,9 @@ webctp/
 3. 启动服务
    ```bash
    # 启动行情服务
-   $ python main.py --config=config_md.yaml --app_type=md
+   $ python main.py --config config/config_md.yaml --app_type md
    # 启动交易服务
-   $ python main.py --config=config_td.yaml --app_type=td
+   $ python main.py --config config/config_td.yaml --app_type td
    ```
 
 ### 代码规范
