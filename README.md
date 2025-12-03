@@ -605,7 +605,7 @@ python main.py --config=./config/config_md.yaml --app_type=md
 ### 部分通用错误码说明
 
 <details>
-<summary>👈点击展开，错误码说明</summary>
+<summary>👈点击展开</summary>
 
 ```bash
 ErrorID="-400" ErrorMsg="参数有误"
