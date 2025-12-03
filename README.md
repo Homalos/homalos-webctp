@@ -20,7 +20,7 @@ homalos-webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP �
 
 ### 环境搭建
 
-1. 准备 Python 环境(**建议 3.13，推荐使用 UV**)
+1. 准备 Python 环境(**建议 3.13，推荐使用 UV，如果你熟悉 UV 可跳过步骤1**)
 
     - 安装 UV(推荐全局安装)
 
