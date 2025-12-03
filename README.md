@@ -44,7 +44,7 @@ homalos-webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP �
    
    全局安装 Python，与在项目中的 Python 虚拟环境不一样
    
-   ```
+   ```bash
 uv python install 3.13
    ```
    
