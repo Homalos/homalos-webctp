@@ -195,6 +195,8 @@ $ python main.py --config=config_md.yaml --app_type=md
 <details>
 <summary>登录</summary>
 
+请求
+
 ```json
 {
   "MsgType": "ReqUserLogin",
@@ -203,6 +205,159 @@ $ python main.py --config=config_md.yaml --app_type=md
     "Password": "123456"
   }
 }
+```
+
+应答
+
+```json
+{
+    "MsgType": "RspUserLogin",
+    "RspInfo": {
+        "ErrorID": 0,
+        "ErrorMsg": "CTP:No Error"
+    },
+    "IsLast": true,
+    "RspUserLogin": {
+        "BrokerID": "",
+        "CZCETime": "",
+        "DCETime": "",
+        "FFEXTime": "",
+        "FrontID": 0,
+        "INETime": "",
+        "LoginTime": "",
+        "MaxOrderRef": "",
+        "SessionID": 0,
+        "SHFETime": "",
+        "SystemName": "",
+        "SysVersion": "",
+        "TradingDay": "20251203",
+        "UserID": ""
+    }
+}
+```
+</details>
+
+<details>
+<summary>订阅行情</summary>
+
+请求
+
+```json
+{
+  "MsgType": "SubscribeMarketData",
+  "InstrumentID": [
+    "au2602",
+    "rb2605",
+    "TA601"
+  ]
+}
+```
+
+应答
+
+```json
+{
+    "MsgType": "RspSubMarketData",
+    "RspInfo": {
+        "ErrorID": 0,
+        "ErrorMsg": "CTP:No Error"
+    },
+    "SpecificInstrument": {
+        "InstrumentID": "au2602"
+    }
+}
+```
+
+深度行情应答
+
+```json
+{
+    "MsgType": "RtnDepthMarketData",
+    "DepthMarketData": {
+        "ActionDay": "20251203",
+        "AskPrice1": 956.62,
+        "AskPrice2": 0,
+        "AskPrice3": 0,
+        "AskPrice4": 0,
+        "AskPrice5": 0,
+        "AskVolume1": 3,
+        "AskVolume2": 0,
+        "AskVolume3": 0,
+        "AskVolume4": 0,
+        "AskVolume5": 0,
+        "AveragePrice": 956858.858479762,
+        "BandingLowerPrice": 0.0,
+        "BandingUpperPrice": 0.0,
+        "BidPrice1": 956.6,
+        "BidPrice2": 0,
+        "BidPrice3": 0,
+        "BidPrice4": 0,
+        "BidPrice5": 0,
+        "BidVolume1": 9,
+        "BidVolume2": 0,
+        "BidVolume3": 0,
+        "BidVolume4": 0,
+        "BidVolume5": 0,
+        "ClosePrice": 0,
+        "CurrDelta": 1.7976931348623157e+308,
+        "ExchangeID": "",
+        "ExchangeInstID": "",
+        "HighestPrice": 962.1800000000001,
+        "InstrumentID": "au2602",
+        "LastPrice": 956.62,
+        "LowerLimitPrice": 827.32,
+        "LowestPrice": 948.1800000000001,
+        "OpenInterest": 199696.0,
+        "OpenPrice": 958.0,
+        "PreClosePrice": 958.42,
+        "PreDelta": 0.0,
+        "PreOpenInterest": 202038.0,
+        "PreSettlementPrice": 962.02,
+        "SettlementPrice": 0,
+        "TradingDay": "20251203",
+        "Turnover": 253162846200.0,
+        "UpdateMillisec": 500,
+        "UpdateTime": "13:41:23",
+        "UpperLimitPrice": 1096.7,
+        "Volume": 264577,
+        "reserve1": "au2602",
+        "reserve2": ""
+    }
+}
+...
+```
+</details>
+
+<details>
+<summary>取消订阅行情</summary>
+
+请求
+
+```json
+{
+  "MsgType": "UnSubscribeMarketData",
+  "InstrumentID": [
+    "au2602",
+    "rb2605",
+    "TA601"
+  ]
+}
+```
+
+应答
+
+```json
+{
+    "MsgType": "RspUnSubMarketData",
+    "RspInfo": {
+        "ErrorID": 0,
+        "ErrorMsg": "CTP:No Error"
+    },
+    "SpecificInstrument": {
+        "InstrumentID": "au2602"
+    }
+}
+...
 ```
 </details>
 
