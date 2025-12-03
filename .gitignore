@@ -1,7 +1,9 @@
 __pycache__/
 *.con
 /openctp
-config.yaml
+config_md.yaml
+config_td.yaml
 /con_file
 .idea
 .venv
+.git
