@@ -69,7 +69,6 @@ homalos-webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP �
    
    <details>
    <summary>👈Tips</summary>
-   
    此种方式是全局安装 Python，与项目中的 Python 环境是隔离的，互不影响
    </details>
    
@@ -644,8 +643,19 @@ ErrorID="16" ErrorMsg="CTP:找不到合约"
 
 ## 项目结构
 
-```
-homalos-webctp
+```reStructuredText
+homalos-webctp/
+├── 📁 config/					# 项目配置
+├── 📁 docs/					# 项目文档
+├── 📁 libs/					# 第三方库，包括CTP原始动态库
+├── 📁 src/						# 核心源代码
+├── 📁 tests/					# 测试脚本
+├── 📁 CHANGELOG.md				# 历史更新
+├── 📁 LICENSE.txt				# License文件
+├── 📁 README.md				# 说明文档
+├── 📁 main.py					# 项目入口
+├── 📁 pyproject.toml			# 项目配置文件，依赖由UV管理
+└── 📁 uv.lock					# UV文件锁，由UV管理
 ```
 
 ## 架构说明
