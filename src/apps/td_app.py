@@ -1,6 +1,6 @@
 from fastapi import FastAPI, WebSocket
 
-from services.connection import TdConnection
+from ..services.connection import TdConnection
 
 
 app = FastAPI()

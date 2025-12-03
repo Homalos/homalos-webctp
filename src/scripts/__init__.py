@@ -1,5 +1,5 @@
-from openctp import thostmduserapi as mdapi
-from openctp import thosttraderapi as tdapi
+from ..ctp import thostmduserapi as mdapi
+from ..ctp import thosttraderapi as tdapi
 
 _mdapi = mdapi.CThostFtdcMdApi.CreateFtdcMdApi()
 # print all the methods of the object to a specified file

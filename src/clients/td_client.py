@@ -1,11 +1,11 @@
 import logging
 from typing import Callable, Any
 
-import ctp.thosttraderapi as tdapi
+from ..ctp import thosttraderapi as tdapi
 
-from constants import CallError
-from constants import TdConstant as Constant
-from utils import CTPObjectHelper, GlobalConfig, MathHelper
+from ..constants import CallError
+from ..constants import TdConstant as Constant
+from ..utils import CTPObjectHelper, GlobalConfig, MathHelper
 
 
 class TdClient(tdapi.CThostFtdcTraderSpi):

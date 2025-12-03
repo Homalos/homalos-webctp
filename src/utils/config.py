@@ -1,5 +1,6 @@
 import os
 import yaml
+from pathlib import Path
 
 class GlobalConfig(object):
 
@@ -40,7 +41,8 @@ class GlobalConfig(object):
 
 
 if __name__ == "__main__":
-    GlobalConfig.load_config("../config.sample.yaml")
+    config_path = Path(__file__).parent.parent.parent / "config" / "config.sample.yaml"
+    GlobalConfig.load_config(str(config_path))
     print(GlobalConfig.TdFrontAddress, type(GlobalConfig.TdFrontAddress))
     print(GlobalConfig.MdFrontAddress, type(GlobalConfig.MdFrontAddress))
     print(GlobalConfig.BrokerID, type(GlobalConfig.BrokerID))

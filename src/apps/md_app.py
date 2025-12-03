@@ -1,5 +1,5 @@
 from fastapi import FastAPI, WebSocket
-from services.connection import MdConnection
+from ..services.connection import MdConnection
 
 
 app = FastAPI()

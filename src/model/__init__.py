@@ -1,6 +1,6 @@
 import inspect
 
-from model import request
+from . import request
 
 REQUEST_PAYLOAD = {}
 

@@ -6,8 +6,8 @@ from typing import Any
 from fastapi import WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
 
-from constants.call_errors import CallError
-from constants.constant import CommonConstant as Constant
+from ..constants.call_errors import CallError
+from ..constants.constant import CommonConstant as Constant
 from .td_client import TdClient
 from .md_client import MdClient
 

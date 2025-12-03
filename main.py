@@ -1,46 +1,29 @@
-import argparse
-import logging
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+@ProjectName: homalos-webctp
+@FileName   : main.py
+@Date       : 2025/12/3 15:40
+@Author     : Lumosylva
+@Email      : donnymoving@gmail.com
+@Software   : PyCharm
+@Description: 项目入口点
+"""
 import sys
+from pathlib import Path
+
+# 添加项目根目录到 Python 路径
+project_root = Path(__file__).parent
+sys.path.insert(0, str(project_root))
+
+from src.run import run
 import anyio
-import uvicorn
-from utils import GlobalConfig
+import argparse
 
-
-def init_log():
-    root = logging.getLogger()
-    root.setLevel(GlobalConfig.LogLevel)
-    
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(GlobalConfig.LogLevel)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
-    root.addHandler(handler)
-
-async def main(config_file_path: str, app_type: str):
-    GlobalConfig.load_config(config_file_path)
-    init_log()
-
-    app: str = ""
-    if app_type == "td":
-        logging.info("start td app")
-        app = "apps:td_app"
-    elif app_type == "md":
-        logging.info("start md app")
-        app = "apps:md_app"
-    elif app_type == "dev":
-        logging.info("start dev app")
-        app = "apps:dev_app"
-    else:
-        logging.error("error app type: %s", app_type)
-        exit(1)
-
-    server_config = uvicorn.Config(app, host=GlobalConfig.Host, port=GlobalConfig.Port, log_level="info")
-    server = uvicorn.Server(server_config)
-    await server.serve()
 
 if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser("webctp", description="WebCTP")
     arg_parser.add_argument("--config", type=str, default="./config/config_td.yaml", help="config file path")
     arg_parser.add_argument("--app_type", type=str, default="td", help="app type, td or md")
     parsed_args = arg_parser.parse_args(sys.argv[1:])
-    anyio.run(main, parsed_args.config, parsed_args.app_type)
+    anyio.run(run, parsed_args.config, parsed_args.app_type)

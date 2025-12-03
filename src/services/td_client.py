@@ -2,10 +2,10 @@ import logging
 from typing import Any
 
 import anyio
-from constants import CallError
-from constants import TdConstant as Constant
-from clients import CTPTdClient
-from model import REQUEST_PAYLOAD
+from ..constants import CallError
+from ..constants import TdConstant as Constant
+from ..clients import CTPTdClient
+from ..model import REQUEST_PAYLOAD
 from .base_client import BaseClient
 
 
