@@ -68,7 +68,7 @@ webctp 是一个基于 ctp 开发的提供 websocket 接口的 CTP 服务。
    > | 账户资金           | 初始资金两千万，支持入金，每日最多三次。                     |
    > | 交易阶段(服务时间) | 与实际生产环境保持一致。                                     |
    > 详见 [SimNow官网](https://www.simnow.com.cn/product.action)
-
+   
 4. 配置
 
    创建自己的行情配置 config_md.yaml :
@@ -128,7 +128,6 @@ $ python main.py --config=config_md.yaml --app_type=md
 
 <details>
 <summary>报单录入（限价单）</summary>
-
 暂无
 </details>
 
