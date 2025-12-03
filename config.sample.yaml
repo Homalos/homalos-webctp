@@ -1,9 +1,9 @@
-TdFrontAddress: tcp://180.168.146.187:10130 # 交易前置地址
-MdFrontAddress: tcp://180.168.146.187:10131 # 行情前置地址
+TdFrontAddress: tcp://182.254.243.31:40001 # 交易前置地址
+MdFrontAddress: tcp://182.254.243.31:40011 # 行情前置地址
 BrokerID: "9999"
 AuthCode: "0000000000000000"
 AppID: simnow_client_test
 Port: 8080         # the listening port, default 8080
-Host: 0.0.0.0      # the bind ip address, default 0.0.0.0
+Host: 127.0.0.1      # the bind ip address, default 127.0.0.1
 LogLevel: INFO     # NOTSET, DEBUG, INFO, WARN, ERROR, CRITICAL
   
