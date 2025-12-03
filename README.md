@@ -34,7 +34,7 @@ homalos-webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP �
     安装 UV
 
     <details>
-    <summary>方式一、系统全局安装</summary>
+    <summary>👈点击展开，方式一、系统全局安装</summary>
     
     推荐此种方式，其他 Python 项目也可以使用 UV 管理。
     
@@ -52,7 +52,7 @@ homalos-webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP �
     </details>
     
     <details>
-    <summary>方式二、在已有 Python 中安装</summary>
+    <summary>👈点击展开，方式二、在已有 Python 中安装</summary>
     
     将 UV 安装在已有的 Python 环境中，和上述方式二选一，如果执行了方式一，则方式二直接跳过。此种安装方式的 UV 只能在这一个 Python 环境中使用。
     
@@ -89,7 +89,7 @@ homalos-webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP �
 5. 配置
 
    <details>
-   <summary>配置参考</summary>
+   <summary>👈点击展开，配置参考</summary>
    
    > :pushpin: 配置参考示例 config.example.yaml，示例中行情和交易前置地址，默认配置的是 SimNow 7x24 环境， 更多 SimNow 环境详细信息参考 [SimNow官网](https://www.simnow.com.cn/product.action)、[openctp环境监控](http://121.37.80.177)，可根据需变更为其他支持CTPAPI(官方实现)的柜台环境。
    >
