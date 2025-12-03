@@ -604,6 +604,9 @@ python main.py --config=./config/config_md.yaml --app_type=md
 
 ### 部分通用错误码说明
 
+<details>
+<summary>👈点击展开，错误码说明</summary>
+
 ```bash
 ErrorID="-400" ErrorMsg="参数有误"
 ErrorID="-401" ErrorMsg="未登录"
@@ -629,6 +632,7 @@ ErrorID="14" ErrorMsg="CTP:原口令不匹配"
 ErrorID="15" ErrorMsg="CTP:报单字段有误"
 ErrorID="16" ErrorMsg="CTP:找不到合约"
 ```
+</details>
 
 ### 详细接口文档
 
