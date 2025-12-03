@@ -3,7 +3,8 @@ import time
 import uuid
 from typing import Callable, Any
 
-from openctp_ctp import mdapi
+# from openctp_ctp import mdapi
+import ctp.thostmduserapi as mdapi
 
 from constants import CallError
 from constants import MdConstant as Constant

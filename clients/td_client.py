@@ -1,7 +1,7 @@
 import logging
 from typing import Callable, Any
 
-from openctp_ctp import tdapi
+import ctp.thosttraderapi as tdapi
 
 from constants import CallError
 from constants import TdConstant as Constant
