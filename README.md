@@ -5,6 +5,7 @@ homalos-webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP �
 ---
 
 * [安装及运行](#安装及运行)
+    * [环境依赖](#环境依赖)
     * [环境搭建](#环境搭建)
     * [运行](#运行)
 * [请求示例](#请求示例)
@@ -18,12 +19,22 @@ homalos-webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP �
 
 ## 安装及运行
 
+### 环境依赖
+
+- **Python** ：3.13
+
+- **工具**：UV
+
+- **CTP API**：6.7.10
+
 ### 环境搭建
 
-1. 准备 Python 环境(**建议 3.13，推荐使用 UV，如果你熟悉 UV 可跳过步骤1**)
+1. 准备 Python 环境(**推荐使用 UV，如果熟悉 UV 可直接跳过此步**)
 
-    - 安装 UV(系统中全局安装，推荐此种方式，其他 Python 项目也可以使用 UV 管理)
+    - 安装 UV
 
+      系统全局安装，推荐此种方式，其他 Python 项目也可以使用 UV 管理
+      
       <details>
       <summary>在 Windows 系统安装</summary>
       
@@ -32,12 +43,13 @@ homalos-webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP �
       ```
       </details>
       
-      
-      在 Linux 系统
+      <details>
+      <summary>在 Linux 系统安装</summary>
       
       ```bash
       curl -LsSf https://astral.sh/uv/install.sh | sh
       ```
+      </details>
       
     - 将 UV 安装在已有的 Python 环境中(和上面方式二选一，如果执行了上一步，则这一步跳过。此种方式 UV 只能在这一个 Python 环境中使用)
       ```bash
