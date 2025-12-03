@@ -21,7 +21,7 @@
 
 ## 概述
 
-homalos-webctp 是一个基于 Python CTP API 的开发的提供 Websocket 接口的 CTP 服务，旨在提供接口的方式进行量化交易的操作和开发。
+homalos-webctp 是一个基于 Python CTP API 的开发的提供 Websocket 接口的 CTP 服务，旨在提供接口的方式进行期货量化交易的操作和开发。
 
 - **当前状态**: 开发中
 
