@@ -8,3 +8,4 @@ config_td.yaml
 .idea
 .venv
 .git
+logs/
