@@ -1,9 +1,11 @@
-# homalos-webctp
+<p align="center">
+  <font size="5px">✨ 基于Python CTP API 开发的提供 websocket 接口的 CTP 服务✨</font>
+</p>
 
-homalos-webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP 服务。
 
 ---
 
+* [概述](#概述)
 * [安装及运行](#安装及运行)
     * [环境依赖](#环境依赖)
     * [环境搭建](#环境搭建)
@@ -16,6 +18,12 @@ homalos-webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP �
 * [其他说明](#其他说明)
 
 ---
+
+## 概述
+
+homalos-webctp 是一个基于 Python CTP API 的开发的提供 Websocket 接口的 CTP 服务，旨在提供接口的方式进行量化交易的操作和开发。
+
+- **当前状态**: 开发中
 
 ## 安装及运行
 
