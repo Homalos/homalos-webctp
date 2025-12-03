@@ -31,30 +31,34 @@ homalos-webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP �
 
 1. 准备 Python 环境(**推荐使用 UV，如果熟悉 UV 可直接跳过此步**)
 
-    - 安装 UV
+    安装 UV
 
-      系统全局安装，推荐此种方式，其他 Python 项目也可以使用 UV 管理
-      
-      <details>
-      <summary>在 Windows 系统安装</summary>
-      
-      ```bash
-      powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-      ```
-      </details>
-      
-      <details>
-      <summary>在 Linux 系统安装</summary>
-      
-      ```bash
-      curl -LsSf https://astral.sh/uv/install.sh | sh
-      ```
-      </details>
-      
-    - 将 UV 安装在已有的 Python 环境中(和上面方式二选一，如果执行了上一步，则这一步跳过。此种方式 UV 只能在这一个 Python 环境中使用)
-      ```bash
-      pip install uv
-      ```
+    <details>
+    <summary>方式一、系统全局安装</summary>
+    
+    推荐此种方式，其他 Python 项目也可以使用 UV 管理。
+
+    在 Windows 系统安装
+
+    ```bash
+    powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+    ```
+
+    在 Linux 系统安装
+
+    ```bash
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    ```
+    </details>
+
+    <details>
+    <summary>方式二、在已有 Python 中安装</summary>
+    
+    将 UV 安装在已有的 Python 环境中，和上述方式二选一，如果执行了方式一，则方式二直接跳过。此种安装方式 UV 只能在这一个 Python 环境中使用。
+    ```bash
+    pip install uv
+    ```
+    </details>
 
 2. 使用 UV 全局安装 Python(**如果在步骤1中选择了全局安装 UV，则需要执行这一步**)
    
