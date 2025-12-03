@@ -188,6 +188,10 @@ $ python main.py --config=config_md.yaml --app_type=md
 
 示例是基于 SimNow 电信1环境，不同环境的数据存在差异，以下示例数据未必可全部通过，根据环境调整即可。
 
+行情连接地址：ws://127.0.0.1:8080/md/
+
+交易连接地址：ws://127.0.0.1:8081/td/
+
 <details>
 <summary>登录</summary>
 
