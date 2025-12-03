@@ -1,6 +1,6 @@
-# webctp
+# homalos-webctp
 
-webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP 服务。
+homalos-webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP 服务。
 
 ---
 
@@ -20,134 +20,155 @@ webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP 服务。
 
 ### 环境搭建
 
-1. 准备 Python 环境(3.13+, 推荐 3.13)
+1. 准备 Python 环境(**建议 3.13，推荐使用 UV**)
 
-2. 克隆 webctp
-   ```bash
-   $ git clone https://github.com/Homalos/homalos-webctp.git
-   $ cd webctp
-   ```
-   
-3. 安装依赖库
-   
-   **使用 uv (推荐)**
-   
-   ```bash
-   $ uv sync
-   ```
-   
-   **或使用 pip**
-   
-   ```bash
-   $ pip install -e .
-   ```
-   
-4. 配置
+    - 安装 UV(全局安装，推荐)
 
-    > :pushpin: 项目使用 pyproject.toml 管理依赖，默认使用 CTP 版本为 6.7.10
-    >
-    > :pushpin: 配置参考示例 config.example.yaml，示例中行情和交易前置地址，默认配置的是 SimNow 7x24 环境， 更多 SimNow 环境详细信息参考 [SimNow官网](https://www.simnow.com.cn/product.action)、[openctp环境监控](http://121.37.80.177)，可根据需变更为其他支持CTPAPI(官方实现)的柜台环境。
-    >
-    > :pushpin: SimNow 7x24 环境：
-    >
-    > <table>
-    > <tr>
-    > 	<th colspan="3">前置信息</th>
-    > </tr>
-    > <tr>
-    > 	<td>BrokerID</td>
-    > 	<td>9999</td>
-    > 	<td>券商ID</td>
-    > </tr>
-    > <tr>
-    > 	<td>Trade Front</td>
-    > 	<td>182.254.243.31:40001</td>
-    > 	<td rowspan="2">看穿式前置，使用监控中心生产秘钥</td>
-    > </tr>
-    > <tr>
-    > 	<td>Market Front</td>
-    > 	<td>182.254.243.31:40011</td>
-    > </tr>
-    > <tr>
-    > 	<td rowspan="2">交易阶段(服务时间)</td>
-    > 	<td>交易日，16:00～次日09:00</td>
-    > 	<td></td>
-    > </tr>
-    > <tr>
-    > 	<td>非交易日，16:00～次日12:00</td>
-    > 	<td></td>
-    > </tr>
-    > </table>
-    >
-    > 该环境仅服务于CTP API开发爱好者，仅为用户提供CTP API测试需求，不提供结算等其它服务。
-    >
-    > 新注册用户，需要等到第三个交易日才能使用第二套环境。
-    >
-    > 账户、钱、仓跟第一套环境上一个交易日保持一致。
-    >
-    > :pushpin:  SimNow 非7x24环境：
-    >
-    > <table>
-    > <tr>
-    > 	<th colspan="4">前置信息</th>
-    > </tr>
-    > <tr>
-    > 	<td>BrokerID</td>
-    > 	<td colspan="3">9999</td>
-    > </tr>
-    > <tr>
-    > 	<td>APPID</td>
-    > 	<td colspan="3">simnow_client_test</td>
-    > </tr>
-    > <tr>
-    > 	<td>AuthCode</td>
-    > 	<td colspan="3">0000000000000000（16个0）</td>
-    > </tr>
-    > <tr>
-    > 	<td rowspan="2">第一组</td>
-    > 	<td>Trade Front</td>
-    > 	<td>182.254.243.31:30001</td>
-    > 	<td rowspan="6">看穿式前置，使用监控中心生产秘钥</td>
-    > </tr>
-    > <tr>
-    > 	<td>Market Front</td>
-    > 	<td>182.254.243.31:30012</td>
-    > </tr>
-    > <tr>
-    > 	<td rowspan="2">第二组</td>
-    > 	<td>Trade Front</td>
-    > 	<td>182.254.243.31:30002</td>
-    > </tr>
-    > <tr>
-    > 	<td>Market Front</td>
-    > 	<td>182.254.243.31:30012</td>
-    > </tr>
-    > <tr>
-    > 	<td rowspan="2">第三组</td>
-    > 	<td>Trade Front</td>
-    > 	<td>182.254.243.31:30003</td>
-    > </tr>
-    > <tr>
-    > 	<td>Market Front</td>
-    > 	<td>182.254.243.31:30013</td>
-    > </tr>
-    > <tr>
-    > 	<td>交易阶段(服务时间)</td>
-    > 	<td colspan="3">与实际生产环境保持一致。</td>
-    > </tr>
-    > </table>
-    >
-    > 支持上期所期权、能源中心期权、中金所期权、广期所期权、郑商所期权、大商所期权
-    >
-    > 用户注册后，默认的 APPID 为 simnow_client_test，认证码为 0000000000000000（16个0），默认开启终端认证，程序化用户可以选择不开终端认证接入。
-    >
-    > 交易品种：六所所有期货品种以及上期所、能源中心、中金所、广期所所有期权品种，以及郑商所、大商所部分期权品种。
-    > 账户资金：初始资金两千万，支持入金，每日最多三次。
-    >
-    > 见 [SimNow官网](https://www.simnow.com.cn/product.action)
+      在 Windows 系统
+
+      ```bash
+      powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+      ```
+
+      在 Linux 系统
+
+      ```bash
+      curl -LsSf https://astral.sh/uv/install.sh | sh
+      ```
+    - 在当前 Python 安装
+      ```bash
+      pip install uv
+      ```
+
+2. 全局安装 Python(**在第1步中如果是全局安装 UV 方式，则执行这一步**)
    
+   全局安装 Python，与在项目中的 Python 虚拟环境不一样
+   
+   ```
+uv python install 3.13
+   ```
+   
+3. 克隆 homalos-webctp
+
+   ```bash
+   git clone https://github.com/Homalos/homalos-webctp.git
+   cd homalos-webctp
+   ```
+
+4. 安装依赖
+
+   根据 pyproject.toml 中的信息，自动在当前项目根目录下创建名为 .venv 的 Python 虚拟环境及所有依赖安装
+
+   ```bash
+   uv sync
+   ```
+
+5. 配置
+
+   > :pushpin: 项目使用 pyproject.toml 管理依赖，默认使用 CTP 版本为 6.7.10
+   >
+   > :pushpin: 配置参考示例 config.example.yaml，示例中行情和交易前置地址，默认配置的是 SimNow 7x24 环境， 更多 SimNow 环境详细信息参考 [SimNow官网](https://www.simnow.com.cn/product.action)、[openctp环境监控](http://121.37.80.177)，可根据需变更为其他支持CTPAPI(官方实现)的柜台环境。
+   >
+   > :pushpin: SimNow 7x24 环境：
+   >
+   > <table>
+   > <tr>
+   > 	<th colspan="3">前置信息</th>
+   > </tr>
+   > <tr>
+   > 	<td>BrokerID</td>
+   > 	<td>9999</td>
+   > 	<td>券商ID</td>
+   > </tr>
+   > <tr>
+   > 	<td>Trade Front</td>
+   > 	<td>182.254.243.31:40001</td>
+   > 	<td rowspan="2">看穿式前置，使用监控中心生产秘钥</td>
+   > </tr>
+   > <tr>
+   > 	<td>Market Front</td>
+   > 	<td>182.254.243.31:40011</td>
+   > </tr>
+   > <tr>
+   > 	<td rowspan="2">交易阶段(服务时间)</td>
+   > 	<td>交易日，16:00～次日09:00</td>
+   > 	<td></td>
+   > </tr>
+   > <tr>
+   > 	<td>非交易日，16:00～次日12:00</td>
+   > 	<td></td>
+   > </tr>
+   > </table>
+   >
+   > 该环境仅服务于CTP API开发爱好者，仅为用户提供CTP API测试需求，不提供结算等其它服务。
+   >
+   > 新注册用户，需要等到第三个交易日才能使用第二套环境。
+   >
+   > 账户、钱、仓跟第一套环境上一个交易日保持一致。
+   >
+   > :pushpin:  SimNow 非7x24环境：
+   >
+   > <table>
+   > <tr>
+   > 	<th colspan="4">前置信息</th>
+   > </tr>
+   > <tr>
+   > 	<td>BrokerID</td>
+   > 	<td colspan="3">9999</td>
+   > </tr>
+   > <tr>
+   > 	<td>APPID</td>
+   > 	<td colspan="3">simnow_client_test</td>
+   > </tr>
+   > <tr>
+   > 	<td>AuthCode</td>
+   > 	<td colspan="3">0000000000000000（16个0）</td>
+   > </tr>
+   > <tr>
+   > 	<td rowspan="2">第一组</td>
+   > 	<td>Trade Front</td>
+   > 	<td>182.254.243.31:30001</td>
+   > 	<td rowspan="6">看穿式前置，使用监控中心生产秘钥</td>
+   > </tr>
+   > <tr>
+   > 	<td>Market Front</td>
+   > 	<td>182.254.243.31:30012</td>
+   > </tr>
+   > <tr>
+   > 	<td rowspan="2">第二组</td>
+   > 	<td>Trade Front</td>
+   > 	<td>182.254.243.31:30002</td>
+   > </tr>
+   > <tr>
+   > 	<td>Market Front</td>
+   > 	<td>182.254.243.31:30012</td>
+   > </tr>
+   > <tr>
+   > 	<td rowspan="2">第三组</td>
+   > 	<td>Trade Front</td>
+   > 	<td>182.254.243.31:30003</td>
+   > </tr>
+   > <tr>
+   > 	<td>Market Front</td>
+   > 	<td>182.254.243.31:30013</td>
+   > </tr>
+   > <tr>
+   > 	<td>交易阶段(服务时间)</td>
+   > 	<td colspan="3">与实际生产环境保持一致。</td>
+   > </tr>
+   > </table>
+   >
+   > 支持上期所期权、能源中心期权、中金所期权、广期所期权、郑商所期权、大商所期权
+   >
+   > 用户注册后，默认的 APPID 为 simnow_client_test，认证码为 0000000000000000（16个0），默认开启终端认证，程序化用户可以选择不开终端认证接入。
+   >
+   > 交易品种：六所所有期货品种以及上期所、能源中心、中金所、广期所所有期权品种，以及郑商所、大商所部分期权品种。
+   > 账户资金：初始资金两千万，支持入金，每日最多三次。
+   >
+   > 见 [SimNow官网](https://www.simnow.com.cn/product.action)
+
    创建自己的行情配置 config_md.yaml :
-   
+
    ```yaml
    TdFrontAddress: tcp://182.254.243.31:40001	# 交易前置地址
    MdFrontAddress: tcp://182.254.243.31:40011	# 行情前置地址
@@ -158,7 +179,7 @@ webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP 服务。
    Host: 127.0.0.1								# the bind ip address, default 127.0.0.1
    LogLevel: INFO								# NOTSET, DEBUG, INFO, WARN, ERROR, CRITICAL
    ```
-   
+
    创建自己的交易配置 config_td.yaml :
    ```yaml 
    TdFrontAddress: tcp://182.254.243.31:40001	# 交易前置地址
@@ -174,10 +195,12 @@ webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP 服务。
 ### 运行
 
 ```bash
+# 激活项目根目录下的虚拟环境，不激活用的是系统默认 Python 而不是项目所需要的 Python环境
+.venv\Scripts\activate
 # 启动交易服务
-$ python main.py --config=config_td.yaml --app_type=td
+python main.py --config=./config/config_td.yaml --app_type=td
 # 启动行情服务
-$ python main.py --config=config_md.yaml --app_type=md
+python main.py --config=./config/config_md.yaml --app_type=md
 ```
 
 ## 请求示例
@@ -593,22 +616,7 @@ ErrorID="16" ErrorMsg="CTP:找不到合约"
 ## 项目结构
 
 ```
-webctp/
-├── apps/              # FastAPI 应用入口
-│   ├── md_app.py     # 行情服务应用
-│   └── td_app.py     # 交易服务应用
-├── clients/           # CTP 客户端封装
-│   ├── md_client.py  # 行情客户端
-│   └── td_client.py  # 交易客户端
-├── services/          # 业务逻辑层
-│   ├── base_client.py    # 客户端基类
-│   ├── md_client.py      # 行情服务
-│   ├── td_client.py      # 交易服务
-│   └── connection.py     # WebSocket 连接管理
-├── constants/         # 常量定义
-├── model/            # 数据模型
-├── utils/            # 工具函数
-└── docs/             # 文档
+homalos-webctp
 ```
 
 ## 架构说明
@@ -631,14 +639,18 @@ webctp/
 
 1. 安装开发依赖
    ```bash
+   # 激活 python 环境
+   $ .venv\Scripts\activate
+   ```
+# 安装依赖
    $ uv sync --dev
    ```
-
+   
 2. 配置文件
    ```bash
+   # 编辑配置文件，填入正确的前置地址和认证信息
    $ cp config.sample.yaml config_md.yaml
    $ cp config.sample.yaml config_td.yaml
-   # 编辑配置文件，填入正确的前置地址和认证信息
    ```
 
 3. 启动服务
@@ -646,7 +658,7 @@ webctp/
    # 启动行情服务
    $ python main.py --config config/config_md.yaml --app_type md
    # 启动交易服务
-   $ python main.py --config config/config_td.yaml --app_type td
+   $ python main.py --config ./config/config_td.yaml --app_type td
    ```
 
 ### 代码规范
