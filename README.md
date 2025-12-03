@@ -42,11 +42,11 @@ homalos-webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP �
 
 2. 全局安装 Python(**在步骤1中，如果是全局安装 UV 方式，需要执行这一步**)
    
-   全局安装的 Python 与在项目中的 Python 虚拟环境是隔离的
-   
    ```bash
    uv python install 3.13
    ```
+   
+   全局安装的 Python 与在项目中的 Python 虚拟环境是隔离的
    
 3. 克隆 homalos-webctp
 
@@ -57,11 +57,11 @@ homalos-webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP �
 
 4. 安装依赖
 
-   根据 pyproject.toml 中的信息，自动在当前项目根目录下创建名为 .venv 的 Python 虚拟环境及所有依赖安装
-
    ```bash
    uv sync
    ```
+
+   根据 pyproject.toml 中的信息，自动在当前项目根目录下创建名为 .venv 的 Python 虚拟环境及所有依赖安装
 
 5. 配置
 
