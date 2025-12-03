@@ -44,115 +44,116 @@ webctp 是一个基于 ctp 开发的提供 websocket 接口的 CTP 服务。
    
 4. 配置
 
-      > :pushpin: 项目使用 pyproject.toml 管理依赖，默认使用 CTP 版本为 6.7.10
-      >
-      > :pushpin: 配置参考示例 config.example.yaml，示例中行情和交易前置地址，默认配置的是 SimNow 7x24 环境， 更多 SimNow 环境详细信息参考 [SimNow官网](https://www.simnow.com.cn/product.action)、[openctp环境监控](http://121.37.80.177)，可根据需变更为其他支持CTPAPI(官方实现)的柜台环境。
-      >
-      > :pushpin: SimNow 7x24 环境：
-      >
-      > <table>
-      > <tr>
-      > 	<th colspan="3">前置信息</th>
-      > </tr>
-      > <tr>
-      > 	<td>BrokerID</td>
-      > 	<td>9999</td>
-      > 	<td>券商ID</td>
-      > </tr>
-      > <tr>
-      > 	<td>Trade Front</td>
-      > 	<td>182.254.243.31:40001</td>
-      > 	<td rowspan="2">看穿式前置，使用监控中心生产秘钥</td>
-      > </tr>
-      > <tr>
-      > 	<td>Market Front</td>
-      > 	<td>182.254.243.31:40011</td>
-      > </tr>
-      > <tr>
-      > 	<td rowspan="2">交易阶段(服务时间)</td>
-      > 	<td>交易日，16:00～次日09:00</td>
-      > 	<td></td>
-      > </tr>
-      > <tr>
-      > 	<td>非交易日，16:00～次日12:00</td>
-      > 	<td></td>
-      > </tr>
-      > </table>
-      > 该环境仅服务于CTP API开发爱好者，仅为用户提供CTP API测试需求，不提供结算等其它服务。
-      >
-      > 新注册用户，需要等到第三个交易日才能使用第二套环境。
-      >
-      > 账户、钱、仓跟第一套环境上一个交易日保持一致。
-      >
-      > :pushpin:  SimNow 非7x24环境：
-      >
-      > <table>
-      > <tr>
-      > 	<th colspan="4">前置信息</th>
-      > </tr>
-      > <tr>
-      > 	<td>BrokerID</td>
-      > 	<td colspan="3">9999</td>
-      > </tr>
-      > <tr>
-      > 	<td>APPID</td>
-      > 	<td colspan="3">simnow_client_test</td>
-      > </tr>
-      > <tr>
-      > 	<td>AuthCode</td>
-      > 	<td colspan="3">0000000000000000（16个0）</td>
-      > </tr>
-      > <tr>
-      > 	<td rowspan="2">第一组</td>
-      > 	<td>Trade Front</td>
-      > 	<td>182.254.243.31:30001</td>
-      > 	<td rowspan="6">看穿式前置，使用监控中心生产秘钥</td>
-      > </tr>
-      > <tr>
-      > 	<td>Market Front</td>
-      > 	<td>182.254.243.31:30012</td>
-      > </tr>
-      > <tr>
-      > 	<td rowspan="2">第二组</td>
-      > 	<td>Trade Front</td>
-      > 	<td>182.254.243.31:30002</td>
-      > </tr>
-      > <tr>
-      > 	<td>Market Front</td>
-      > 	<td>182.254.243.31:30012</td>
-      > </tr>
-      > <tr>
-      > 	<td rowspan="2">第三组</td>
-      > 	<td>Trade Front</td>
-      > 	<td>182.254.243.31:30003</td>
-      > </tr>
-      > <tr>
-      > 	<td>Market Front</td>
-      > 	<td>182.254.243.31:30013</td>
-      > </tr>
-      > <tr>
-      > 	<td>交易阶段(服务时间)</td>
-      > 	<td colspan="3">与实际生产环境保持一致。</td>
-      > </tr>
-      > </table>
-      >
-      > 支持上期所期权、能源中心期权、中金所期权、广期所期权、郑商所期权、大商所期权
->
-   > 用户注册后，默认的 APPID 为 simnow_client_test，认证码为 0000000000000000（16个0），默认开启终端认证，程序化用户可以选择不开终端认证接入。
->
-   > 交易品种：六所所有期货品种以及上期所、能源中心、中金所、广期所所有期权品种，以及郑商所、大商所部分期权品种。
-   > 账户资金：初始资金两千万，支持入金，每日最多三次。
-   >
-   > 见 [SimNow官网](https://www.simnow.com.cn/product.action)
+    > :pushpin: 项目使用 pyproject.toml 管理依赖，默认使用 CTP 版本为 6.7.10
+    >
+    > :pushpin: 配置参考示例 config.example.yaml，示例中行情和交易前置地址，默认配置的是 SimNow 7x24 环境， 更多 SimNow 环境详细信息参考 [SimNow官网](https://www.simnow.com.cn/product.action)、[openctp环境监控](http://121.37.80.177)，可根据需变更为其他支持CTPAPI(官方实现)的柜台环境。
+    >
+    > :pushpin: SimNow 7x24 环境：
+    >
+    > <table>
+    > <tr>
+    > 	<th colspan="3">前置信息</th>
+    > </tr>
+    > <tr>
+    > 	<td>BrokerID</td>
+    > 	<td>9999</td>
+    > 	<td>券商ID</td>
+    > </tr>
+    > <tr>
+    > 	<td>Trade Front</td>
+    > 	<td>182.254.243.31:40001</td>
+    > 	<td rowspan="2">看穿式前置，使用监控中心生产秘钥</td>
+    > </tr>
+    > <tr>
+    > 	<td>Market Front</td>
+    > 	<td>182.254.243.31:40011</td>
+    > </tr>
+    > <tr>
+    > 	<td rowspan="2">交易阶段(服务时间)</td>
+    > 	<td>交易日，16:00～次日09:00</td>
+    > 	<td></td>
+    > </tr>
+    > <tr>
+    > 	<td>非交易日，16:00～次日12:00</td>
+    > 	<td></td>
+    > </tr>
+    > </table>
+    >
+    > 该环境仅服务于CTP API开发爱好者，仅为用户提供CTP API测试需求，不提供结算等其它服务。
+    >
+    > 新注册用户，需要等到第三个交易日才能使用第二套环境。
+    >
+    > 账户、钱、仓跟第一套环境上一个交易日保持一致。
+    >
+    > :pushpin:  SimNow 非7x24环境：
+    >
+    > <table>
+    > <tr>
+    > 	<th colspan="4">前置信息</th>
+    > </tr>
+    > <tr>
+    > 	<td>BrokerID</td>
+    > 	<td colspan="3">9999</td>
+    > </tr>
+    > <tr>
+    > 	<td>APPID</td>
+    > 	<td colspan="3">simnow_client_test</td>
+    > </tr>
+    > <tr>
+    > 	<td>AuthCode</td>
+    > 	<td colspan="3">0000000000000000（16个0）</td>
+    > </tr>
+    > <tr>
+    > 	<td rowspan="2">第一组</td>
+    > 	<td>Trade Front</td>
+    > 	<td>182.254.243.31:30001</td>
+    > 	<td rowspan="6">看穿式前置，使用监控中心生产秘钥</td>
+    > </tr>
+    > <tr>
+    > 	<td>Market Front</td>
+    > 	<td>182.254.243.31:30012</td>
+    > </tr>
+    > <tr>
+    > 	<td rowspan="2">第二组</td>
+    > 	<td>Trade Front</td>
+    > 	<td>182.254.243.31:30002</td>
+    > </tr>
+    > <tr>
+    > 	<td>Market Front</td>
+    > 	<td>182.254.243.31:30012</td>
+    > </tr>
+    > <tr>
+    > 	<td rowspan="2">第三组</td>
+    > 	<td>Trade Front</td>
+    > 	<td>182.254.243.31:30003</td>
+    > </tr>
+    > <tr>
+    > 	<td>Market Front</td>
+    > 	<td>182.254.243.31:30013</td>
+    > </tr>
+    > <tr>
+    > 	<td>交易阶段(服务时间)</td>
+    > 	<td colspan="3">与实际生产环境保持一致。</td>
+    > </tr>
+    > </table>
+    >
+    > 支持上期所期权、能源中心期权、中金所期权、广期所期权、郑商所期权、大商所期权
+    >
+    > 用户注册后，默认的 APPID 为 simnow_client_test，认证码为 0000000000000000（16个0），默认开启终端认证，程序化用户可以选择不开终端认证接入。
+    >
+    > 交易品种：六所所有期货品种以及上期所、能源中心、中金所、广期所所有期权品种，以及郑商所、大商所部分期权品种。
+    > 账户资金：初始资金两千万，支持入金，每日最多三次。
+    >
+    > 见 [SimNow官网](https://www.simnow.com.cn/product.action)
    
    创建自己的行情配置 config_md.yaml :
    
       ```yaml 
    TdFrontAddress: tcp://182.254.243.31:40001 # 交易前置地址
-   MdFrontAddress: tcp://182.254.243.31:40011 # 行情前置地址
-BrokerID: "9999"
-   AuthCode: "0000000000000000"
-AppID: simnow_client_test
+MdFrontAddress: tcp://182.254.243.31:40011 # 行情前置地址
+   BrokerID: "9999"
+AuthCode: "0000000000000000"
+   AppID: simnow_client_test
    Port: 8080         # the listening port, default 8080
    Host: 127.0.0.1      # the bind ip address, default 127.0.0.1
    LogLevel: INFO     # NOTSET, DEBUG, INFO, WARN, ERROR, CRITICAL
@@ -170,8 +171,6 @@ AppID: simnow_client_test
    Host: 127.0.0.1      # the bind ip address, default 127.0.0.1
    LogLevel: INFO     # NOTSET, DEBUG, INFO, WARN, ERROR, CRITICAL
       ```
-
-
 
 ### 运行
 
