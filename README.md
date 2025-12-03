@@ -29,39 +29,39 @@ homalos-webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP �
 
 ### 环境搭建
 
-1. 准备 Python 环境(**推荐使用 UV，如果熟悉 UV 可直接跳过此步**)
+1. 准备环境
 
-    安装 UV
+   安装 UV，推荐使用 UV
 
-    <details>
-    <summary>👈点击展开，方式一、系统全局安装</summary>
+   <details>
+   <summary>👈方式一、系统全局安装</summary>
     
-    推荐此种方式，其他 Python 项目也可以使用 UV 管理。
+   推荐此种方式，其他 Python 项目也可以使用 UV 管理。
     
-    在 Windows 系统安装
+   在 Windows 系统安装
     
-    ```bash
-    powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-    ```
+   ```bash
+   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+   ```
     
-    在 Linux 系统安装
+   在 Linux 系统安装
     
-    ```bash
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-    ```
-    </details>
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
+   </details>
     
-    <details>
-    <summary>👈点击展开，方式二、在已有 Python 中安装</summary>
+   <details>
+   <summary>👈方式二、在已有 Python 中安装</summary>
     
-    将 UV 安装在已有的 Python 环境中，和上述方式二选一，如果执行了方式一，则方式二直接跳过。此种安装方式的 UV 只能在这一个 Python 环境中使用。
+   将 UV 安装在已有的 Python 环境中，和上述方式二选一，如果执行了方式一，则方式二直接跳过。此种安装方式的 UV 只能在这一个 Python 环境中使用。
     
-    ```bash
-    pip install uv
-    ```
-    </details>
+   ```bash
+   pip install uv
+   ```
+   </details>
     
-2. 使用 UV 全局安装 Python
+2. 安装 Python
 
    **如果在步骤1中选择了全局安装 UV，则需要执行这一步**
    
@@ -69,9 +69,9 @@ homalos-webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP �
    uv python install 3.13
    ```
    
-   Tips：全局安装的 Python 与项目中的 Python 环境是隔离的，互不影响
+   Tips：此种方式是全局安装 Python，与项目中的 Python 环境是隔离的，互不影响
    
-3. 克隆 homalos-webctp
+3. 克隆项目
 
    ```bash
    git clone https://github.com/Homalos/homalos-webctp.git
@@ -89,7 +89,7 @@ homalos-webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP �
 5. 配置
 
    <details>
-   <summary>👈点击展开，配置参考</summary>
+   <summary>👈配置参考</summary>
    
    > :pushpin: 配置参考示例 config.example.yaml，示例中行情和交易前置地址，默认配置的是 SimNow 7x24 环境， 更多 SimNow 环境详细信息参考 [SimNow官网](https://www.simnow.com.cn/product.action)、[openctp环境监控](http://121.37.80.177)，可根据需变更为其他支持CTPAPI(官方实现)的柜台环境。
    >
@@ -605,7 +605,7 @@ python main.py --config=./config/config_md.yaml --app_type=md
 ### 部分通用错误码说明
 
 <details>
-<summary>👈点击展开</summary>
+<summary>👈</summary>
 
 ```bash
 ErrorID="-400" ErrorMsg="参数有误"
