@@ -10,12 +10,12 @@
 @Description: 基于 loguru 的日志工具类，支持标签分类和 trace_id 追踪
 """
 
+import contextvars
 import sys
 import uuid
-import inspect
-import contextvars
 from pathlib import Path
 from typing import Optional
+
 from loguru import logger as _logger
 
 # 创建 trace_id 上下文变量，用于追踪请求

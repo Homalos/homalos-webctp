@@ -20,7 +20,6 @@ async def main(config_file_path: str, app_type: str):
     GlobalConfig.load_config(config_file_path)
     init_log()
 
-    server_config = None
     app: str = ""
     if app_type == "td":
         logging.info("start td app")
@@ -40,8 +39,8 @@ async def main(config_file_path: str, app_type: str):
     await server.serve()
 
 if __name__ == "__main__":
-    argparser = argparse.ArgumentParser("webctp", description="WebCTP")
-    argparser.add_argument("--config", type=str, default="./config.yaml", help="config file path")
-    argparser.add_argument("--app_type", type=str, default="td", help="app type, td or md")
-    parsed_args = argparser.parse_args(sys.argv[1:])
+    arg_parser = argparse.ArgumentParser("webctp", description="WebCTP")
+    arg_parser.add_argument("--config", type=str, default="./config.yaml", help="config file path")
+    arg_parser.add_argument("--app_type", type=str, default="td", help="app type, td or md")
+    parsed_args = arg_parser.parse_args(sys.argv[1:])
     anyio.run(main, parsed_args.config, parsed_args.app_type)
