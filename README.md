@@ -26,11 +26,13 @@ homalos-webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP �
 
       <details>
       <summary>在 Windows 系统安装</summary>
+      
       ```bash
       powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
       ```
       </details>
-
+      
+      
       在 Linux 系统
       
       ```bash
