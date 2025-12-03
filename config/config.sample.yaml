@@ -1,5 +1,5 @@
-TdFrontAddress: tcp://182.254.243.31:40001 # 交易前置地址
-MdFrontAddress: tcp://182.254.243.31:40011 # 行情前置地址
+TdFrontAddress: tcp://182.254.243.31:40001 # 7x24交易前置地址
+MdFrontAddress: tcp://182.254.243.31:40011 # 7x24行情前置地址
 BrokerID: "9999"
 AuthCode: "0000000000000000"
 AppID: simnow_client_test

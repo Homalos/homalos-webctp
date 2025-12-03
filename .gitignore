@@ -2,8 +2,6 @@ __pycache__/
 .venv/
 *.con
 /openctp
-config_md.yaml
-config_td.yaml
 /con_file
 .idea
 .venv
