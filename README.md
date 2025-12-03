@@ -1,6 +1,6 @@
 # webctp
 
-webctp 是一个基于 ctp 开发的提供 websocket 接口的 CTP 服务。
+webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP 服务。
 
 ---
 
