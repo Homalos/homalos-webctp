@@ -40,7 +40,7 @@ homalos-webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP �
       pip install uv
       ```
 
-2. 全局安装 Python(**在步骤1中，如果是全局安装 UV 方式，需要执行这一步**)
+2. 全局安装 Python(**在步骤1中如果是全局安装 UV 方式，需要执行这一步，如果已安装直接跳过这一步**)
    
    ```bash
    uv python install 3.13
