@@ -45,10 +45,11 @@ webctp 是一个基于 ctp 开发的提供 websocket 接口的 CTP 服务。
 4. 配置
 
       > :pushpin: 项目使用 pyproject.toml 管理依赖，默认使用 ctp 6.7.10
+      >
       > :pushpin: 配置参考示例 config.example.yaml，示例中行情和交易前置地址，默认配置的是 SimNow 7x24 环境， 更多 SimNow 环境详细信息参考 [SimNow官网](https://www.simnow.com.cn/product.action)、[openctp环境监控](http://121.37.80.177)，可根据需变更为其他支持CTPAPI(官方实现)的柜台环境。
       >
       > :pushpin: SimNow 7x24 环境：
-      > 
+      >
       > <table>
       > <tr>
       > 	<th colspan="3">前置信息</th>
@@ -82,7 +83,7 @@ webctp 是一个基于 ctp 开发的提供 websocket 接口的 CTP 服务。
       > 账户、钱、仓跟第一套环境上一个交易日保持一致。
       >
       > :pushpin:  SimNow 非7x24环境：
-      > 
+      >
       > <table>
       > <tr>
       > 	<th colspan="4">前置信息</th>
@@ -136,10 +137,10 @@ webctp 是一个基于 ctp 开发的提供 websocket 接口的 CTP 服务。
       > 用户注册后，默认的 APPID 为 simnow_client_test，认证码为 0000000000000000（16个0），默认开启终端认证，程序化用户可以选择不开终端认证接入。
       > 交易品种：六所所有期货品种以及上期所、能源中心、中金所、广期所所有期权品种，以及郑商所、大商所部分期权品种。
       > 账户资金：初始资金两千万，支持入金，每日最多三次。
-      > 见 [SimNow官网](https://www.simnow.com.cn/product.action)
-
-   创建自己的行情配置 config_md.yaml :
-
+> 见 [SimNow官网](https://www.simnow.com.cn/product.action)
+   
+创建自己的行情配置 config_md.yaml :
+   
       ```yaml 
    TdFrontAddress: tcp://182.254.243.31:40001 # 交易前置地址
    MdFrontAddress: tcp://182.254.243.31:40011 # 行情前置地址
@@ -149,10 +150,10 @@ webctp 是一个基于 ctp 开发的提供 websocket 接口的 CTP 服务。
    Port: 8080         # the listening port, default 8080
    Host: 127.0.0.1      # the bind ip address, default 127.0.0.1
    LogLevel: INFO     # NOTSET, DEBUG, INFO, WARN, ERROR, CRITICAL
-      ```
-
-   创建自己的交易配置 config_td.yaml :
-
+   ```
+   
+创建自己的交易配置 config_td.yaml :
+   
       ```yaml 
    TdFrontAddress: tcp://182.254.243.31:40001 # 交易前置地址
    MdFrontAddress: tcp://182.254.243.31:40011 # 行情前置地址
