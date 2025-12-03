@@ -1,7 +1,7 @@
 [project]
 name = "webctp"
 version = "0.1.0"
-description = "Homalos webctp"
+description = "WebCTP is a CTP service that provides a WebSocket interface based on the CTP API."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
