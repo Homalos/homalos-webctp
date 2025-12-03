@@ -1,10 +1,10 @@
-import logging
 from typing import Any
 
 import anyio
+
+from clients import CTPMdClient
 from constants import CallError
 from constants import CommonConstant as Constant
-from clients import CTPMdClient
 from .base_client import BaseClient
 
 
