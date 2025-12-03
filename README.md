@@ -34,9 +34,7 @@ homalos-webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP �
    安装 UV，推荐使用 UV
 
    <details>
-   <summary>👈方式一、系统全局安装</summary>
-    
-   推荐此种方式，其他 Python 项目也可以使用 UV 管理。
+   <summary>👈方式一、系统全局安装，推荐此种方式，其他 Python 项目也可以使用 UV 管理。</summary>
     
    在 Windows 系统安装
     
@@ -54,7 +52,7 @@ homalos-webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP �
    <details>
    <summary>👈方式二、在已有 Python 中安装</summary>
     
-   将 UV 安装在已有的 Python 环境中，和上述方式二选一，如果执行了方式一，则方式二直接跳过。此种安装方式的 UV 只能在这一个 Python 环境中使用。
+   和上述方式二选一，如果执行了方式一，则方式二直接跳过。此种安装方式的 UV 只能在这一个 Python 环境中使用。
     
    ```bash
    pip install uv
@@ -63,13 +61,17 @@ homalos-webctp 是一个基于 CTP API 开发的提供 websocket 接口的 CTP �
     
 2. 安装 Python
 
-   **如果在步骤1中选择了全局安装 UV，则需要执行这一步**
+   **如果在步骤1中选择了全局安装 UV，则需要执行这一步，已安装直接跳过**
    
    ```bash
    uv python install 3.13
    ```
    
-   Tips：此种方式是全局安装 Python，与项目中的 Python 环境是隔离的，互不影响
+   <details>
+   <summary>👈Tips</summary>
+   
+   此种方式是全局安装 Python，与项目中的 Python 环境是隔离的，互不影响
+   </details>
    
 3. 克隆项目
 
