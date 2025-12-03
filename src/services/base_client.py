@@ -16,13 +16,13 @@ class BaseClient(ABC):
     """
 
     def __init__(self) -> None:
-        self._rsp_callback: Callable[[dict[str, Any]], None] = None
-        self._task_group: TaskGroup = None
+        self._rsp_callback: Callable[[dict[str, Any]], None] | None = None
+        self._task_group: TaskGroup | None = None
         self._running: bool = False
         self._queue: Queue = Queue()
         self._client = None
         self._client_lock: anyio.Lock = anyio.Lock()
-        self._stop_event: anyio.Event = None
+        self._stop_event: anyio.Event | None = None
         self._call_map: dict[str, Callable[[dict[str, Any]], int]] = {}
    
     @property
@@ -49,7 +49,7 @@ class BaseClient(ABC):
         """
         Start the CTP client with user credentials.
         
-        NOTE: This if clause avoids the following scenario:
+        NOTE: This if-clause avoids the following scenario:
         1. start a background coroutine
         2. start login
         3. login failed

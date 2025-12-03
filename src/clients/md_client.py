@@ -17,11 +17,10 @@ class MdClient(mdapi.CThostFtdcMdSpi):
         self._front_address: str = GlobalConfig.MdFrontAddress
         logging.debug(f"Md front_address: {self._front_address}")
         self._broker_id: str = GlobalConfig.BrokerID
-        # If user_id not provided in the login message, then use a uuid instead.
         self._user_id: str = user_id or str(uuid.uuid4())
         self._password: str = password
-        self._rsp_callback: Callable[[dict[str, Any]], None] = None
-        self._api: mdapi.CThostFtdcMdApi = None
+        self._rsp_callback: Callable[[dict[str, Any]], None] | None = None
+        self._api: mdapi.CThostFtdcMdApi | None = None
         self._connected: bool = False
         # Reconnection control to prevent infinite reconnection loops
         self._reconnect_count: int = 0
@@ -69,7 +68,6 @@ class MdClient(mdapi.CThostFtdcMdSpi):
     def OnFrontConnected(self):
         logging.info("Md client connected")
         # Reconnection control: prevent infinite reconnection loops due to configuration errors
-        # e.g., using openctp library to connect to simnow market server
         current_time = time.time()
         if current_time - self._last_connect_time < self._reconnect_interval:
             self._reconnect_count += 1
@@ -87,8 +85,8 @@ class MdClient(mdapi.CThostFtdcMdSpi):
         self._last_connect_time = current_time
         self.login()
     
-    def OnFrontDisconnected(self, nReason):
-        logging.warning(f"Md client disconnected, error_code={nReason}")
+    def OnFrontDisconnected(self, reason):
+        logging.warning(f"Md client disconnected, error_code={reason}")
     
     def login(self):
         logging.info(f"start to login for {self._user_id}")
@@ -98,118 +96,136 @@ class MdClient(mdapi.CThostFtdcMdSpi):
         req.Password = ""
         return self._api.ReqUserLogin(req, 0)
     
-    def OnRspUserLogin(self, pRspUserLogin: mdapi.CThostFtdcRspUserLoginField, pRspInfo: mdapi.CThostFtdcRspInfoField, nRequestID, bIsLast):
-        if pRspInfo is None or pRspInfo.ErrorID == 0:
+    def OnRspUserLogin(
+            self,
+            rsp_user_login: mdapi.CThostFtdcRspUserLoginField,
+            rsp_info: mdapi.CThostFtdcRspInfoField,
+            request_id,
+            is_last
+    ):
+        if rsp_info is None or rsp_info.ErrorID == 0:
             logging.info("Md client login success")
         else:
             logging.info("Md client login failed, please try again")
         
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspUserLogin, pRspInfo, nRequestID, bIsLast)
+        response = CTPObjectHelper.build_response_dict(Constant.OnRspUserLogin, rsp_info, request_id, is_last)
         response[Constant.RspUserLogin] = {
-            "BrokerID": pRspUserLogin.BrokerID,
-            "CZCETime": pRspUserLogin.CZCETime,
-            "DCETime": pRspUserLogin.DCETime,
-            "FFEXTime": pRspUserLogin.FFEXTime,
-            "FrontID": pRspUserLogin.FrontID,
-            "INETime": pRspUserLogin.INETime,
-            "LoginTime": pRspUserLogin.LoginTime,
-            "MaxOrderRef": pRspUserLogin.MaxOrderRef,
-            "SessionID": pRspUserLogin.SessionID,
-            "SHFETime": pRspUserLogin.SHFETime,
-            "SystemName": pRspUserLogin.SystemName,
-            "SysVersion": pRspUserLogin.SysVersion,
-            "TradingDay": pRspUserLogin.TradingDay,
-            "UserID": pRspUserLogin.UserID
+            "BrokerID": rsp_user_login.BrokerID,
+            "CZCETime": rsp_user_login.CZCETime,
+            "DCETime": rsp_user_login.DCETime,
+            "FFEXTime": rsp_user_login.FFEXTime,
+            "FrontID": rsp_user_login.FrontID,
+            "INETime": rsp_user_login.INETime,
+            "LoginTime": rsp_user_login.LoginTime,
+            "MaxOrderRef": rsp_user_login.MaxOrderRef,
+            "SessionID": rsp_user_login.SessionID,
+            "SHFETime": rsp_user_login.SHFETime,
+            "SystemName": rsp_user_login.SystemName,
+            "SysVersion": rsp_user_login.SysVersion,
+            "TradingDay": rsp_user_login.TradingDay,
+            "UserID": rsp_user_login.UserID
         }
         self.rsp_callback(response)
-    
-    def subscribeMarketData(self, request: dict[str, Any]) -> None:
-        instrumentIds = request[Constant.InstrumentID]
-        instrumentIds = list(map(lambda i: i.encode(), instrumentIds))
-        logging.debug(f"subscribe data for {instrumentIds}")
-        ret = self._api.SubscribeMarketData(instrumentIds, len(instrumentIds))
-        self.method_called(Constant.OnRspSubMarketData, ret)
-    
-    def OnRspSubMarketData(self, pSpecificInstrument: mdapi.CThostFtdcSpecificInstrumentField, pRspInfo, nRequestID, bIsLast):
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspSubMarketData, pRspInfo, nRequestID, bIsLast)
-        if pSpecificInstrument:
+
+    def OnRspSubMarketData(
+            self,
+            specific_instrument: mdapi.CThostFtdcSpecificInstrumentField,
+            rsp_info,
+            request_id,
+            is_last
+    ):
+        response = CTPObjectHelper.build_response_dict(Constant.OnRspSubMarketData, rsp_info, request_id, is_last)
+        if specific_instrument:
             response[Constant.SpecificInstrument] = {
-                Constant.InstrumentID: pSpecificInstrument.InstrumentID
+                Constant.InstrumentID: specific_instrument.InstrumentID
             }
         self.rsp_callback(response)
     
-    def OnRtnDepthMarketData(self, pDepthMarketData: mdapi.CThostFtdcDepthMarketDataField):
-        logging.debug(f"receive depth market data: {pDepthMarketData.InstrumentID}")
-        depthData = {
-            "ActionDay": pDepthMarketData.ActionDay,
-            "AskPrice1": MathHelper.adjust_price(pDepthMarketData.AskPrice1),
-            "AskPrice2": MathHelper.adjust_price(pDepthMarketData.AskPrice2),
-            "AskPrice3": MathHelper.adjust_price(pDepthMarketData.AskPrice3),
-            "AskPrice4": MathHelper.adjust_price(pDepthMarketData.AskPrice4),
-            "AskPrice5": MathHelper.adjust_price(pDepthMarketData.AskPrice5),
-            "AskVolume1": pDepthMarketData.AskVolume1,
-            "AskVolume2": pDepthMarketData.AskVolume2,
-            "AskVolume3": pDepthMarketData.AskVolume3,
-            "AskVolume4": pDepthMarketData.AskVolume4,
-            "AskVolume5": pDepthMarketData.AskVolume5,
-            "AveragePrice": MathHelper.adjust_price(pDepthMarketData.AveragePrice),
-            "BandingLowerPrice": MathHelper.adjust_price(pDepthMarketData.BandingLowerPrice),
-            "BandingUpperPrice": MathHelper.adjust_price(pDepthMarketData.BandingUpperPrice),
-            "BidPrice1": MathHelper.adjust_price(pDepthMarketData.BidPrice1),
-            "BidPrice2": MathHelper.adjust_price(pDepthMarketData.BidPrice2),
-            "BidPrice3": MathHelper.adjust_price(pDepthMarketData.BidPrice3),
-            "BidPrice4": MathHelper.adjust_price(pDepthMarketData.BidPrice4),
-            "BidPrice5": MathHelper.adjust_price( pDepthMarketData.BidPrice5),
-            "BidVolume1": pDepthMarketData.BidVolume1,
-            "BidVolume2": pDepthMarketData.BidVolume2,
-            "BidVolume3": pDepthMarketData.BidVolume3,
-            "BidVolume4": pDepthMarketData.BidVolume4,
-            "BidVolume5": pDepthMarketData.BidVolume5,
-            "ClosePrice": MathHelper.adjust_price(pDepthMarketData.ClosePrice),
-            "CurrDelta": pDepthMarketData.CurrDelta,
-            "ExchangeID": pDepthMarketData.ExchangeID,
-            "ExchangeInstID": pDepthMarketData.ExchangeInstID,
-            "HighestPrice": MathHelper.adjust_price(pDepthMarketData.HighestPrice),
-            "InstrumentID": pDepthMarketData.InstrumentID,
-            "LastPrice": MathHelper.adjust_price(pDepthMarketData.LastPrice),
-            "LowerLimitPrice": MathHelper.adjust_price(pDepthMarketData.LowerLimitPrice),
-            "LowestPrice": MathHelper.adjust_price(pDepthMarketData.LowestPrice),
-            "OpenInterest": pDepthMarketData.OpenInterest,
-            "OpenPrice": MathHelper.adjust_price(pDepthMarketData.OpenPrice),
-            "PreClosePrice": MathHelper.adjust_price(pDepthMarketData.PreClosePrice),
-            "PreDelta": pDepthMarketData.PreDelta,
-            "PreOpenInterest": pDepthMarketData.PreOpenInterest,
-            "PreSettlementPrice": MathHelper.adjust_price(pDepthMarketData.PreSettlementPrice),
-            "SettlementPrice": MathHelper.adjust_price(pDepthMarketData.SettlementPrice),
-            "TradingDay": pDepthMarketData.TradingDay,
-            "Turnover": pDepthMarketData.Turnover,
-            "UpdateMillisec": pDepthMarketData.UpdateMillisec,
-            "UpdateTime": pDepthMarketData.UpdateTime,
-            "UpperLimitPrice": MathHelper.adjust_price(pDepthMarketData.UpperLimitPrice),
-            "Volume": pDepthMarketData.Volume,
-            "reserve1": pDepthMarketData.reserve1,
-            "reserve2": pDepthMarketData.reserve2
+    def OnRtnDepthMarketData(self, depth_marketdata: mdapi.CThostFtdcDepthMarketDataField):
+        logging.debug(f"receive depth market data: {depth_marketdata.InstrumentID}")
+        depth_data = {
+            "ActionDay": depth_marketdata.ActionDay,
+            "AskPrice1": MathHelper.adjust_price(depth_marketdata.AskPrice1),
+            "AskPrice2": MathHelper.adjust_price(depth_marketdata.AskPrice2),
+            "AskPrice3": MathHelper.adjust_price(depth_marketdata.AskPrice3),
+            "AskPrice4": MathHelper.adjust_price(depth_marketdata.AskPrice4),
+            "AskPrice5": MathHelper.adjust_price(depth_marketdata.AskPrice5),
+            "AskVolume1": depth_marketdata.AskVolume1,
+            "AskVolume2": depth_marketdata.AskVolume2,
+            "AskVolume3": depth_marketdata.AskVolume3,
+            "AskVolume4": depth_marketdata.AskVolume4,
+            "AskVolume5": depth_marketdata.AskVolume5,
+            "AveragePrice": MathHelper.adjust_price(depth_marketdata.AveragePrice),
+            "BandingLowerPrice": MathHelper.adjust_price(depth_marketdata.BandingLowerPrice),
+            "BandingUpperPrice": MathHelper.adjust_price(depth_marketdata.BandingUpperPrice),
+            "BidPrice1": MathHelper.adjust_price(depth_marketdata.BidPrice1),
+            "BidPrice2": MathHelper.adjust_price(depth_marketdata.BidPrice2),
+            "BidPrice3": MathHelper.adjust_price(depth_marketdata.BidPrice3),
+            "BidPrice4": MathHelper.adjust_price(depth_marketdata.BidPrice4),
+            "BidPrice5": MathHelper.adjust_price( depth_marketdata.BidPrice5),
+            "BidVolume1": depth_marketdata.BidVolume1,
+            "BidVolume2": depth_marketdata.BidVolume2,
+            "BidVolume3": depth_marketdata.BidVolume3,
+            "BidVolume4": depth_marketdata.BidVolume4,
+            "BidVolume5": depth_marketdata.BidVolume5,
+            "ClosePrice": MathHelper.adjust_price(depth_marketdata.ClosePrice),
+            "CurrDelta": depth_marketdata.CurrDelta,
+            "ExchangeID": depth_marketdata.ExchangeID,
+            "ExchangeInstID": depth_marketdata.ExchangeInstID,
+            "HighestPrice": MathHelper.adjust_price(depth_marketdata.HighestPrice),
+            "InstrumentID": depth_marketdata.InstrumentID,
+            "LastPrice": MathHelper.adjust_price(depth_marketdata.LastPrice),
+            "LowerLimitPrice": MathHelper.adjust_price(depth_marketdata.LowerLimitPrice),
+            "LowestPrice": MathHelper.adjust_price(depth_marketdata.LowestPrice),
+            "OpenInterest": depth_marketdata.OpenInterest,
+            "OpenPrice": MathHelper.adjust_price(depth_marketdata.OpenPrice),
+            "PreClosePrice": MathHelper.adjust_price(depth_marketdata.PreClosePrice),
+            "PreDelta": depth_marketdata.PreDelta,
+            "PreOpenInterest": depth_marketdata.PreOpenInterest,
+            "PreSettlementPrice": MathHelper.adjust_price(depth_marketdata.PreSettlementPrice),
+            "SettlementPrice": MathHelper.adjust_price(depth_marketdata.SettlementPrice),
+            "TradingDay": depth_marketdata.TradingDay,
+            "Turnover": depth_marketdata.Turnover,
+            "UpdateMillisec": depth_marketdata.UpdateMillisec,
+            "UpdateTime": depth_marketdata.UpdateTime,
+            "UpperLimitPrice": MathHelper.adjust_price(depth_marketdata.UpperLimitPrice),
+            "Volume": depth_marketdata.Volume,
+            "reserve1": depth_marketdata.reserve1,
+            "reserve2": depth_marketdata.reserve2
             }
         response = {
             Constant.MessageType: Constant.OnRtnDepthMarketData,
-            Constant.DepthMarketData: depthData
+            Constant.DepthMarketData: depth_data
         }
         self.rsp_callback(response)
 
-    # unsubscribe market data
-    def unSubscribeMarketData(self, request: dict[str, Any]) -> int:
-        instrumentIds = request[Constant.InstrumentID]
-        instrumentIds = list(map(lambda i: i.encode(), instrumentIds))
-        logging.debug(f"unsubscribe data for {instrumentIds}")
-        ret = self._api.UnSubscribeMarketData(instrumentIds, len(instrumentIds))
-        self.method_called(Constant.OnRspUnSubMarketData, ret)
-
     # OnRspUnSubMarketData from CThostFtdcMdSpi
-    def OnRspUnSubMarketData(self, pSpecificInstrument: mdapi.CThostFtdcSpecificInstrumentField, pRspInfo, nRequestID, bIsLast):
+    def OnRspUnSubMarketData(
+            self,
+            specific_instrument: mdapi.CThostFtdcSpecificInstrumentField,
+            rsp_info,
+            request_id,
+            is_last
+    ):
         logging.debug(f"recv unsub market data")
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspUnSubMarketData, pRspInfo, nRequestID, bIsLast)
-        if pSpecificInstrument:
+        response = CTPObjectHelper.build_response_dict(Constant.OnRspUnSubMarketData, rsp_info, request_id, is_last)
+        if specific_instrument:
             response[Constant.SpecificInstrument] = {
-                Constant.InstrumentID: pSpecificInstrument.InstrumentID
+                Constant.InstrumentID: specific_instrument.InstrumentID
             }
         self.rsp_callback(response)
+
+    def subscribe_marketdata(self, request: dict[str, Any]) -> None:
+        instrument_ids = request[Constant.InstrumentID]
+        instrument_ids = list(map(lambda i: i.encode(), instrument_ids))
+        logging.debug(f"subscribe data for {instrument_ids}")
+        ret = self._api.SubscribeMarketData(instrument_ids, len(instrument_ids))
+        self.method_called(Constant.OnRspSubMarketData, ret)
+
+    # unsubscribe market data
+    def unsubscribe_marketdata(self, request: dict[str, Any]) -> None:
+        instrument_ids = request[Constant.InstrumentID]
+        instrument_ids = list(map(lambda i: i.encode(), instrument_ids))
+        logging.debug(f"unsubscribe data for {instrument_ids}")
+        ret = self._api.UnSubscribeMarketData(instrument_ids, len(instrument_ids))
+        self.method_called(Constant.OnRspUnSubMarketData, ret)

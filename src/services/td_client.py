@@ -19,7 +19,7 @@ class TdClient(BaseClient):
 
     def __init__(self) -> None:
         super().__init__()
-        self._client: CTPTdClient = None
+        self._client: CTPTdClient | None = None
 
     def validate_request(self, message_type, data):
         class_ = REQUEST_PAYLOAD.get(message_type)

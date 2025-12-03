@@ -1,5 +1,5 @@
-from openctp import thostmduserapi as mdapi
-from openctp import thosttraderapi as tdapi
+from ..ctp import thostmduserapi as mdapi
+from ..ctp import thosttraderapi as tdapi
 
 with open("./mdapi.txt", "w+") as f:
     for method in dir(mdapi.CThostFtdcMdApi):

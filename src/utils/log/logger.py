@@ -196,7 +196,8 @@ class Logger:
             self.set_trace_id(trace_id)
             try:
                 formatted_message = self._format_message(message, tag)
-                log_func(formatted_message, **kwargs)
+                # 使用 opt(depth=2) 跳过 _log_with_trace 和 debug/info/error 的栈帧，指向实际调用者
+                _logger.opt(depth=2).log(log_func.__name__.upper(), formatted_message, **kwargs)
             finally:
                 # 恢复之前的 trace_id
                 if previous_trace_id:
@@ -205,7 +206,8 @@ class Logger:
                     self.clear_trace_id()
         else:
             formatted_message = self._format_message(message, tag)
-            log_func(formatted_message, **kwargs)
+            # 使用 opt(depth=2) 跳过 _log_with_trace 和 debug/info/error 的栈帧，指向实际调用者
+            _logger.opt(depth=2).log(log_func.__name__.upper(), formatted_message, **kwargs)
     
     def _format_message(self, message: str, tag: Optional[str] = None) -> str:
         """
