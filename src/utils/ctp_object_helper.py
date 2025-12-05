@@ -1,5 +1,3 @@
-import logging
-
 class CTPObjectHelper(object):
 
     exclude_attrs = ["thisown"]
