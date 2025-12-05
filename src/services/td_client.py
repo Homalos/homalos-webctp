@@ -75,20 +75,20 @@ class TdClient(BaseClient):
         return "td"
 
     def _init_call_map(self):
-        self._call_map[Constant.ReqQryInstrument] = self._client.reqQryInstrument
-        self._call_map[Constant.ReqQryExchange] = self._client.ReqQryExchange
-        self._call_map[Constant.ReqQryProduct] = self._client.ReqQryProduct
-        self._call_map[Constant.ReqQryDepthMarketData] = self._client.ReqQryDepthMarketData
-        self._call_map[Constant.ReqQryInvestorPositionDetail] = self._client.ReqQryInvestorPositionDetail
-        self._call_map[Constant.ReqQryExchangeMarginRate] = self._client.ReqQryExchangeMarginRate
-        self._call_map[Constant.ReqQryInstrumentOrderCommRate] = self._client.ReqQryInstrumentOrderCommRate
-        self._call_map[Constant.ReqQryOptionInstrTradeCost] = self._client.ReqQryOptionInstrTradeCost
-        self._call_map[Constant.ReqQryOptionInstrCommRate] = self._client.ReqQryOptionInstrCommRate
-        self._call_map[Constant.ReqQryOrder] = self._client.reqQryOrder
-        self._call_map[Constant.ReqQryMaxOrderVolume] = self._client.reqQryMaxOrderVolume
-        self._call_map[Constant.ReqOrderAction] = self._client.reqOrderAction
-        self._call_map[Constant.ReqOrderInsert] = self._client.reqOrderInsert
-        self._call_map[Constant.ReqUserPasswordUpdate] = self._client.reqUserPasswordUpdate
+        self._call_map[Constant.ReqQryInstrument] = self._client.req_qry_instrument
+        self._call_map[Constant.ReqQryExchange] = self._client.req_qry_exchange
+        self._call_map[Constant.ReqQryProduct] = self._client.req_qry_product
+        self._call_map[Constant.ReqQryDepthMarketData] = self._client.req_qry_depth_marketdata
+        self._call_map[Constant.ReqQryInvestorPositionDetail] = self._client.req_qry_investor_position_detail
+        self._call_map[Constant.ReqQryExchangeMarginRate] = self._client.req_qry_exchange_margin_rate
+        self._call_map[Constant.ReqQryInstrumentOrderCommRate] = self._client.req_qry_instrument_order_comm_rate
+        self._call_map[Constant.ReqQryOptionInstrTradeCost] = self._client.req_qry_option_instr_trade_cost
+        self._call_map[Constant.ReqQryOptionInstrCommRate] = self._client.req_qry_option_instr_comm_rate
+        self._call_map[Constant.ReqQryOrder] = self._client.req_qry_order
+        self._call_map[Constant.ReqQryMaxOrderVolume] = self._client.req_qry_max_order_volume
+        self._call_map[Constant.ReqOrderAction] = self._client.req_order_action
+        self._call_map[Constant.ReqOrderInsert] = self._client.req_order_insert
+        self._call_map[Constant.ReqUserPasswordUpdate] = self._client.req_user_password_update
         self._call_map[Constant.ReqQryTrade] = self._client.reqQryTrade
         self._call_map[Constant.ReqQryInvestorPosition] = self._client.reqQryInvestorPosition
         self._call_map[Constant.ReqQryTradingAccount] = self._client.reqQryTradingAccount

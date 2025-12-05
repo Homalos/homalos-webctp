@@ -1,6 +1,7 @@
 import logging
 from typing import Callable, Any
 
+from .client_helper import build_order_to_dict, build_order_insert_to_dict
 from ..ctp import thosttraderapi as tdapi
 
 from ..constants import CallError
@@ -169,7 +170,7 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
     def OnRspAuthenticate(
             self,
             rsp_authenticate_field: tdapi.CThostFtdcRspAuthenticateField,
-            rsp_info: tdapi.CThostFtdcRspInfoField,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField,
             request_id: int,
             is_last: bool
     ):
@@ -178,19 +179,19 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
 
         Args:
             rsp_authenticate_field: 认证响应字段，包含认证相关信息
-            rsp_info: 响应信息字段，包含错误代码和错误消息
+            rsp_info_field: 响应信息字段，包含错误代码和错误消息
             request_id: 请求ID，用于标识对应的请求
             is_last: 标识是否为该请求的最后一个响应包
 
         Returns:
             None: 此方法无返回值，认证结果通过日志输出和后续操作处理
         """
-        if rsp_info is None or rsp_info.ErrorID == 0:
+        if rsp_info_field is None or rsp_info_field.ErrorID == 0:
             logging.info("authenticate success, start to login")
             self.login()
         else:
             logging.info("authenticate failed, please try again")
-            self.processConnectResult(Constant.OnRspAuthenticate, rsp_info)
+            self.process_connect_result(Constant.OnRspAuthenticate, rsp_info_field)
 
     def login(self):
         """
@@ -211,8 +212,8 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
 
     def OnRspUserLogin(
             self,
-            rsp_user_login: tdapi.CThostFtdcRspUserLoginField,
-            rsp_info: tdapi.CThostFtdcRspInfoField,
+            rsp_user_login_field: tdapi.CThostFtdcRspUserLoginField,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField,
             request_id: int,
             is_last: bool
     ):
@@ -222,23 +223,32 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         当CTP交易接口返回登录响应时被调用，处理登录成功或失败的情况
 
         Args:
-            rsp_user_login: 用户登录响应信息，包含登录结果相关字段
-            rsp_info: 响应信息，包含错误码和错误消息
+            rsp_user_login_field: 用户登录响应信息，包含登录结果相关字段
+            rsp_info_field: 响应信息，包含错误码和错误消息
             request_id: 请求ID，用于标识对应的请求
             is_last: 指示是否为该请求的最后一个响应片段
 
         Returns:
             None: 该回调函数不返回任何值，结果通过异步事件处理
         """
-        if rsp_info is None or rsp_info.ErrorID == 0:
+        if rsp_info_field is None or rsp_info_field.ErrorID == 0:
             logging.info("loging success, start to confirm settlement info")
-            self.settlementConfirm()
-            self.processConnectResult(Constant.OnRspUserLogin, rsp_info, rsp_user_login)
+            self.settlement_confirm()
+            self.process_connect_result(Constant.OnRspUserLogin, rsp_info_field, rsp_user_login_field)
         else:
-            self.processConnectResult(Constant.OnRspUserLogin, rsp_info)
+            self.process_connect_result(Constant.OnRspUserLogin, rsp_info_field)
             logging.info("login failed, please try again")
 
-    def settlementConfirm(self):
+    def settlement_confirm(self):
+        """
+        发送结算单确认请求
+
+        构造并发送结算单确认请求到CTP交易系统，使用当前实例的经纪商ID和用户ID。
+
+        Note:
+            该方法会构造一个CThostFtdcSettlementInfoConfirmField请求对象，
+            并调用CTP API的ReqSettlementInfoConfirm方法发送请求。
+        """
         req = tdapi.CThostFtdcSettlementInfoConfirmField()
         req.BrokerID = self._broker_id
         req.InvestorID = self._user_id
@@ -246,993 +256,955 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
 
     def OnRspQrySettlementInfoConfirm(
             self,
-            pSettlementInfoConfirm: tdapi.CThostFtdcSettlementInfoConfirmField,
-            pRspInfo: tdapi.CThostFtdcRspInfoField,
-            nRequestID: int,
-            bIsLast: bool
+            settlement_info_confirm_field: tdapi.CThostFtdcSettlementInfoConfirmField,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField,
+            request_id: int,
+            is_last: bool
     ):
-        logging.info("confirm settlement info success")
-        if pRspInfo is not None:
-            logging.info(f"settlemnt confirm rsp info, ErrorID: {pRspInfo.ErrorID}, ErrorMsg: {pRspInfo.ErrorMsg}")
+        """
+        查询结算信息确认响应回调函数
 
-    def processConnectResult(
+        当客户端发起查询结算信息确认请求后，服务器返回确认信息时触发此回调
+
+        Args:
+            settlement_info_confirm_field: 结算信息确认字段，包含确认的详细信息
+            rsp_info_field: 响应信息字段，包含错误码和错误消息
+            request_id: 请求ID，用于标识对应的请求
+            is_last: 是否为最后一次响应，True表示这是该请求的最后一次响应
+
+        Returns:
+            None
+        """
+        logging.info("confirm settlement info success")
+        if rsp_info_field is not None:
+            logging.info(f"settlement confirm rsp info, ErrorID: {rsp_info_field.ErrorID}, ErrorMsg: {rsp_info_field.ErrorMsg}")
+
+    def process_connect_result(
             self,
-            messageType: str,
-            pRspInfo: tdapi.CThostFtdcRspInfoField,
-            pRspUserLogin: tdapi.CThostFtdcRspUserLoginField = None
+            message_type: str,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField,
+            rsp_user_login_field: tdapi.CThostFtdcRspUserLoginField = None
     ):
-        response = CTPObjectHelper.build_response_dict(messageType, pRspInfo, 0, True)
-        if pRspUserLogin:
+        """处理CTP交易连接结果回调
+
+        将CTP交易接口的连接结果转换为标准响应格式，并通过回调函数返回。
+
+        Args:
+            message_type: 消息类型标识
+            rsp_info_field: CTP响应信息结构体，包含错误代码和信息
+            rsp_user_login_field: CTP用户登录响应结构体，包含登录相关信息，可选
+
+        Returns:
+            无返回值，通过self.rsp_callback返回处理后的响应数据
+        """
+        response = CTPObjectHelper.build_response_dict(message_type, rsp_info_field, 0, True)
+        if rsp_user_login_field:
             response[Constant.RspUserLogin] = {
-                "TradingDay": pRspUserLogin.TradingDay,
-                "LoginTime": pRspUserLogin.LoginTime,
-                "BrokerID": pRspUserLogin.BrokerID,
-                "UserID": pRspUserLogin.UserID,
-                "SystemName": pRspUserLogin.SystemName,
-                "FrontID": pRspUserLogin.FrontID,
-                "SessionID": pRspUserLogin.SessionID,
-                "MaxOrderRef": pRspUserLogin.MaxOrderRef,
-                "SHFETime": pRspUserLogin.SHFETime,
-                "DCETime": pRspUserLogin.DCETime,
-                "CZCETime": pRspUserLogin.CZCETime,
-                "FFEXTime": pRspUserLogin.FFEXTime,
-                "INETime": pRspUserLogin.INETime
+                "TradingDay": rsp_user_login_field.TradingDay,
+                "LoginTime": rsp_user_login_field.LoginTime,
+                "BrokerID": rsp_user_login_field.BrokerID,
+                "UserID": rsp_user_login_field.UserID,
+                "SystemName": rsp_user_login_field.SystemName,
+                "FrontID": rsp_user_login_field.FrontID,
+                "SessionID": rsp_user_login_field.SessionID,
+                "MaxOrderRef": rsp_user_login_field.MaxOrderRef,
+                "SHFETime": rsp_user_login_field.SHFETime,
+                "DCETime": rsp_user_login_field.DCETime,
+                "CZCETime": rsp_user_login_field.CZCETime,
+                "FFEXTime": rsp_user_login_field.FFEXTime,
+                "INETime": rsp_user_login_field.INETime
             }
 
         self.rsp_callback(response)
 
-    def reqQryInstrument(self, request: dict[str, Any]) -> int:
-        req, requestId = CTPObjectHelper.extract_request(request, Constant.QryInstrument, tdapi.CThostFtdcQryInstrumentField)
-        ret = self._api.ReqQryInstrument(req, requestId)
+    def req_qry_instrument(self, request: dict[str, Any]) -> None:
+        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryInstrument, tdapi.CThostFtdcQryInstrumentField)
+        ret = self._api.ReqQryInstrument(req, request_id)
         self.method_called(Constant.OnRspQryInstrument, ret)
 
-    def OnRspQryInstrument(self, pInstrument: tdapi.CThostFtdcInstrumentField, pRspInfo: tdapi.CThostFtdcRspInfoField, nRequestID: int, bIsLast: bool):
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInstrument, pRspInfo, nRequestID, bIsLast)
-        instrument = {}
-        if pInstrument:
-            instrument = {
-                "InstrumentID": pInstrument.InstrumentID,
-                "ExchangeID": pInstrument.ExchangeID,
-                "InstrumentName": pInstrument.InstrumentName,
-                "ExchangeInstID": pInstrument.ExchangeInstID,
-                "ProductID": pInstrument.ProductID,
-                "ProductClass": pInstrument.ProductClass,
-                "DeliveryYear": pInstrument.DeliveryYear,
-                "DeliveryMonth": pInstrument.DeliveryMonth,
-                "MaxMarketOrderVolume": pInstrument.MaxMarketOrderVolume,
-                "MinMarketOrderVolume": pInstrument.MinMarketOrderVolume,
-                "MaxLimitOrderVolume": pInstrument.MaxLimitOrderVolume,
-                "MinLimitOrderVolume": pInstrument.MinLimitOrderVolume,
-                "VolumeMultiple": pInstrument.VolumeMultiple,
-                "PriceTick": pInstrument.PriceTick,
-                "CreateDate": pInstrument.CreateDate,
-                "OpenDate": pInstrument.OpenDate,
-                "ExpireDate": pInstrument.ExpireDate,
-                "StartDelivDate": pInstrument.StartDelivDate,
-                "EndDelivDate": pInstrument.EndDelivDate,
-                "InstLifePhase": pInstrument.InstLifePhase,
-                "IsTrading": pInstrument.IsTrading,
-                "PositionType": pInstrument.PositionType,
-                "PositionDateType": pInstrument.PositionDateType,
-                "LongMarginRatio": pInstrument.LongMarginRatio,
-                "ShortMarginRatio": pInstrument.ShortMarginRatio,
-                "MaxMarginSideAlgorithm": pInstrument.MaxMarginSideAlgorithm,
-                "UnderlyingInstrID": pInstrument.UnderlyingInstrID,
-                "StrikePrice": pInstrument.StrikePrice,
-                "OptionsType": pInstrument.OptionsType,
-                "UnderlyingMultiple": pInstrument.UnderlyingMultiple,
-                "CombinationType": pInstrument.CombinationType
+    def OnRspQryInstrument(
+            self,
+            instrument_field: tdapi.CThostFtdcInstrumentField,
+            rsp_info: tdapi.CThostFtdcRspInfoField,
+            request_id: int,
+            is_last: bool
+    ):
+        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInstrument, rsp_info, request_id, is_last)
+        rsp_instrument = {}
+        if instrument_field:
+            rsp_instrument = {
+                "InstrumentID": instrument_field.InstrumentID,
+                "ExchangeID": instrument_field.ExchangeID,
+                "InstrumentName": instrument_field.InstrumentName,
+                "ExchangeInstID": instrument_field.ExchangeInstID,
+                "ProductID": instrument_field.ProductID,
+                "ProductClass": instrument_field.ProductClass,
+                "DeliveryYear": instrument_field.DeliveryYear,
+                "DeliveryMonth": instrument_field.DeliveryMonth,
+                "MaxMarketOrderVolume": instrument_field.MaxMarketOrderVolume,
+                "MinMarketOrderVolume": instrument_field.MinMarketOrderVolume,
+                "MaxLimitOrderVolume": instrument_field.MaxLimitOrderVolume,
+                "MinLimitOrderVolume": instrument_field.MinLimitOrderVolume,
+                "VolumeMultiple": instrument_field.VolumeMultiple,
+                "PriceTick": instrument_field.PriceTick,
+                "CreateDate": instrument_field.CreateDate,
+                "OpenDate": instrument_field.OpenDate,
+                "ExpireDate": instrument_field.ExpireDate,
+                "StartDelivDate": instrument_field.StartDelivDate,
+                "EndDelivDate": instrument_field.EndDelivDate,
+                "InstLifePhase": instrument_field.InstLifePhase,
+                "IsTrading": instrument_field.IsTrading,
+                "PositionType": instrument_field.PositionType,
+                "PositionDateType": instrument_field.PositionDateType,
+                "LongMarginRatio": instrument_field.LongMarginRatio,
+                "ShortMarginRatio": instrument_field.ShortMarginRatio,
+                "MaxMarginSideAlgorithm": instrument_field.MaxMarginSideAlgorithm,
+                "UnderlyingInstrID": instrument_field.UnderlyingInstrID,
+                "StrikePrice": instrument_field.StrikePrice,
+                "OptionsType": instrument_field.OptionsType,
+                "UnderlyingMultiple": instrument_field.UnderlyingMultiple,
+                "CombinationType": instrument_field.CombinationType
             }
-        response[Constant.Instrument] = instrument
+        response[Constant.Instrument] = rsp_instrument
         self.rsp_callback(response)
 
-    def ReqQryExchange(self, request: dict[str, Any]) -> int:
-        req, requestId = CTPObjectHelper.extract_request(request, Constant.QryExchange, tdapi.CThostFtdcQryExchangeField)
-        ret = self._api.ReqQryExchange(req, requestId)
+    def req_qry_exchange(self, request: dict[str, Any]) -> None:
+        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryExchange, tdapi.CThostFtdcQryExchangeField)
+        ret = self._api.ReqQryExchange(req, request_id)
         self.method_called(Constant.OnRspQryExchange, ret)
 
-    def OnRspQryExchange(self, pExchange: tdapi.CThostFtdcExchangeField, pRspInfo: tdapi.CThostFtdcRspInfoField, nRequestID: int, bIsLast: bool):
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryExchange, pRspInfo, nRequestID, bIsLast)
+    def OnRspQryExchange(
+            self,
+            exchange_field: tdapi.CThostFtdcExchangeField,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField,
+            request_id: int,
+            is_last: bool
+    ):
+        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryExchange, rsp_info_field, request_id, is_last)
         result = {}
-        if pExchange:
+        if exchange_field:
             result = {
-                "ExchangeID": pExchange.ExchangeID,
-                "ExchangeName": pExchange.ExchangeName,
-                "ExchangeProperty": pExchange.ExchangeProperty
+                "ExchangeID": exchange_field.ExchangeID,
+                "ExchangeName": exchange_field.ExchangeName,
+                "ExchangeProperty": exchange_field.ExchangeProperty
             }
         response[Constant.Exchange] = result
         self.rsp_callback(response)
 
-    def ReqQryProduct(self, request: dict[str, Any]) -> int:
-        req, requestId = CTPObjectHelper.extract_request(request, Constant.QryProduct, tdapi.CThostFtdcQryProductField)
-        ret = self._api.ReqQryProduct(req, requestId)
+    def req_qry_product(self, request: dict[str, Any]) -> None:
+        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryProduct, tdapi.CThostFtdcQryProductField)
+        ret = self._api.ReqQryProduct(req, request_id)
         self.method_called(Constant.OnRspQryProduct, ret)
 
-    def OnRspQryProduct(self, pProduct: tdapi.CThostFtdcProductField, pRspInfo: tdapi.CThostFtdcRspInfoField, nRequestID: int, bIsLast: bool):
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryProduct, pRspInfo, nRequestID, bIsLast)
+    def OnRspQryProduct(
+            self,
+            product_field: tdapi.CThostFtdcProductField,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField,
+            request_id: int,
+            is_last: bool
+    ):
+        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryProduct, rsp_info_field, request_id, is_last)
         result = {}
-        if pProduct:
+        if product_field:
             result = {
-                "CloseDealType": pProduct.CloseDealType,
-                "ExchangeID": pProduct.ExchangeID,
-                "ExchangeProductID": pProduct.ExchangeProductID,
-                "MaxLimitOrderVolume": pProduct.MaxLimitOrderVolume,
-                "MaxMarketOrderVolume": pProduct.MaxMarketOrderVolume,
-                "MinLimitOrderVolume": pProduct.MinLimitOrderVolume,
-                "MinMarketOrderVolume": pProduct.MinMarketOrderVolume,
-                "MortgageFundUseRange": pProduct.MortgageFundUseRange,
-                "OpenLimitControlLevel": pProduct.OpenLimitControlLevel,
-                "OrderFreqControlLevel": pProduct.OrderFreqControlLevel,
-                "PositionDateType": pProduct.PositionDateType,
-                "PositionType": pProduct.PositionType,
-                "PriceTick": pProduct.PriceTick,
-                "ProductClass": pProduct.ProductClass,
-                "ProductID": pProduct.ProductID,
-                "ProductName": pProduct.ProductName,
-                "TradeCurrencyID": pProduct.TradeCurrencyID,
-                "UnderlyingMultiple": pProduct.UnderlyingMultiple,
-                "VolumeMultiple": pProduct.VolumeMultiple
+                "CloseDealType": product_field.CloseDealType,
+                "ExchangeID": product_field.ExchangeID,
+                "ExchangeProductID": product_field.ExchangeProductID,
+                "MaxLimitOrderVolume": product_field.MaxLimitOrderVolume,
+                "MaxMarketOrderVolume": product_field.MaxMarketOrderVolume,
+                "MinLimitOrderVolume": product_field.MinLimitOrderVolume,
+                "MinMarketOrderVolume": product_field.MinMarketOrderVolume,
+                "MortgageFundUseRange": product_field.MortgageFundUseRange,
+                "OpenLimitControlLevel": product_field.OpenLimitControlLevel,
+                "OrderFreqControlLevel": product_field.OrderFreqControlLevel,
+                "PositionDateType": product_field.PositionDateType,
+                "PositionType": product_field.PositionType,
+                "PriceTick": product_field.PriceTick,
+                "ProductClass": product_field.ProductClass,
+                "ProductID": product_field.ProductID,
+                "ProductName": product_field.ProductName,
+                "TradeCurrencyID": product_field.TradeCurrencyID,
+                "UnderlyingMultiple": product_field.UnderlyingMultiple,
+                "VolumeMultiple": product_field.VolumeMultiple
             }
         response[Constant.Product] = result
         self.rsp_callback(response)
 
-    def ReqQryDepthMarketData(self, request: dict[str, Any]) -> int:
-        req, requestId = CTPObjectHelper.extract_request(request, Constant.QryDepthMarketData, tdapi.CThostFtdcQryDepthMarketDataField)
-        ret = self._api.ReqQryDepthMarketData(req, requestId)
+    def req_qry_depth_marketdata(self, request: dict[str, Any]) -> None:
+        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryDepthMarketData, tdapi.CThostFtdcQryDepthMarketDataField)
+        ret = self._api.ReqQryDepthMarketData(req, request_id)
         self.method_called(Constant.OnRspQryDepthMarketData, ret)
 
-    def OnRspQryDepthMarketData(self, pDepthMarketData: tdapi.CThostFtdcDepthMarketDataField, pRspInfo: tdapi.CThostFtdcRspInfoField, nRequestID: int, bIsLast: bool):
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryDepthMarketData, pRspInfo, nRequestID, bIsLast)
+    def OnRspQryDepthMarketData(
+            self,
+            depth_marketdata: tdapi.CThostFtdcDepthMarketDataField,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField,
+            request_id: int,
+            is_last: bool
+    ):
+        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryDepthMarketData, rsp_info_field, request_id, is_last)
         result = {}
-        if pDepthMarketData:
+        if depth_marketdata:
             result = {
-                "ActionDay": pDepthMarketData.ActionDay,
-                "AskPrice1": MathHelper.adjust_price(pDepthMarketData.AskPrice1),
-                "AskPrice2": MathHelper.adjust_price(pDepthMarketData.AskPrice2),
-                "AskPrice3": MathHelper.adjust_price(pDepthMarketData.AskPrice3),
-                "AskPrice4": MathHelper.adjust_price(pDepthMarketData.AskPrice4),
-                "AskPrice5": MathHelper.adjust_price(pDepthMarketData.AskPrice5),
-                "AskVolume1": pDepthMarketData.AskVolume1,
-                "AskVolume2": pDepthMarketData.AskVolume2,
-                "AskVolume3": pDepthMarketData.AskVolume3,
-                "AskVolume4": pDepthMarketData.AskVolume4,
-                "AskVolume5": pDepthMarketData.AskVolume5,
-                "AveragePrice": MathHelper.adjust_price(pDepthMarketData.AveragePrice),
-                "BandingLowerPrice": MathHelper.adjust_price(pDepthMarketData.BandingLowerPrice),
-                "BandingUpperPrice": MathHelper.adjust_price(pDepthMarketData.BandingUpperPrice),
-                "BidPrice1": MathHelper.adjust_price(pDepthMarketData.BidPrice1),
-                "BidPrice2": MathHelper.adjust_price(pDepthMarketData.BidPrice2),
-                "BidPrice3": MathHelper.adjust_price(pDepthMarketData.BidPrice3),
-                "BidPrice4": MathHelper.adjust_price(pDepthMarketData.BidPrice4),
-                "BidPrice5": MathHelper.adjust_price(pDepthMarketData.BidPrice5),
-                "BidVolume1": pDepthMarketData.BidVolume1,
-                "BidVolume2": pDepthMarketData.BidVolume2,
-                "BidVolume3": pDepthMarketData.BidVolume3,
-                "BidVolume4": pDepthMarketData.BidVolume4,
-                "BidVolume5": pDepthMarketData.BidVolume5,
-                "ClosePrice": MathHelper.adjust_price(pDepthMarketData.ClosePrice),
-                "CurrDelta": pDepthMarketData.CurrDelta,
-                "ExchangeID": pDepthMarketData.ExchangeID,
-                "ExchangeInstID": pDepthMarketData.ExchangeInstID,
-                "HighestPrice": MathHelper.adjust_price(pDepthMarketData.HighestPrice),
-                "InstrumentID": pDepthMarketData.InstrumentID,
-                "LastPrice": MathHelper.adjust_price(pDepthMarketData.LastPrice),
-                "LowerLimitPrice": MathHelper.adjust_price(pDepthMarketData.LowerLimitPrice),
-                "LowestPrice": MathHelper.adjust_price(pDepthMarketData.LowestPrice),
-                "OpenInterest": pDepthMarketData.OpenInterest,
-                "OpenPrice": MathHelper.adjust_price(pDepthMarketData.OpenPrice),
-                "PreClosePrice": MathHelper.adjust_price(pDepthMarketData.PreClosePrice),
-                "PreDelta": pDepthMarketData.PreDelta,
-                "PreOpenInterest": pDepthMarketData.PreOpenInterest,
-                "PreSettlementPrice": pDepthMarketData.PreSettlementPrice,
-                "SettlementPrice": MathHelper.adjust_price(pDepthMarketData.SettlementPrice),
-                "TradingDay": pDepthMarketData.TradingDay,
-                "Turnover": pDepthMarketData.Turnover,
-                "UpdateMillisec": pDepthMarketData.UpdateMillisec,
-                "UpdateTime": pDepthMarketData.UpdateTime,
-                "UpperLimitPrice": MathHelper.adjust_price(pDepthMarketData.UpperLimitPrice),
-                "Volume": pDepthMarketData.Volume
+                "ActionDay": depth_marketdata.ActionDay,
+                "AskPrice1": MathHelper.adjust_price(depth_marketdata.AskPrice1),
+                "AskPrice2": MathHelper.adjust_price(depth_marketdata.AskPrice2),
+                "AskPrice3": MathHelper.adjust_price(depth_marketdata.AskPrice3),
+                "AskPrice4": MathHelper.adjust_price(depth_marketdata.AskPrice4),
+                "AskPrice5": MathHelper.adjust_price(depth_marketdata.AskPrice5),
+                "AskVolume1": depth_marketdata.AskVolume1,
+                "AskVolume2": depth_marketdata.AskVolume2,
+                "AskVolume3": depth_marketdata.AskVolume3,
+                "AskVolume4": depth_marketdata.AskVolume4,
+                "AskVolume5": depth_marketdata.AskVolume5,
+                "AveragePrice": MathHelper.adjust_price(depth_marketdata.AveragePrice),
+                "BandingLowerPrice": MathHelper.adjust_price(depth_marketdata.BandingLowerPrice),
+                "BandingUpperPrice": MathHelper.adjust_price(depth_marketdata.BandingUpperPrice),
+                "BidPrice1": MathHelper.adjust_price(depth_marketdata.BidPrice1),
+                "BidPrice2": MathHelper.adjust_price(depth_marketdata.BidPrice2),
+                "BidPrice3": MathHelper.adjust_price(depth_marketdata.BidPrice3),
+                "BidPrice4": MathHelper.adjust_price(depth_marketdata.BidPrice4),
+                "BidPrice5": MathHelper.adjust_price(depth_marketdata.BidPrice5),
+                "BidVolume1": depth_marketdata.BidVolume1,
+                "BidVolume2": depth_marketdata.BidVolume2,
+                "BidVolume3": depth_marketdata.BidVolume3,
+                "BidVolume4": depth_marketdata.BidVolume4,
+                "BidVolume5": depth_marketdata.BidVolume5,
+                "ClosePrice": MathHelper.adjust_price(depth_marketdata.ClosePrice),
+                "CurrDelta": depth_marketdata.CurrDelta,
+                "ExchangeID": depth_marketdata.ExchangeID,
+                "ExchangeInstID": depth_marketdata.ExchangeInstID,
+                "HighestPrice": MathHelper.adjust_price(depth_marketdata.HighestPrice),
+                "InstrumentID": depth_marketdata.InstrumentID,
+                "LastPrice": MathHelper.adjust_price(depth_marketdata.LastPrice),
+                "LowerLimitPrice": MathHelper.adjust_price(depth_marketdata.LowerLimitPrice),
+                "LowestPrice": MathHelper.adjust_price(depth_marketdata.LowestPrice),
+                "OpenInterest": depth_marketdata.OpenInterest,
+                "OpenPrice": MathHelper.adjust_price(depth_marketdata.OpenPrice),
+                "PreClosePrice": MathHelper.adjust_price(depth_marketdata.PreClosePrice),
+                "PreDelta": depth_marketdata.PreDelta,
+                "PreOpenInterest": depth_marketdata.PreOpenInterest,
+                "PreSettlementPrice": depth_marketdata.PreSettlementPrice,
+                "SettlementPrice": MathHelper.adjust_price(depth_marketdata.SettlementPrice),
+                "TradingDay": depth_marketdata.TradingDay,
+                "Turnover": depth_marketdata.Turnover,
+                "UpdateMillisec": depth_marketdata.UpdateMillisec,
+                "UpdateTime": depth_marketdata.UpdateTime,
+                "UpperLimitPrice": MathHelper.adjust_price(depth_marketdata.UpperLimitPrice),
+                "Volume": depth_marketdata.Volume
             }
         response[Constant.DepthMarketData] = result
         self.rsp_callback(response)
 
-    def ReqQryInvestorPositionDetail(self, request: dict[str, Any]) -> int:
-        req, requestId = CTPObjectHelper.extract_request(request, Constant.QryInvestorPositionDetail, tdapi.CThostFtdcQryInvestorPositionDetailField)
-        ret = self._api.ReqQryInvestorPositionDetail(req, requestId)
+    def req_qry_investor_position_detail(self, request: dict[str, Any]) -> None:
+        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryInvestorPositionDetail, tdapi.CThostFtdcQryInvestorPositionDetailField)
+        ret = self._api.ReqQryInvestorPositionDetail(req, request_id)
         self.method_called(Constant.OnRspQryInvestorPositionDetail, ret)
 
-    def OnRspQryInvestorPositionDetail(self, pInvestorPositionDetail: tdapi.CThostFtdcInvestorPositionDetailField, pRspInfo: tdapi.CThostFtdcRspInfoField, nRequestID: int, bIsLast: bool):
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInvestorPositionDetail, pRspInfo, nRequestID, bIsLast)
+    def OnRspQryInvestorPositionDetail(
+            self,
+            investor_position_detail_field: tdapi.CThostFtdcInvestorPositionDetailField,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField,
+            request_id: int,
+            is_last: bool
+    ):
+        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInvestorPositionDetail, rsp_info_field, request_id, is_last)
         result = {}
-        if pInvestorPositionDetail:
+        if investor_position_detail_field:
             result = {
-                "BrokerID": pInvestorPositionDetail.BrokerID,
-                "CloseAmount": pInvestorPositionDetail.CloseAmount,
-                "CloseProfitByDate": pInvestorPositionDetail.CloseProfitByDate,
-                "CloseProfitByTrade": pInvestorPositionDetail.CloseProfitByTrade,
-                "CloseVolume": pInvestorPositionDetail.CloseVolume,
-                "CombInstrumentID": pInvestorPositionDetail.CombInstrumentID,
-                "Direction": pInvestorPositionDetail.Direction,
-                "ExchMargin": pInvestorPositionDetail.ExchMargin,
-                "ExchangeID": pInvestorPositionDetail.ExchangeID,
-                "HedgeFlag": pInvestorPositionDetail.HedgeFlag,
-                "InstrumentID": pInvestorPositionDetail.InstrumentID,
-                "InvestUnitID": pInvestorPositionDetail.InvestUnitID,
-                "InvestorID": pInvestorPositionDetail.InvestorID,
-                "LastSettlementPrice": pInvestorPositionDetail.LastSettlementPrice,
-                "Margin": pInvestorPositionDetail.Margin,
-                "MarginRateByMoney": pInvestorPositionDetail.MarginRateByMoney,
-                "MarginRateByVolume": pInvestorPositionDetail.MarginRateByVolume,
-                "OpenDate": pInvestorPositionDetail.OpenDate,
-                "OpenPrice": pInvestorPositionDetail.OpenPrice,
-                "PositionProfitByDate": pInvestorPositionDetail.PositionProfitByDate,
-                "PositionProfitByTrade": pInvestorPositionDetail.PositionProfitByTrade,
-                "SettlementID": pInvestorPositionDetail.SettlementID,
-                "SettlementPrice": pInvestorPositionDetail.SettlementPrice,
-                "SpecPosiType": pInvestorPositionDetail.SpecPosiType,
-                "TimeFirstVolume": pInvestorPositionDetail.TimeFirstVolume,
-                "TradeID": pInvestorPositionDetail.TradeID,
-                "TradeType": pInvestorPositionDetail.TradeType,
-                "TradingDay": pInvestorPositionDetail.TradingDay,
-                "Volume": pInvestorPositionDetail.Volume
+                "BrokerID": investor_position_detail_field.BrokerID,
+                "CloseAmount": investor_position_detail_field.CloseAmount,
+                "CloseProfitByDate": investor_position_detail_field.CloseProfitByDate,
+                "CloseProfitByTrade": investor_position_detail_field.CloseProfitByTrade,
+                "CloseVolume": investor_position_detail_field.CloseVolume,
+                "CombInstrumentID": investor_position_detail_field.CombInstrumentID,
+                "Direction": investor_position_detail_field.Direction,
+                "ExchMargin": investor_position_detail_field.ExchMargin,
+                "ExchangeID": investor_position_detail_field.ExchangeID,
+                "HedgeFlag": investor_position_detail_field.HedgeFlag,
+                "InstrumentID": investor_position_detail_field.InstrumentID,
+                "InvestUnitID": investor_position_detail_field.InvestUnitID,
+                "InvestorID": investor_position_detail_field.InvestorID,
+                "LastSettlementPrice": investor_position_detail_field.LastSettlementPrice,
+                "Margin": investor_position_detail_field.Margin,
+                "MarginRateByMoney": investor_position_detail_field.MarginRateByMoney,
+                "MarginRateByVolume": investor_position_detail_field.MarginRateByVolume,
+                "OpenDate": investor_position_detail_field.OpenDate,
+                "OpenPrice": investor_position_detail_field.OpenPrice,
+                "PositionProfitByDate": investor_position_detail_field.PositionProfitByDate,
+                "PositionProfitByTrade": investor_position_detail_field.PositionProfitByTrade,
+                "SettlementID": investor_position_detail_field.SettlementID,
+                "SettlementPrice": investor_position_detail_field.SettlementPrice,
+                "SpecPosiType": investor_position_detail_field.SpecPosiType,
+                "TimeFirstVolume": investor_position_detail_field.TimeFirstVolume,
+                "TradeID": investor_position_detail_field.TradeID,
+                "TradeType": investor_position_detail_field.TradeType,
+                "TradingDay": investor_position_detail_field.TradingDay,
+                "Volume": investor_position_detail_field.Volume
             }
         response[Constant.InvestorPositionDetail] = result
         self.rsp_callback(response)
 
-    def ReqQryExchangeMarginRate(self, request: dict[str, Any]) -> int:
-        req, requestId = CTPObjectHelper.extract_request(request, Constant.QryExchangeMarginRate, tdapi.CThostFtdcQryExchangeMarginRateField)
-        ret = self._api.ReqQryExchangeMarginRate(req, requestId)
+    def req_qry_exchange_margin_rate(self, request: dict[str, Any]) -> None:
+        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryExchangeMarginRate, tdapi.CThostFtdcQryExchangeMarginRateField)
+        ret = self._api.ReqQryExchangeMarginRate(req, request_id)
         self.method_called(Constant.OnRspQryExchangeMarginRate, ret)
 
-    def OnRspQryExchangeMarginRate(self, pExchangeMarginRate: tdapi.CThostFtdcExchangeMarginRateField, pRspInfo: tdapi.CThostFtdcRspInfoField, nRequestID: int, bIsLast: bool):
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryExchangeMarginRate, pRspInfo, nRequestID, bIsLast)
+    def OnRspQryExchangeMarginRate(
+            self,
+            exchange_margin_rate_field: tdapi.CThostFtdcExchangeMarginRateField,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField,
+            request_id: int,
+            is_last: bool
+    ):
+        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryExchangeMarginRate, rsp_info_field, request_id, is_last)
         result = {}
-        if pExchangeMarginRate:
+        if exchange_margin_rate_field:
             result = {
-                "BrokerID": pExchangeMarginRate.BrokerID,
-                "ExchangeID": pExchangeMarginRate.ExchangeID,
-                "HedgeFlag": pExchangeMarginRate.HedgeFlag,
-                "InstrumentID": pExchangeMarginRate.InstrumentID,
-                "LongMarginRatioByMoney": pExchangeMarginRate.LongMarginRatioByMoney,
-                "LongMarginRatioByVolume": pExchangeMarginRate.LongMarginRatioByVolume,
-                "ShortMarginRatioByMoney": pExchangeMarginRate.ShortMarginRatioByMoney,
-                "ShortMarginRatioByVolume": pExchangeMarginRate.ShortMarginRatioByVolume
+                "BrokerID": exchange_margin_rate_field.BrokerID,
+                "ExchangeID": exchange_margin_rate_field.ExchangeID,
+                "HedgeFlag": exchange_margin_rate_field.HedgeFlag,
+                "InstrumentID": exchange_margin_rate_field.InstrumentID,
+                "LongMarginRatioByMoney": exchange_margin_rate_field.LongMarginRatioByMoney,
+                "LongMarginRatioByVolume": exchange_margin_rate_field.LongMarginRatioByVolume,
+                "ShortMarginRatioByMoney": exchange_margin_rate_field.ShortMarginRatioByMoney,
+                "ShortMarginRatioByVolume": exchange_margin_rate_field.ShortMarginRatioByVolume
             }
         response[Constant.ExchangeMarginRate] = result
         self.rsp_callback(response)
 
-    def ReqQryInstrumentOrderCommRate(self, request: dict[str, Any]) -> int:
-        req, requestId = CTPObjectHelper.extract_request(request, Constant.QryInstrumentOrderCommRate, tdapi.CThostFtdcQryInstrumentOrderCommRateField)
-        ret = self._api.ReqQryInstrumentOrderCommRate(req, requestId)
+    def req_qry_instrument_order_comm_rate(self, request: dict[str, Any]) -> None:
+        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryInstrumentOrderCommRate, tdapi.CThostFtdcQryInstrumentOrderCommRateField)
+        ret = self._api.ReqQryInstrumentOrderCommRate(req, request_id)
         self.method_called(Constant.OnRspQryInstrumentOrderCommRate, ret)
 
-    def OnRspQryInstrumentOrderCommRate(self, pInstrumentOrderCommRate: tdapi.CThostFtdcInstrumentOrderCommRateField, pRspInfo: tdapi.CThostFtdcRspInfoField, nRequestID: int, bIsLast: bool):
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInstrumentOrderCommRate, pRspInfo, nRequestID, bIsLast)
+    def OnRspQryInstrumentOrderCommRate(
+            self,
+            instrument_order_comm_rate_field: tdapi.CThostFtdcInstrumentOrderCommRateField,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField,
+            request_id: int,
+            is_last: bool
+    ):
+        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInstrumentOrderCommRate, rsp_info_field, request_id, is_last)
         result = {}
-        if pInstrumentOrderCommRate:
+        if instrument_order_comm_rate_field:
             result = {
-                "BrokerID": pInstrumentOrderCommRate.BrokerID,
-                "ExchangeID": pInstrumentOrderCommRate.ExchangeID,
-                "HedgeFlag": pInstrumentOrderCommRate.HedgeFlag,
-                "InstrumentID": pInstrumentOrderCommRate.InstrumentID,
-                "InvestUnitID": pInstrumentOrderCommRate.InvestUnitID,
-                "InvestorID": pInstrumentOrderCommRate.InvestorID,
-                "InvestorRange": pInstrumentOrderCommRate.InvestorRange,
-                "OrderActionCommByTrade": pInstrumentOrderCommRate.OrderActionCommByTrade,
-                "OrderActionCommByVolume": pInstrumentOrderCommRate.OrderActionCommByVolume,
-                "OrderCommByTrade": pInstrumentOrderCommRate.OrderCommByTrade,
-                "OrderCommByVolume": pInstrumentOrderCommRate.OrderCommByVolume
+                "BrokerID": instrument_order_comm_rate_field.BrokerID,
+                "ExchangeID": instrument_order_comm_rate_field.ExchangeID,
+                "HedgeFlag": instrument_order_comm_rate_field.HedgeFlag,
+                "InstrumentID": instrument_order_comm_rate_field.InstrumentID,
+                "InvestUnitID": instrument_order_comm_rate_field.InvestUnitID,
+                "InvestorID": instrument_order_comm_rate_field.InvestorID,
+                "InvestorRange": instrument_order_comm_rate_field.InvestorRange,
+                "OrderActionCommByTrade": instrument_order_comm_rate_field.OrderActionCommByTrade,
+                "OrderActionCommByVolume": instrument_order_comm_rate_field.OrderActionCommByVolume,
+                "OrderCommByTrade": instrument_order_comm_rate_field.OrderCommByTrade,
+                "OrderCommByVolume": instrument_order_comm_rate_field.OrderCommByVolume
             }
         response[Constant.InstrumentOrderCommRate] = result
         self.rsp_callback(response)
 
-    def ReqQryOptionInstrTradeCost(self, request: dict[str, Any]) -> int:
-        req, requestId = CTPObjectHelper.extract_request(request, Constant.QryOptionInstrTradeCost, tdapi.CThostFtdcQryOptionInstrTradeCostField)
-        ret = self._api.ReqQryOptionInstrTradeCost(req, requestId)
+    def req_qry_option_instr_trade_cost(self, request: dict[str, Any]) -> None:
+        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryOptionInstrTradeCost, tdapi.CThostFtdcQryOptionInstrTradeCostField)
+        ret = self._api.ReqQryOptionInstrTradeCost(req, request_id)
         self.method_called(Constant.OnRspQryOptionInstrTradeCost, ret)
 
-    def OnRspQryOptionInstrTradeCost(self, pOptionInstrTradeCost: tdapi.CThostFtdcOptionInstrTradeCostField, pRspInfo: tdapi.CThostFtdcRspInfoField, nRequestID: int, bIsLast: bool):
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryOptionInstrTradeCost, pRspInfo, nRequestID, bIsLast)
+    def OnRspQryOptionInstrTradeCost(
+            self,
+            option_instr_trade_cost_field: tdapi.CThostFtdcOptionInstrTradeCostField,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField,
+            request_id: int,
+            is_last: bool
+    ):
+        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryOptionInstrTradeCost, rsp_info_field, request_id, is_last)
         result = {}
-        if pOptionInstrTradeCost:
+        if option_instr_trade_cost_field:
             result = {
-                "BrokerID": pOptionInstrTradeCost.BrokerID,
-                "ExchFixedMargin": pOptionInstrTradeCost.ExchFixedMargin,
-                "ExchMiniMargin": pOptionInstrTradeCost.ExchMiniMargin,
-                "ExchangeID": pOptionInstrTradeCost.ExchangeID,
-                "FixedMargin": pOptionInstrTradeCost.FixedMargin,
-                "HedgeFlag": pOptionInstrTradeCost.HedgeFlag,
-                "InstrumentID": pOptionInstrTradeCost.InstrumentID,
-                "InvestUnitID": pOptionInstrTradeCost.InvestUnitID,
-                "InvestorID": pOptionInstrTradeCost.InvestorID,
-                "MiniMargin": pOptionInstrTradeCost.MiniMargin,
-                "Royalty": pOptionInstrTradeCost.Royalty
+                "BrokerID": option_instr_trade_cost_field.BrokerID,
+                "ExchFixedMargin": option_instr_trade_cost_field.ExchFixedMargin,
+                "ExchMiniMargin": option_instr_trade_cost_field.ExchMiniMargin,
+                "ExchangeID": option_instr_trade_cost_field.ExchangeID,
+                "FixedMargin": option_instr_trade_cost_field.FixedMargin,
+                "HedgeFlag": option_instr_trade_cost_field.HedgeFlag,
+                "InstrumentID": option_instr_trade_cost_field.InstrumentID,
+                "InvestUnitID": option_instr_trade_cost_field.InvestUnitID,
+                "InvestorID": option_instr_trade_cost_field.InvestorID,
+                "MiniMargin": option_instr_trade_cost_field.MiniMargin,
+                "Royalty": option_instr_trade_cost_field.Royalty
             }
         response[Constant.OptionInstrTradeCost] = result
         self.rsp_callback(response)
 
-    def ReqQryOptionInstrCommRate(self, request: dict[str, Any]) -> int:
-        req, requestId = CTPObjectHelper.extract_request(request, Constant.QryOptionInstrCommRate, tdapi.CThostFtdcQryOptionInstrCommRateField)
-        ret = self._api.ReqQryOptionInstrCommRate(req, requestId)
+    def req_qry_option_instr_comm_rate(self, request: dict[str, Any]) -> None:
+        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryOptionInstrCommRate, tdapi.CThostFtdcQryOptionInstrCommRateField)
+        ret = self._api.ReqQryOptionInstrCommRate(req, request_id)
         self.method_called(Constant.OnRspQryOptionInstrCommRate, ret)
 
-    def OnRspQryOptionInstrCommRate(self, pOptionInstrCommRate: tdapi.CThostFtdcOptionInstrCommRateField, pRspInfo: tdapi.CThostFtdcRspInfoField, nRequestID: int, bIsLast: bool):
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryOptionInstrCommRate, pRspInfo, nRequestID, bIsLast)
+    def OnRspQryOptionInstrCommRate(
+            self,
+            option_instr_comm_rate_field: tdapi.CThostFtdcOptionInstrCommRateField,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField,
+            request_id: int,
+            is_last: bool
+    ):
+        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryOptionInstrCommRate, rsp_info_field, request_id, is_last)
         result = {}
-        if pOptionInstrCommRate:
+        if option_instr_comm_rate_field:
             result = {
-                "InvestorRange": pOptionInstrCommRate.InvestorRange,
-                "BrokerID": pOptionInstrCommRate.BrokerID,
-                "InvestorID": pOptionInstrCommRate.InvestorID,
-                "OpenRatioByMoney": pOptionInstrCommRate.OpenRatioByMoney,
-                "OpenRatioByVolume": pOptionInstrCommRate.OpenRatioByVolume,
-                "CloseRatioByMoney": pOptionInstrCommRate.CloseRatioByMoney,
-                "CloseRatioByVolume": pOptionInstrCommRate.CloseRatioByVolume,
-                "CloseTodayRatioByMoney": pOptionInstrCommRate.CloseTodayRatioByMoney,
-                "CloseTodayRatioByVolume": pOptionInstrCommRate.CloseTodayRatioByVolume,
-                "StrikeRatioByMoney": pOptionInstrCommRate.StrikeRatioByMoney,
-                "StrikeRatioByVolume": pOptionInstrCommRate.StrikeRatioByVolume,
-                "ExchangeID": pOptionInstrCommRate.ExchangeID,
-                "InvestUnitID": pOptionInstrCommRate.InvestUnitID,
-                "InstrumentID": pOptionInstrCommRate.InstrumentID
+                "InvestorRange": option_instr_comm_rate_field.InvestorRange,
+                "BrokerID": option_instr_comm_rate_field.BrokerID,
+                "InvestorID": option_instr_comm_rate_field.InvestorID,
+                "OpenRatioByMoney": option_instr_comm_rate_field.OpenRatioByMoney,
+                "OpenRatioByVolume": option_instr_comm_rate_field.OpenRatioByVolume,
+                "CloseRatioByMoney": option_instr_comm_rate_field.CloseRatioByMoney,
+                "CloseRatioByVolume": option_instr_comm_rate_field.CloseRatioByVolume,
+                "CloseTodayRatioByMoney": option_instr_comm_rate_field.CloseTodayRatioByMoney,
+                "CloseTodayRatioByVolume": option_instr_comm_rate_field.CloseTodayRatioByVolume,
+                "StrikeRatioByMoney": option_instr_comm_rate_field.StrikeRatioByMoney,
+                "StrikeRatioByVolume": option_instr_comm_rate_field.StrikeRatioByVolume,
+                "ExchangeID": option_instr_comm_rate_field.ExchangeID,
+                "InvestUnitID": option_instr_comm_rate_field.InvestUnitID,
+                "InstrumentID": option_instr_comm_rate_field.InstrumentID
             }
         response[Constant.OptionInstrCommRate] = result
         self.rsp_callback(response)
 
-    # ReqUserPasswordUpdate
-    def reqUserPasswordUpdate(self, request: dict[str, Any]) -> None:
-        req, requestId = CTPObjectHelper.extract_request(request, Constant.UserPasswordUpdate, tdapi.CThostFtdcUserPasswordUpdateField)
-        ret = self._api.ReqUserPasswordUpdate(req, requestId)
+    def req_user_password_update(self, request: dict[str, Any]) -> None:
+        req, request_id = CTPObjectHelper.extract_request(request, Constant.UserPasswordUpdate, tdapi.CThostFtdcUserPasswordUpdateField)
+        ret = self._api.ReqUserPasswordUpdate(req, request_id)
         self.method_called(Constant.OnRspUserPasswordUpdate, ret)
 
-    def OnRspUserPasswordUpdate(self, pUserPasswordUpdate: tdapi.CThostFtdcUserPasswordUpdateField, pRspInfo: tdapi.CThostFtdcRspInfoField, nRequestID: int, bIsLast: bool):
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspUserPasswordUpdate, pRspInfo, nRequestID, bIsLast)
-        userPasswordUpdate = None
-        if pUserPasswordUpdate:
-            userPasswordUpdate = {
-                "BrokerID": pUserPasswordUpdate.BrokerID,
-                "UserID": pUserPasswordUpdate.UserID,
-                "OldPassword": pUserPasswordUpdate.OldPassword,
-                "NewPassword": pUserPasswordUpdate.NewPassword
+    def OnRspUserPasswordUpdate(
+            self,
+            user_password_update_field: tdapi.CThostFtdcUserPasswordUpdateField,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField,
+            request_id: int,
+            is_last: bool
+    ):
+        response = CTPObjectHelper.build_response_dict(Constant.OnRspUserPasswordUpdate, rsp_info_field, request_id, is_last)
+        user_password_update = None
+        if user_password_update_field:
+            user_password_update = {
+                "BrokerID": user_password_update_field.BrokerID,
+                "UserID": user_password_update_field.UserID,
+                "OldPassword": user_password_update_field.OldPassword,
+                "NewPassword": user_password_update_field.NewPassword
             }
-        response[Constant.UserPasswordUpdate] = userPasswordUpdate
+        response[Constant.UserPasswordUpdate] = user_password_update
         self.rsp_callback(response)
 
-    def reqOrderInsert(self, request: dict[str, Any]) -> None:
-        req, requestId = CTPObjectHelper.extract_request(request, Constant.InputOrder, tdapi.CThostFtdcInputOrderField)
-        ret = self._api.ReqOrderInsert(req, requestId)
+    def req_order_insert(self, request: dict[str, Any]) -> None:
+        req, request_id = CTPObjectHelper.extract_request(request, Constant.InputOrder, tdapi.CThostFtdcInputOrderField)
+        ret = self._api.ReqOrderInsert(req, request_id)
         self.method_called(Constant.OnRspOrderInsert, ret)
 
-    def OnRspOrderInsert(self, pInputOrder: tdapi.CThostFtdcInputOrderField, pRspInfo: tdapi.CThostFtdcRspInfoField, nRequestID: int, bIsLast: bool):
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspOrderInsert, pRspInfo, nRequestID, bIsLast)
-        inputOrder = None
-        if pInputOrder:
-            inputOrder = {
-                "BrokerID": pInputOrder.BrokerID,
-                "InvestorID": pInputOrder.InvestorID,
-                "OrderRef": pInputOrder.OrderRef,
-                "UserID": pInputOrder.UserID,
-                "OrderPriceType": pInputOrder.OrderPriceType,
-                "Direction": pInputOrder.Direction,
-                "CombOffsetFlag": pInputOrder.CombOffsetFlag,
-                "CombHedgeFlag": pInputOrder.CombHedgeFlag,
-                "LimitPrice": pInputOrder.LimitPrice,
-                "VolumeTotalOriginal": pInputOrder.VolumeTotalOriginal,
-                "TimeCondition": pInputOrder.TimeCondition,
-                "GTDDate": pInputOrder.GTDDate,
-                "VolumeCondition": pInputOrder.VolumeCondition,
-                "MinVolume": pInputOrder.MinVolume,
-                "ContingentCondition": pInputOrder.ContingentCondition,
-                "StopPrice": pInputOrder.StopPrice,
-                "ForceCloseReason": pInputOrder.ForceCloseReason,
-                "IsAutoSuspend": pInputOrder.IsAutoSuspend,
-                "BusinessUnit": pInputOrder.BusinessUnit,
-                "RequestID": pInputOrder.RequestID,
-                "UserForceClose": pInputOrder.UserForceClose,
-                "IsSwapOrder": pInputOrder.IsSwapOrder,
-                "ExchangeID": pInputOrder.ExchangeID,
-                "InvestUnitID": pInputOrder.InvestUnitID,
-                "AccountID": pInputOrder.AccountID,
-                "CurrencyID": pInputOrder.CurrencyID,
-                "ClientID": pInputOrder.ClientID,
-                "MacAddress": pInputOrder.MacAddress,
-                "InstrumentID": pInputOrder.InstrumentID,
-                "IPAddress": pInputOrder.IPAddress
-            }
-        response[Constant.InputOrder] = inputOrder
+    def OnRspOrderInsert(
+            self,
+            input_order_field: tdapi.CThostFtdcInputOrderField,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField,
+            request_id: int,
+            is_last: bool
+    ):
+        response = CTPObjectHelper.build_response_dict(Constant.OnRspOrderInsert, rsp_info_field, request_id, is_last)
+        order_insert = {}
+        if input_order_field:
+            order_insert = build_order_insert_to_dict(input_order_field)
+        response[Constant.InputOrder] = order_insert
         self.rsp_callback(response)
 
-    def OnErrRtnOrderInsert(self, pInputOrder: tdapi.CThostFtdcInputOrderField, pRspInfo: tdapi.CThostFtdcRspInfoField):
-        response = CTPObjectHelper.build_response_dict(Constant.OnErrRtnOrderInsert, pRspInfo)
-        inputOrder = None
-        if pInputOrder:
-            inputOrder = {
-                "BrokerID": pInputOrder.BrokerID,
-                "InvestorID": pInputOrder.InvestorID,
-                "OrderRef": pInputOrder.OrderRef,
-                "UserID": pInputOrder.UserID,
-                "OrderPriceType": pInputOrder.OrderPriceType,
-                "Direction": pInputOrder.Direction,
-                "CombOffsetFlag": pInputOrder.CombOffsetFlag,
-                "CombHedgeFlag": pInputOrder.CombHedgeFlag,
-                "LimitPrice": pInputOrder.LimitPrice,
-                "VolumeTotalOriginal": pInputOrder.VolumeTotalOriginal,
-                "TimeCondition": pInputOrder.TimeCondition,
-                "GTDDate": pInputOrder.GTDDate,
-                "VolumeCondition": pInputOrder.VolumeCondition,
-                "MinVolume": pInputOrder.MinVolume,
-                "ContingentCondition": pInputOrder.ContingentCondition,
-                "StopPrice": pInputOrder.StopPrice,
-                "ForceCloseReason": pInputOrder.ForceCloseReason,
-                "IsAutoSuspend": pInputOrder.IsAutoSuspend,
-                "BusinessUnit": pInputOrder.BusinessUnit,
-                "RequestID": pInputOrder.RequestID,
-                "UserForceClose": pInputOrder.UserForceClose,
-                "IsSwapOrder": pInputOrder.IsSwapOrder,
-                "ExchangeID": pInputOrder.ExchangeID,
-                "InvestUnitID": pInputOrder.InvestUnitID,
-                "AccountID": pInputOrder.AccountID,
-                "CurrencyID": pInputOrder.CurrencyID,
-                "ClientID": pInputOrder.ClientID,
-                "MacAddress": pInputOrder.MacAddress,
-                "InstrumentID": pInputOrder.InstrumentID,
-                "IPAddress": pInputOrder.IPAddress
-            }
-        response[Constant.InputOrder] = inputOrder
+    def OnErrRtnOrderInsert(
+            self,
+            input_order_field: tdapi.CThostFtdcInputOrderField,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField
+    ):
+        response = CTPObjectHelper.build_response_dict(Constant.OnErrRtnOrderInsert, rsp_info_field)
+        err_rtn_order_insert = {}
+        if input_order_field:
+            err_rtn_order_insert = build_order_insert_to_dict(input_order_field)
+        response[Constant.InputOrder] = err_rtn_order_insert
         self.rsp_callback(response)
 
-    def OnRtnOrder(self, pOrder: tdapi.CThostFtdcOrderField):
+    def OnRtnOrder(self, order_field: tdapi.CThostFtdcOrderField):
         response = CTPObjectHelper.build_response_dict(Constant.OnRtnOrder)
-        order = None
-        if pOrder:
-            order = {
-                "BrokerID": pOrder.BrokerID,
-                "InvestorID": pOrder.InvestorID,
-                "OrderRef": pOrder.OrderRef,
-                "UserID": pOrder.UserID,
-                "OrderPriceType": pOrder.OrderPriceType,
-                "Direction": pOrder.Direction,
-                "CombOffsetFlag": pOrder.CombOffsetFlag,
-                "CombHedgeFlag": pOrder.CombHedgeFlag,
-                "LimitPrice": pOrder.LimitPrice,
-                "VolumeTotalOriginal": pOrder.VolumeTotalOriginal,
-                "TimeCondition": pOrder.TimeCondition,
-                "GTDDate": pOrder.GTDDate,
-                "VolumeCondition": pOrder.VolumeCondition,
-                "MinVolume": pOrder.MinVolume,
-                "ContingentCondition": pOrder.ContingentCondition,
-                "StopPrice": pOrder.StopPrice,
-                "ForceCloseReason": pOrder.ForceCloseReason,
-                "IsAutoSuspend": pOrder.IsAutoSuspend,
-                "BusinessUnit": pOrder.BusinessUnit,
-                "RequestID": pOrder.RequestID,
-                "OrderLocalID": pOrder.OrderLocalID,
-                "ExchangeID": pOrder.ExchangeID,
-                "ParticipantID": pOrder.ParticipantID,
-                "ClientID": pOrder.ClientID,
-                "TraderID": pOrder.TraderID,
-                "InstallID": pOrder.InstallID,
-                "OrderSubmitStatus": pOrder.OrderSubmitStatus,
-                "NotifySequence": pOrder.NotifySequence,
-                "TradingDay": pOrder.TradingDay,
-                "SettlementID": pOrder.SettlementID,
-                "OrderSysID": pOrder.OrderSysID,
-                "OrderSource": pOrder.OrderSource,
-                "OrderStatus": pOrder.OrderStatus,
-                "OrderType": pOrder.OrderType,
-                "VolumeTraded": pOrder.VolumeTraded,
-                "VolumeTotal": pOrder.VolumeTotal,
-                "InsertDate": pOrder.InsertDate,
-                "InsertTime": pOrder.InsertTime,
-                "ActiveTime": pOrder.ActiveTime,
-                "SuspendTime": pOrder.SuspendTime,
-                "UpdateTime": pOrder.UpdateTime,
-                "CancelTime": pOrder.CancelTime,
-                "ActiveTraderID": pOrder.ActiveTraderID,
-                "ClearingPartID": pOrder.ClearingPartID,
-                "SequenceNo": pOrder.SequenceNo,
-                "FrontID": pOrder.FrontID,
-                "SessionID": pOrder.SessionID,
-                "UserProductInfo": pOrder.UserProductInfo,
-                "StatusMsg": pOrder.StatusMsg,
-                "UserForceClose": pOrder.UserForceClose,
-                "ActiveUserID": pOrder.ActiveUserID,
-                "BrokerOrderSeq": pOrder.BrokerOrderSeq,
-                "RelativeOrderSysID": pOrder.RelativeOrderSysID,
-                "ZCETotalTradedVolume": pOrder.ZCETotalTradedVolume,
-                "IsSwapOrder": pOrder.IsSwapOrder,
-                "BranchID": pOrder.BranchID,
-                "InvestUnitID": pOrder.InvestUnitID,
-                "AccountID": pOrder.AccountID,
-                "CurrencyID": pOrder.CurrencyID,
-                "MacAddress": pOrder.MacAddress,
-                "InstrumentID": pOrder.InstrumentID,
-                "ExchangeInstID": pOrder.ExchangeInstID,
-                "IPAddress": pOrder.IPAddress
-            }
-        response[Constant.Order] = order
+        rtn_order = None
+        if order_field:
+            rtn_order = build_order_to_dict(order_field)
+        response[Constant.Order] = rtn_order
         self.rsp_callback(response)
 
-    def OnRtnTrade(self, pTrade: tdapi.CThostFtdcTradeField):
+    def OnRtnTrade(self, trade_field: tdapi.CThostFtdcTradeField):
         response = CTPObjectHelper.build_response_dict(Constant.OnRtnTrade)
-        trade = None
-        if pTrade:
-            trade = {
-                "BrokerID": pTrade.BrokerID,
-                "InvestorID": pTrade.InvestorID,
-                "OrderRef": pTrade.OrderRef,
-                "UserID": pTrade.UserID,
-                "ExchangeID": pTrade.ExchangeID,
-                "TradeID": pTrade.TradeID,
-                "Direction": pTrade.Direction,
-                "OrderSysID": pTrade.OrderSysID,
-                "ParticipantID": pTrade.ParticipantID,
-                "ClientID": pTrade.ClientID,
-                "TradingRole": pTrade.TradingRole,
-                "OffsetFlag": pTrade.OffsetFlag,
-                "HedgeFlag": pTrade.HedgeFlag,
-                "Price": pTrade.Price,
-                "Volume": pTrade.Volume,
-                "TradeDate": pTrade.TradeDate,
-                "TradeTime": pTrade.TradeTime,
-                "TradeType": pTrade.TradeType,
-                "PriceSource": pTrade.PriceSource,
-                "TraderID": pTrade.TraderID,
-                "OrderLocalID": pTrade.OrderLocalID,
-                "ClearingPartID": pTrade.ClearingPartID,
-                "BusinessUnit": pTrade.BusinessUnit,
-                "SequenceNo": pTrade.SequenceNo,
-                "TradingDay": pTrade.TradingDay,
-                "SettlementID": pTrade.SettlementID,
-                "BrokerOrderSeq": pTrade.BrokerOrderSeq,
-                "TradeSource": pTrade.TradeSource,
-                "InvestUnitID": pTrade.InvestUnitID,
-                "InstrumentID": pTrade.InstrumentID,
-                "ExchangeInstID": pTrade.ExchangeInstID,
+        rtn_trade = None
+        if trade_field:
+            rtn_trade = {
+                "BrokerID": trade_field.BrokerID,
+                "InvestorID": trade_field.InvestorID,
+                "OrderRef": trade_field.OrderRef,
+                "UserID": trade_field.UserID,
+                "ExchangeID": trade_field.ExchangeID,
+                "TradeID": trade_field.TradeID,
+                "Direction": trade_field.Direction,
+                "OrderSysID": trade_field.OrderSysID,
+                "ParticipantID": trade_field.ParticipantID,
+                "ClientID": trade_field.ClientID,
+                "TradingRole": trade_field.TradingRole,
+                "OffsetFlag": trade_field.OffsetFlag,
+                "HedgeFlag": trade_field.HedgeFlag,
+                "Price": trade_field.Price,
+                "Volume": trade_field.Volume,
+                "TradeDate": trade_field.TradeDate,
+                "TradeTime": trade_field.TradeTime,
+                "TradeType": trade_field.TradeType,
+                "PriceSource": trade_field.PriceSource,
+                "TraderID": trade_field.TraderID,
+                "OrderLocalID": trade_field.OrderLocalID,
+                "ClearingPartID": trade_field.ClearingPartID,
+                "BusinessUnit": trade_field.BusinessUnit,
+                "SequenceNo": trade_field.SequenceNo,
+                "TradingDay": trade_field.TradingDay,
+                "SettlementID": trade_field.SettlementID,
+                "BrokerOrderSeq": trade_field.BrokerOrderSeq,
+                "TradeSource": trade_field.TradeSource,
+                "InvestUnitID": trade_field.InvestUnitID,
+                "InstrumentID": trade_field.InstrumentID,
+                "ExchangeInstID": trade_field.ExchangeInstID,
             }
-        response[Constant.Trade] = trade
+        response[Constant.Trade] = rtn_trade
         self.rsp_callback(response)
 
-    def reqOrderAction(self, request: dict[str, Any]) -> None:
-        req, requestId = CTPObjectHelper.extract_request(request, Constant.InputOrderAction, tdapi.CThostFtdcInputOrderActionField)
-        ret = self._api.ReqOrderAction(req, requestId)
+    def req_order_action(self, request: dict[str, Any]) -> None:
+        req, request_id = CTPObjectHelper.extract_request(request, Constant.InputOrderAction, tdapi.CThostFtdcInputOrderActionField)
+        ret = self._api.ReqOrderAction(req, request_id)
         self.method_called(Constant.OnRspOrderAction, ret)
 
-    def OnRspOrderAction(self, pInputOrderAction: tdapi.CThostFtdcInputOrderActionField, pRspInfo: tdapi.CThostFtdcRspInfoField, nRequestID: int, bIsLast: bool):
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspOrderAction, pRspInfo, nRequestID, bIsLast)
-        inputOrderAction = None
-        if pInputOrderAction:
-            inputOrderAction = {
-                "BrokerID": pInputOrderAction.BrokerID,
-                "InvestorID": pInputOrderAction.InvestorID,
-                "OrderActionRef": pInputOrderAction.OrderActionRef,
-                "OrderRef": pInputOrderAction.OrderRef,
-                "RequestID": pInputOrderAction.RequestID,
-                "FrontID": pInputOrderAction.FrontID,
-                "SessionID": pInputOrderAction.SessionID,
-                "ExchangeID": pInputOrderAction.ExchangeID,
-                "OrderSysID": pInputOrderAction.OrderSysID,
-                "ActionFlag": pInputOrderAction.ActionFlag,
-                "LimitPrice": pInputOrderAction.LimitPrice,
-                "VolumeChange": pInputOrderAction.VolumeChange,
-                "UserID": pInputOrderAction.UserID,
-                "InvestUnitID": pInputOrderAction.InvestUnitID,
-                "MacAddress": pInputOrderAction.MacAddress,
-                "InstrumentID": pInputOrderAction.InstrumentID,
-                "IPAddress": pInputOrderAction.IPAddress
+    def OnRspOrderAction(
+            self,
+            input_order_action_field: tdapi.CThostFtdcInputOrderActionField,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField,
+            request_id: int,
+            is_last: bool
+    ):
+        response = CTPObjectHelper.build_response_dict(Constant.OnRspOrderAction, rsp_info_field, request_id, is_last)
+        order_action = None
+        if input_order_action_field:
+            order_action = {
+                "BrokerID": input_order_action_field.BrokerID,
+                "InvestorID": input_order_action_field.InvestorID,
+                "OrderActionRef": input_order_action_field.OrderActionRef,
+                "OrderRef": input_order_action_field.OrderRef,
+                "RequestID": input_order_action_field.RequestID,
+                "FrontID": input_order_action_field.FrontID,
+                "SessionID": input_order_action_field.SessionID,
+                "ExchangeID": input_order_action_field.ExchangeID,
+                "OrderSysID": input_order_action_field.OrderSysID,
+                "ActionFlag": input_order_action_field.ActionFlag,
+                "LimitPrice": input_order_action_field.LimitPrice,
+                "VolumeChange": input_order_action_field.VolumeChange,
+                "UserID": input_order_action_field.UserID,
+                "InvestUnitID": input_order_action_field.InvestUnitID,
+                "MacAddress": input_order_action_field.MacAddress,
+                "InstrumentID": input_order_action_field.InstrumentID,
+                "IPAddress": input_order_action_field.IPAddress
             }
-        response[Constant.InputOrderAction] = inputOrderAction
+        response[Constant.InputOrderAction] = order_action
         self.rsp_callback(response)
 
-    def OnErrRtnOrderAction(self, pOrderAction: tdapi.CThostFtdcOrderActionField, pRspInfo: tdapi.CThostFtdcRspInfoField):
-        response = CTPObjectHelper.build_response_dict(Constant.OnErrRtnOrderAction, pRspInfo)
-        orderAction = None
-        if pOrderAction:
-            orderAction = {
-                "BrokerID": pOrderAction.BrokerID,
-                "InvestorID": pOrderAction.InvestorID,
-                "OrderActionRef": pOrderAction.OrderActionRef,
-                "OrderRef": pOrderAction.OrderRef,
-                "RequestID": pOrderAction.RequestID,
-                "FrontID": pOrderAction.FrontID,
-                "SessionID": pOrderAction.SessionID,
-                "ExchangeID": pOrderAction.ExchangeID,
-                "OrderSysID": pOrderAction.OrderSysID,
-                "ActionFlag": pOrderAction.ActionFlag,
-                "LimitPrice": pOrderAction.LimitPrice,
-                "VolumeChange": pOrderAction.VolumeChange,
-                "ActionDate": pOrderAction.ActionDate,
-                "ActionTime": pOrderAction.ActionTime,
-                "TraderID": pOrderAction.TraderID,
-                "InstallID": pOrderAction.InstallID,
-                "OrderLocalID": pOrderAction.OrderLocalID,
-                "ActionLocalID": pOrderAction.ActionLocalID,
-                "ParticipantID": pOrderAction.ParticipantID,
-                "ClientID": pOrderAction.ClientID,
-                "BusinessUnit": pOrderAction.BusinessUnit,
-                "OrderActionStatus": pOrderAction.OrderActionStatus,
-                "UserID": pOrderAction.UserID,
-                "StatusMsg": pOrderAction.StatusMsg,
-                "BranchID": pOrderAction.BranchID,
-                "InvestUnitID": pOrderAction.InvestUnitID,
-                "MacAddress": pOrderAction.MacAddress,
-                "InstrumentID": pOrderAction.InstrumentID,
-                "IPAddress": pOrderAction.IPAddress
+    def OnErrRtnOrderAction(
+            self,
+            order_action_filed: tdapi.CThostFtdcOrderActionField,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField
+    ):
+        response = CTPObjectHelper.build_response_dict(Constant.OnErrRtnOrderAction, rsp_info_field)
+        order_action = None
+        if order_action_filed:
+            order_action = {
+                "BrokerID": order_action_filed.BrokerID,
+                "InvestorID": order_action_filed.InvestorID,
+                "OrderActionRef": order_action_filed.OrderActionRef,
+                "OrderRef": order_action_filed.OrderRef,
+                "RequestID": order_action_filed.RequestID,
+                "FrontID": order_action_filed.FrontID,
+                "SessionID": order_action_filed.SessionID,
+                "ExchangeID": order_action_filed.ExchangeID,
+                "OrderSysID": order_action_filed.OrderSysID,
+                "ActionFlag": order_action_filed.ActionFlag,
+                "LimitPrice": order_action_filed.LimitPrice,
+                "VolumeChange": order_action_filed.VolumeChange,
+                "ActionDate": order_action_filed.ActionDate,
+                "ActionTime": order_action_filed.ActionTime,
+                "TraderID": order_action_filed.TraderID,
+                "InstallID": order_action_filed.InstallID,
+                "OrderLocalID": order_action_filed.OrderLocalID,
+                "ActionLocalID": order_action_filed.ActionLocalID,
+                "ParticipantID": order_action_filed.ParticipantID,
+                "ClientID": order_action_filed.ClientID,
+                "BusinessUnit": order_action_filed.BusinessUnit,
+                "OrderActionStatus": order_action_filed.OrderActionStatus,
+                "UserID": order_action_filed.UserID,
+                "StatusMsg": order_action_filed.StatusMsg,
+                "BranchID": order_action_filed.BranchID,
+                "InvestUnitID": order_action_filed.InvestUnitID,
+                "MacAddress": order_action_filed.MacAddress,
+                "InstrumentID": order_action_filed.InstrumentID,
+                "IPAddress": order_action_filed.IPAddress
             }
-        response[Constant.OrderAction] = orderAction
+        response[Constant.OrderAction] = order_action
         self.rsp_callback(response)
 
-    def reqQryMaxOrderVolume(self, request: dict[str, Any]) -> None:
-        req, requestId = CTPObjectHelper.extract_request(request, Constant.QryMaxOrderVolume, tdapi.CThostFtdcQryMaxOrderVolumeField)
-        ret = self._api.ReqQryMaxOrderVolume(req, requestId)
+    def req_qry_max_order_volume(self, request: dict[str, Any]) -> None:
+        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryMaxOrderVolume, tdapi.CThostFtdcQryMaxOrderVolumeField)
+        ret = self._api.ReqQryMaxOrderVolume(req, request_id)
         self.method_called(Constant.OnRspQryMaxOrderVolume, ret)
 
-    def OnRspQryMaxOrderVolume(self, pQryMaxOrderVolume: tdapi.CThostFtdcQryMaxOrderVolumeField, pRspInfo: tdapi.CThostFtdcRspInfoField, nRequestID: int, bIsLast: bool):
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryMaxOrderVolume, pRspInfo, nRequestID, bIsLast)
-        qryMaxOrderVolume = None
-        if pQryMaxOrderVolume:
-            qryMaxOrderVolume = {
-                "BrokerID": pQryMaxOrderVolume.BrokerID,
-                "InvestorID": pQryMaxOrderVolume.InvestorID,
-                "InstrumentID": pQryMaxOrderVolume.InstrumentID,
-                "ExchangeID": pQryMaxOrderVolume.ExchangeID,
-                "InvestUnitID": pQryMaxOrderVolume.InvestUnitID,
-                "MaxVolume": pQryMaxOrderVolume.MaxVolume,
-                "Direction": pQryMaxOrderVolume.Direction,
-                "OffsetFlag": pQryMaxOrderVolume.OffsetFlag,
-                "HedgeFlag": pQryMaxOrderVolume.HedgeFlag
+    def OnRspQryMaxOrderVolume(
+            self,
+            qry_max_order_volume_filed: tdapi.CThostFtdcQryMaxOrderVolumeField,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField,
+            request_id: int,
+            is_last: bool
+    ):
+        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryMaxOrderVolume, rsp_info_field, request_id, is_last)
+        max_order_volume = None
+        if qry_max_order_volume_filed:
+            max_order_volume = {
+                "BrokerID": qry_max_order_volume_filed.BrokerID,
+                "InvestorID": qry_max_order_volume_filed.InvestorID,
+                "InstrumentID": qry_max_order_volume_filed.InstrumentID,
+                "ExchangeID": qry_max_order_volume_filed.ExchangeID,
+                "InvestUnitID": qry_max_order_volume_filed.InvestUnitID,
+                "MaxVolume": qry_max_order_volume_filed.MaxVolume,
+                "Direction": qry_max_order_volume_filed.Direction,
+                "OffsetFlag": qry_max_order_volume_filed.OffsetFlag,
+                "HedgeFlag": qry_max_order_volume_filed.HedgeFlag
             }
-        response[Constant.QryMaxOrderVolume] = qryMaxOrderVolume
+        response[Constant.QryMaxOrderVolume] = max_order_volume
         self.rsp_callback(response)
 
-    def reqQryOrder(self, request: dict[str, Any]) -> None:
-        req, requestId = CTPObjectHelper.extract_request(request, Constant.QryOrder, tdapi.CThostFtdcQryOrderField)
-        ret = self._api.ReqQryOrder(req, requestId)
+    def req_qry_order(self, request: dict[str, Any]) -> None:
+        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryOrder, tdapi.CThostFtdcQryOrderField)
+        ret = self._api.ReqQryOrder(req, request_id)
         self.method_called(Constant.OnRspQryOrder, ret)
 
-    def OnRspQryOrder(self, pOrder: tdapi.CThostFtdcOrderField, pRspInfo: tdapi.CThostFtdcRspInfoField, nRequestID: int, bIsLast: bool):
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryOrder, pRspInfo, nRequestID, bIsLast)
-        order = None
-        if pOrder:
-            order = {
-                "BrokerID": pOrder.BrokerID,
-                "InvestorID": pOrder.InvestorID,
-                "OrderRef": pOrder.OrderRef,
-                "UserID": pOrder.UserID,
-                "OrderPriceType": pOrder.OrderPriceType,
-                "Direction": pOrder.Direction,
-                "CombOffsetFlag": pOrder.CombOffsetFlag,
-                "CombHedgeFlag": pOrder.CombHedgeFlag,
-                "LimitPrice": pOrder.LimitPrice,
-                "VolumeTotalOriginal": pOrder.VolumeTotalOriginal,
-                "TimeCondition": pOrder.TimeCondition,
-                "GTDDate": pOrder.GTDDate,
-                "VolumeCondition": pOrder.VolumeCondition,
-                "MinVolume": pOrder.MinVolume,
-                "ContingentCondition": pOrder.ContingentCondition,
-                "StopPrice": pOrder.StopPrice,
-                "ForceCloseReason": pOrder.ForceCloseReason,
-                "IsAutoSuspend": pOrder.IsAutoSuspend,
-                "BusinessUnit": pOrder.BusinessUnit,
-                "RequestID": pOrder.RequestID,
-                "OrderLocalID": pOrder.OrderLocalID,
-                "ExchangeID": pOrder.ExchangeID,
-                "ParticipantID": pOrder.ParticipantID,
-                "ClientID": pOrder.ClientID,
-                "TraderID": pOrder.TraderID,
-                "InstallID": pOrder.InstallID,
-                "OrderSubmitStatus": pOrder.OrderSubmitStatus,
-                "NotifySequence": pOrder.NotifySequence,
-                "TradingDay": pOrder.TradingDay,
-                "SettlementID": pOrder.SettlementID,
-                "OrderSysID": pOrder.OrderSysID,
-                "OrderSource": pOrder.OrderSource,
-                "OrderStatus": pOrder.OrderStatus,
-                "OrderType": pOrder.OrderType,
-                "VolumeTraded": pOrder.VolumeTraded,
-                "VolumeTotal": pOrder.VolumeTotal,
-                "InsertDate": pOrder.InsertDate,
-                "InsertTime": pOrder.InsertTime,
-                "ActiveTime": pOrder.ActiveTime,
-                "SuspendTime": pOrder.SuspendTime,
-                "UpdateTime": pOrder.UpdateTime,
-                "CancelTime": pOrder.CancelTime,
-                "ActiveTraderID": pOrder.ActiveTraderID,
-                "ClearingPartID": pOrder.ClearingPartID,
-                "SequenceNo": pOrder.SequenceNo,
-                "FrontID": pOrder.FrontID,
-                "SessionID": pOrder.SessionID,
-                "UserProductInfo": pOrder.UserProductInfo,
-                "StatusMsg": pOrder.StatusMsg,
-                "UserForceClose": pOrder.UserForceClose,
-                "ActiveUserID": pOrder.ActiveUserID,
-                "BrokerOrderSeq": pOrder.BrokerOrderSeq,
-                "RelativeOrderSysID": pOrder.RelativeOrderSysID,
-                "ZCETotalTradedVolume": pOrder.ZCETotalTradedVolume,
-                "IsSwapOrder": pOrder.IsSwapOrder,
-                "BranchID": pOrder.BranchID,
-                "InvestUnitID": pOrder.InvestUnitID,
-                "AccountID": pOrder.AccountID,
-                "CurrencyID": pOrder.CurrencyID,
-                "MacAddress": pOrder.MacAddress,
-                "InstrumentID": pOrder.InstrumentID,
-                "ExchangeInstID": pOrder.ExchangeInstID,
-                "IPAddress": pOrder.IPAddress
-            }
-        response[Constant.Order] = order
+    def OnRspQryOrder(
+            self, order_field: tdapi.CThostFtdcOrderField,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField,
+            request_id: int,
+            is_last: bool
+    ):
+        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryOrder, rsp_info_field, request_id, is_last)
+        qry_order = {}
+        if order_field:
+            qry_order = build_order_to_dict(order_field)
+        response[Constant.Order] = qry_order
         self.rsp_callback(response)
 
 
-    def reqQryTrade(self, request: dict[str, Any]) -> None:
-        req, requestId = CTPObjectHelper.extract_request(request, Constant.QryTrade, tdapi.CThostFtdcQryTradeField)
-        ret = self._api.ReqQryTrade(req, requestId)
+    def req_qry_trade(self, request: dict[str, Any]) -> None:
+        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryTrade, tdapi.CThostFtdcQryTradeField)
+        ret = self._api.ReqQryTrade(req, request_id)
         self.method_called(Constant.OnRspQryTrade, ret)
 
-    def OnRspQryTrade(self, pTrade: tdapi.CThostFtdcTradeField, pRspInfo: tdapi.CThostFtdcRspInfoField, nRequestID: int, bIsLast: bool):
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryTrade, pRspInfo, nRequestID, bIsLast)
-        qryTrade = None
-        if pTrade:
-            qryTrade = {
-                "BrokerID": pTrade.BrokerID,
-                "BrokerOrderSeq": pTrade.BrokerOrderSeq,
-                "BusinessUnit": pTrade.BusinessUnit,
-                "ClearingPartID": pTrade.ClearingPartID,
-                "ClientID": pTrade.ClientID,
-                "Direction": pTrade.Direction,
-                "ExchangeID": pTrade.ExchangeID,
-                "ExchangeInstID": pTrade.ExchangeInstID,
-                "HedgeFlag": pTrade.HedgeFlag,
-                "InstrumentID": pTrade.InstrumentID,
-                "InvestUnitID": pTrade.InvestUnitID,
-                "InvestorID": pTrade.InvestorID,
-                "OffsetFlag": pTrade.OffsetFlag,
-                "OrderLocalID": pTrade.OrderLocalID,
-                "OrderRef": pTrade.OrderRef,
-                "OrderSysID": pTrade.OrderSysID,
-                "ParticipantID": pTrade.ParticipantID,
-                "Price": pTrade.Price,
-                "PriceSource": pTrade.PriceSource,
-                "SequenceNo": pTrade.SequenceNo,
-                "SettlementID": pTrade.SettlementID,
-                "TradeDate": pTrade.TradeDate,
-                "TradeID": pTrade.TradeID,
-                "TradeSource": pTrade.TradeSource,
-                "TradeTime": pTrade.TradeTime,
-                "TradeType": pTrade.TradeType,
-                "TraderID": pTrade.TraderID,
-                "TradingDay": pTrade.TradingDay,
-                "TradingRole": pTrade.TradingRole,
-                "UserID": pTrade.UserID,
-                "Volume": pTrade.Volume
+    def OnRspQryTrade(self, trade_field: tdapi.CThostFtdcTradeField, rsp_info_field: tdapi.CThostFtdcRspInfoField, request_id: int, is_last: bool):
+        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryTrade, rsp_info_field, request_id, is_last)
+        qry_trade = {}
+        if trade_field:
+            qry_trade = {
+                "BrokerID": trade_field.BrokerID,
+                "BrokerOrderSeq": trade_field.BrokerOrderSeq,
+                "BusinessUnit": trade_field.BusinessUnit,
+                "ClearingPartID": trade_field.ClearingPartID,
+                "ClientID": trade_field.ClientID,
+                "Direction": trade_field.Direction,
+                "ExchangeID": trade_field.ExchangeID,
+                "ExchangeInstID": trade_field.ExchangeInstID,
+                "HedgeFlag": trade_field.HedgeFlag,
+                "InstrumentID": trade_field.InstrumentID,
+                "InvestUnitID": trade_field.InvestUnitID,
+                "InvestorID": trade_field.InvestorID,
+                "OffsetFlag": trade_field.OffsetFlag,
+                "OrderLocalID": trade_field.OrderLocalID,
+                "OrderRef": trade_field.OrderRef,
+                "OrderSysID": trade_field.OrderSysID,
+                "ParticipantID": trade_field.ParticipantID,
+                "Price": trade_field.Price,
+                "PriceSource": trade_field.PriceSource,
+                "SequenceNo": trade_field.SequenceNo,
+                "SettlementID": trade_field.SettlementID,
+                "TradeDate": trade_field.TradeDate,
+                "TradeID": trade_field.TradeID,
+                "TradeSource": trade_field.TradeSource,
+                "TradeTime": trade_field.TradeTime,
+                "TradeType": trade_field.TradeType,
+                "TraderID": trade_field.TraderID,
+                "TradingDay": trade_field.TradingDay,
+                "TradingRole": trade_field.TradingRole,
+                "UserID": trade_field.UserID,
+                "Volume": trade_field.Volume
                 }
-        response[Constant.Trade] = qryTrade
+        response[Constant.Trade] = qry_trade
         self.rsp_callback(response)
 
-    def reqQryInvestorPosition(self, request: dict[str, Any]) -> None:
-        req, requestId = CTPObjectHelper.extract_request(request, Constant.QryInvestorPosition, tdapi.CThostFtdcQryInvestorPositionField)
-        ret = self._api.ReqQryInvestorPosition(req, requestId)
+    def req_qry_investor_position(self, request: dict[str, Any]) -> None:
+        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryInvestorPosition, tdapi.CThostFtdcQryInvestorPositionField)
+        ret = self._api.ReqQryInvestorPosition(req, request_id)
         self.method_called(Constant.OnRspQryInvestorPosition, ret)
 
-    def OnRspQryInvestorPosition(self, pInvestorPosition: tdapi.CThostFtdcInvestorPositionField, pRspInfo: tdapi.CThostFtdcRspInfoField, nRequestID: int, bIsLast: bool):
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInvestorPosition, pRspInfo, nRequestID, bIsLast)
-        qryInvestorPosition = None
-        if pInvestorPosition:
-            qryInvestorPosition = {
-                "AbandonFrozen": pInvestorPosition.AbandonFrozen,
-                "BrokerID": pInvestorPosition.BrokerID,
-                "CashIn": pInvestorPosition.CashIn,
-                "CloseAmount": pInvestorPosition.CloseAmount,
-                "CloseProfit": pInvestorPosition.CloseProfit,
-                "CloseProfitByDate": pInvestorPosition.CloseProfitByDate,
-                "CloseProfitByTrade": pInvestorPosition.CloseProfitByTrade,
-                "CloseVolume": pInvestorPosition.CloseVolume,
-                "CombLongFrozen": pInvestorPosition.CombLongFrozen,
-                "CombPosition": pInvestorPosition.CombPosition,
-                "CombShortFrozen": pInvestorPosition.CombShortFrozen,
-                "Commission": pInvestorPosition.Commission,
-                "ExchangeID": pInvestorPosition.ExchangeID,
-                "ExchangeMargin": pInvestorPosition.ExchangeMargin,
-                "FrozenCash": pInvestorPosition.FrozenCash,
-                "FrozenCommission": pInvestorPosition.FrozenCommission,
-                "FrozenMargin": pInvestorPosition.FrozenMargin,
-                "HedgeFlag": pInvestorPosition.HedgeFlag,
-                "InstrumentID": pInvestorPosition.InstrumentID,
-                "InvestUnitID": pInvestorPosition.InvestUnitID,
-                "InvestorID": pInvestorPosition.InvestorID,
-                "LongFrozen": pInvestorPosition.LongFrozen,
-                "LongFrozenAmount": pInvestorPosition.LongFrozenAmount,
-                "MarginRateByMoney": pInvestorPosition.MarginRateByMoney,
-                "MarginRateByVolume": pInvestorPosition.MarginRateByVolume,
-                "OpenAmount": pInvestorPosition.OpenAmount,
-                "OpenCost": pInvestorPosition.OpenCost,
-                "OpenVolume": pInvestorPosition.OpenVolume,
-                "PosiDirection": pInvestorPosition.PosiDirection,
-                "Position": pInvestorPosition.Position,
-                "PositionCost": pInvestorPosition.PositionCost,
-                "PositionCostOffset": pInvestorPosition.PositionCostOffset,
-                "PositionDate": pInvestorPosition.PositionDate,
-                "PositionProfit": pInvestorPosition.PositionProfit,
-                "PreMargin": pInvestorPosition.PreMargin,
-                "PreSettlementPrice": pInvestorPosition.PreSettlementPrice,
-                "SettlementID": pInvestorPosition.SettlementID,
-                "SettlementPrice": pInvestorPosition.SettlementPrice,
-                "ShortFrozen": pInvestorPosition.ShortFrozen,
-                "ShortFrozenAmount": pInvestorPosition.ShortFrozenAmount,
-                "StrikeFrozen": pInvestorPosition.StrikeFrozen,
-                "StrikeFrozenAmount": pInvestorPosition.StrikeFrozenAmount,
-                "TasPosition": pInvestorPosition.TasPosition,
-                "TasPositionCost": pInvestorPosition.TasPositionCost,
-                "TodayPosition": pInvestorPosition.TodayPosition,
-                "TradingDay": pInvestorPosition.TradingDay,
-                "UseMargin": pInvestorPosition.UseMargin,
-                "YdPosition": pInvestorPosition.YdPosition,
-                "YdStrikeFrozen": pInvestorPosition.YdStrikeFrozen
+    def OnRspQryInvestorPosition(
+            self,
+            investor_position_field: tdapi.CThostFtdcInvestorPositionField,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField,
+            request_id: int,
+            is_last: bool
+    ):
+        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInvestorPosition, rsp_info_field, request_id, is_last)
+        qry_investor_position = None
+        if investor_position_field:
+            qry_investor_position = {
+                "AbandonFrozen": investor_position_field.AbandonFrozen,
+                "BrokerID": investor_position_field.BrokerID,
+                "CashIn": investor_position_field.CashIn,
+                "CloseAmount": investor_position_field.CloseAmount,
+                "CloseProfit": investor_position_field.CloseProfit,
+                "CloseProfitByDate": investor_position_field.CloseProfitByDate,
+                "CloseProfitByTrade": investor_position_field.CloseProfitByTrade,
+                "CloseVolume": investor_position_field.CloseVolume,
+                "CombLongFrozen": investor_position_field.CombLongFrozen,
+                "CombPosition": investor_position_field.CombPosition,
+                "CombShortFrozen": investor_position_field.CombShortFrozen,
+                "Commission": investor_position_field.Commission,
+                "ExchangeID": investor_position_field.ExchangeID,
+                "ExchangeMargin": investor_position_field.ExchangeMargin,
+                "FrozenCash": investor_position_field.FrozenCash,
+                "FrozenCommission": investor_position_field.FrozenCommission,
+                "FrozenMargin": investor_position_field.FrozenMargin,
+                "HedgeFlag": investor_position_field.HedgeFlag,
+                "InstrumentID": investor_position_field.InstrumentID,
+                "InvestUnitID": investor_position_field.InvestUnitID,
+                "InvestorID": investor_position_field.InvestorID,
+                "LongFrozen": investor_position_field.LongFrozen,
+                "LongFrozenAmount": investor_position_field.LongFrozenAmount,
+                "MarginRateByMoney": investor_position_field.MarginRateByMoney,
+                "MarginRateByVolume": investor_position_field.MarginRateByVolume,
+                "OpenAmount": investor_position_field.OpenAmount,
+                "OpenCost": investor_position_field.OpenCost,
+                "OpenVolume": investor_position_field.OpenVolume,
+                "PosiDirection": investor_position_field.PosiDirection,
+                "Position": investor_position_field.Position,
+                "PositionCost": investor_position_field.PositionCost,
+                "PositionCostOffset": investor_position_field.PositionCostOffset,
+                "PositionDate": investor_position_field.PositionDate,
+                "PositionProfit": investor_position_field.PositionProfit,
+                "PreMargin": investor_position_field.PreMargin,
+                "PreSettlementPrice": investor_position_field.PreSettlementPrice,
+                "SettlementID": investor_position_field.SettlementID,
+                "SettlementPrice": investor_position_field.SettlementPrice,
+                "ShortFrozen": investor_position_field.ShortFrozen,
+                "ShortFrozenAmount": investor_position_field.ShortFrozenAmount,
+                "StrikeFrozen": investor_position_field.StrikeFrozen,
+                "StrikeFrozenAmount": investor_position_field.StrikeFrozenAmount,
+                "TasPosition": investor_position_field.TasPosition,
+                "TasPositionCost": investor_position_field.TasPositionCost,
+                "TodayPosition": investor_position_field.TodayPosition,
+                "TradingDay": investor_position_field.TradingDay,
+                "UseMargin": investor_position_field.UseMargin,
+                "YdPosition": investor_position_field.YdPosition,
+                "YdStrikeFrozen": investor_position_field.YdStrikeFrozen
                 }
-        response[Constant.InvestorPosition] = qryInvestorPosition
+        response[Constant.InvestorPosition] = qry_investor_position
         self.rsp_callback(response)
 
-    def reqQryTradingAccount(self, request: dict[str, Any]) -> None:
-        req, requestId = CTPObjectHelper.extract_request(request, Constant.QryTradingAccount, tdapi.CThostFtdcQryTradingAccountField)
-        ret = self._api.ReqQryTradingAccount(req, requestId)
+    def req_qry_trading_account(self, request: dict[str, Any]) -> None:
+        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryTradingAccount, tdapi.CThostFtdcQryTradingAccountField)
+        ret = self._api.ReqQryTradingAccount(req, request_id)
         self.method_called(Constant.OnRspQryTradingAccount, ret)
 
-    def OnRspQryTradingAccount(self, pTradingAccount: tdapi.CThostFtdcTradingAccountField, pRspInfo: tdapi.CThostFtdcRspInfoField, nRequestID: int, bIsLast: bool):
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryTradingAccount, pRspInfo, nRequestID, bIsLast)
-        qryTradingAccount = None
-        if pTradingAccount:
-            qryTradingAccount = {
-                "AccountID": pTradingAccount.AccountID,
-                "Available": pTradingAccount.Available,
-                "Balance": pTradingAccount.Balance,
-                "BizType": pTradingAccount.BizType,
-                "BrokerID": pTradingAccount.BrokerID,
-                "CashIn": pTradingAccount.CashIn,
-                "CloseProfit": pTradingAccount.CloseProfit,
-                "Commission": pTradingAccount.Commission,
-                "Credit": pTradingAccount.Credit,
-                "CurrMargin": pTradingAccount.CurrMargin,
-                "CurrencyID": pTradingAccount.CurrencyID,
-                "DeliveryMargin": pTradingAccount.DeliveryMargin,
-                "Deposit": pTradingAccount.Deposit,
-                "ExchangeDeliveryMargin": pTradingAccount.ExchangeDeliveryMargin,
-                "ExchangeMargin": pTradingAccount.ExchangeMargin,
-                "FrozenCash": pTradingAccount.FrozenCash,
-                "FrozenCommission": pTradingAccount.FrozenCommission,
-                "FrozenMargin": pTradingAccount.FrozenMargin,
-                "FrozenSwap": pTradingAccount.FrozenSwap,
-                "FundMortgageAvailable": pTradingAccount.FundMortgageAvailable,
-                "FundMortgageIn": pTradingAccount.FundMortgageIn,
-                "FundMortgageOut": pTradingAccount.FundMortgageOut,
-                "Interest": pTradingAccount.Interest,
-                "InterestBase": pTradingAccount.InterestBase,
-                "Mortgage": pTradingAccount.Mortgage,
-                "MortgageableFund": pTradingAccount.MortgageableFund,
-                "PositionProfit": pTradingAccount.PositionProfit,
-                "PreBalance": pTradingAccount.PreBalance,
-                "PreCredit": pTradingAccount.PreCredit,
-                "PreDeposit": pTradingAccount.PreDeposit,
-                "PreFundMortgageIn": pTradingAccount.PreFundMortgageIn,
-                "PreFundMortgageOut": pTradingAccount.PreFundMortgageOut,
-                "PreMargin": pTradingAccount.PreMargin,
-                "PreMortgage": pTradingAccount.PreMortgage,
-                "RemainSwap": pTradingAccount.RemainSwap,
-                "Reserve": pTradingAccount.Reserve,
-                "ReserveBalance": pTradingAccount.ReserveBalance,
-                "SettlementID": pTradingAccount.SettlementID,
-                "SpecProductCloseProfit": pTradingAccount.SpecProductCloseProfit,
-                "SpecProductCommission": pTradingAccount.SpecProductCommission,
-                "SpecProductExchangeMargin": pTradingAccount.SpecProductExchangeMargin,
-                "SpecProductFrozenCommission": pTradingAccount.SpecProductFrozenCommission,
-                "SpecProductFrozenMargin": pTradingAccount.SpecProductFrozenMargin,
-                "SpecProductMargin": pTradingAccount.SpecProductMargin,
-                "SpecProductPositionProfit": pTradingAccount.SpecProductPositionProfit,
-                "SpecProductPositionProfitByAlg": pTradingAccount.SpecProductPositionProfitByAlg,
-                "TradingDay": pTradingAccount.TradingDay,
-                "Withdraw": pTradingAccount.Withdraw,
-                "WithdrawQuota": pTradingAccount.WithdrawQuota
+    def OnRspQryTradingAccount(
+            self,
+            trading_account_field: tdapi.CThostFtdcTradingAccountField,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField,
+            request_id: int,
+            is_last: bool
+    ):
+        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryTradingAccount, rsp_info_field, request_id, is_last)
+        qry_trading_account = None
+        if trading_account_field:
+            qry_trading_account = {
+                "AccountID": trading_account_field.AccountID,
+                "Available": trading_account_field.Available,
+                "Balance": trading_account_field.Balance,
+                "BizType": trading_account_field.BizType,
+                "BrokerID": trading_account_field.BrokerID,
+                "CashIn": trading_account_field.CashIn,
+                "CloseProfit": trading_account_field.CloseProfit,
+                "Commission": trading_account_field.Commission,
+                "Credit": trading_account_field.Credit,
+                "CurrMargin": trading_account_field.CurrMargin,
+                "CurrencyID": trading_account_field.CurrencyID,
+                "DeliveryMargin": trading_account_field.DeliveryMargin,
+                "Deposit": trading_account_field.Deposit,
+                "ExchangeDeliveryMargin": trading_account_field.ExchangeDeliveryMargin,
+                "ExchangeMargin": trading_account_field.ExchangeMargin,
+                "FrozenCash": trading_account_field.FrozenCash,
+                "FrozenCommission": trading_account_field.FrozenCommission,
+                "FrozenMargin": trading_account_field.FrozenMargin,
+                "FrozenSwap": trading_account_field.FrozenSwap,
+                "FundMortgageAvailable": trading_account_field.FundMortgageAvailable,
+                "FundMortgageIn": trading_account_field.FundMortgageIn,
+                "FundMortgageOut": trading_account_field.FundMortgageOut,
+                "Interest": trading_account_field.Interest,
+                "InterestBase": trading_account_field.InterestBase,
+                "Mortgage": trading_account_field.Mortgage,
+                "MortgageableFund": trading_account_field.MortgageableFund,
+                "PositionProfit": trading_account_field.PositionProfit,
+                "PreBalance": trading_account_field.PreBalance,
+                "PreCredit": trading_account_field.PreCredit,
+                "PreDeposit": trading_account_field.PreDeposit,
+                "PreFundMortgageIn": trading_account_field.PreFundMortgageIn,
+                "PreFundMortgageOut": trading_account_field.PreFundMortgageOut,
+                "PreMargin": trading_account_field.PreMargin,
+                "PreMortgage": trading_account_field.PreMortgage,
+                "RemainSwap": trading_account_field.RemainSwap,
+                "Reserve": trading_account_field.Reserve,
+                "ReserveBalance": trading_account_field.ReserveBalance,
+                "SettlementID": trading_account_field.SettlementID,
+                "SpecProductCloseProfit": trading_account_field.SpecProductCloseProfit,
+                "SpecProductCommission": trading_account_field.SpecProductCommission,
+                "SpecProductExchangeMargin": trading_account_field.SpecProductExchangeMargin,
+                "SpecProductFrozenCommission": trading_account_field.SpecProductFrozenCommission,
+                "SpecProductFrozenMargin": trading_account_field.SpecProductFrozenMargin,
+                "SpecProductMargin": trading_account_field.SpecProductMargin,
+                "SpecProductPositionProfit": trading_account_field.SpecProductPositionProfit,
+                "SpecProductPositionProfitByAlg": trading_account_field.SpecProductPositionProfitByAlg,
+                "TradingDay": trading_account_field.TradingDay,
+                "Withdraw": trading_account_field.Withdraw,
+                "WithdrawQuota": trading_account_field.WithdrawQuota
                 }
-        response[Constant.TradingAccount] = qryTradingAccount
+        response[Constant.TradingAccount] = qry_trading_account
         self.rsp_callback(response)
 
-    def reqQryInvestor(self, request: dict[str, Any]) -> None:
-        req, requestId = CTPObjectHelper.extract_request(request, Constant.QryInvestor, tdapi.CThostFtdcQryInvestorField)
-        ret = self._api.ReqQryInvestor(req, requestId)
+    def req_qry_investor(self, request: dict[str, Any]) -> None:
+        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryInvestor, tdapi.CThostFtdcQryInvestorField)
+        ret = self._api.ReqQryInvestor(req, request_id)
         self.method_called(Constant.OnRspQryInvestor, ret)
 
-    def OnRspQryInvestor(self, pInvestor: tdapi.CThostFtdcInvestorField, pRspInfo: tdapi.CThostFtdcRspInfoField, nRequestID: int, bIsLast: bool):
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInvestor, pRspInfo, nRequestID, bIsLast)
-        qryInvestor = None
-        if pInvestor:
-            qryInvestor = {
-                "Address": pInvestor.Address,
-                "BrokerID": pInvestor.BrokerID,
-                "CommModelID": pInvestor.CommModelID,
-                "IdentifiedCardNo": pInvestor.IdentifiedCardNo,
-                "IdentifiedCardType": pInvestor.IdentifiedCardType,
-                "InvestorGroupID": pInvestor.InvestorGroupID,
-                "InvestorID": pInvestor.InvestorID,
-                "InvestorName": pInvestor.InvestorName,
-                "IsActive": pInvestor.IsActive,
-                "MarginModelID": pInvestor.MarginModelID,
-                "Mobile": pInvestor.Mobile,
-                "OpenDate": pInvestor.OpenDate,
-                "Telephone": pInvestor.Telephone
+    def OnRspQryInvestor(
+            self,
+            investor_field: tdapi.CThostFtdcInvestorField,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField,
+            request_id: int,
+            is_last: bool
+    ):
+        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInvestor, rsp_info_field, request_id, is_last)
+        qry_investor = None
+        if investor_field:
+            qry_investor = {
+                "Address": investor_field.Address,
+                "BrokerID": investor_field.BrokerID,
+                "CommModelID": investor_field.CommModelID,
+                "IdentifiedCardNo": investor_field.IdentifiedCardNo,
+                "IdentifiedCardType": investor_field.IdentifiedCardType,
+                "InvestorGroupID": investor_field.InvestorGroupID,
+                "InvestorID": investor_field.InvestorID,
+                "InvestorName": investor_field.InvestorName,
+                "IsActive": investor_field.IsActive,
+                "MarginModelID": investor_field.MarginModelID,
+                "Mobile": investor_field.Mobile,
+                "OpenDate": investor_field.OpenDate,
+                "Telephone": investor_field.Telephone
                 }
-        response[Constant.Investor] = qryInvestor
+        response[Constant.Investor] = qry_investor
         self.rsp_callback(response)
 
-    def reqQryTradingCode(self, request: dict[str, Any]) -> None:
-        req, requestId = CTPObjectHelper.extract_request(request, Constant.QryTradingCode, tdapi.CThostFtdcQryTradingCodeField)
-        ret = self._api.ReqQryTradingCode(req, requestId)
+    def req_qry_trading_code(self, request: dict[str, Any]) -> None:
+        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryTradingCode, tdapi.CThostFtdcQryTradingCodeField)
+        ret = self._api.ReqQryTradingCode(req, request_id)
         self.method_called(Constant.OnRspQryTradingCode, ret)
 
-    def OnRspQryTradingCode(self, pTradingCode: tdapi.CThostFtdcTradingCodeField, pRspInfo: tdapi.CThostFtdcRspInfoField, nRequestID: int, bIsLast: bool):
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryTradingCode, pRspInfo, nRequestID, bIsLast)
-        qryTradingCode = None
-        if pTradingCode:
-            qryTradingCode = {
-                "BizType": pTradingCode.BizType,
-                "BranchID": pTradingCode.BranchID,
-                "BrokerID": pTradingCode.BrokerID,
-                "ClientID": pTradingCode.ClientID,
-                "ClientIDType": pTradingCode.ClientIDType,
-                "ExchangeID": pTradingCode.ExchangeID,
-                "InvestUnitID": pTradingCode.InvestUnitID,
-                "InvestorID": pTradingCode.InvestorID,
-                "IsActive": pTradingCode.IsActive
+    def OnRspQryTradingCode(
+            self,
+            trading_code_field: tdapi.CThostFtdcTradingCodeField,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField,
+            request_id: int,
+            is_last: bool
+    ):
+        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryTradingCode, rsp_info_field, request_id, is_last)
+        qry_trading_code = None
+        if trading_code_field:
+            qry_trading_code = {
+                "BizType": trading_code_field.BizType,
+                "BranchID": trading_code_field.BranchID,
+                "BrokerID": trading_code_field.BrokerID,
+                "ClientID": trading_code_field.ClientID,
+                "ClientIDType": trading_code_field.ClientIDType,
+                "ExchangeID": trading_code_field.ExchangeID,
+                "InvestUnitID": trading_code_field.InvestUnitID,
+                "InvestorID": trading_code_field.InvestorID,
+                "IsActive": trading_code_field.IsActive
                 }
-        response[Constant.TradingCode] = qryTradingCode
+        response[Constant.TradingCode] = qry_trading_code
         self.rsp_callback(response)
 
-    def reqQryInstrumentMarginRate(self, request: dict[str, Any]) -> None:
-        req, requestId = CTPObjectHelper.extract_request(request, Constant.QryInstrumentMarginRate, tdapi.CThostFtdcQryInstrumentMarginRateField)
-        ret = self._api.ReqQryInstrumentMarginRate(req, requestId)
+    def req_qry_instrument_margin_rate(self, request: dict[str, Any]) -> None:
+        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryInstrumentMarginRate, tdapi.CThostFtdcQryInstrumentMarginRateField)
+        ret = self._api.ReqQryInstrumentMarginRate(req, request_id)
         self.method_called(Constant.OnRspQryInstrumentMarginRate, ret)
 
-    def OnRspQryInstrumentMarginRate(self, pInstrumentMarginRate: tdapi.CThostFtdcInstrumentMarginRateField, pRspInfo: tdapi.CThostFtdcRspInfoField, nRequestID: int, bIsLast: bool):
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInstrumentMarginRate, pRspInfo, nRequestID, bIsLast)
-        qryInstrumentMarginRate = None
-        if pInstrumentMarginRate:
-            qryInstrumentMarginRate = {
-                "BrokerID": pInstrumentMarginRate.BrokerID,
-                "ExchangeID": pInstrumentMarginRate.ExchangeID,
-                "HedgeFlag": pInstrumentMarginRate.HedgeFlag,
-                "InstrumentID": pInstrumentMarginRate.InstrumentID,
-                "InvestUnitID": pInstrumentMarginRate.InvestUnitID,
-                "InvestorID": pInstrumentMarginRate.InvestorID,
-                "InvestorRange": pInstrumentMarginRate.InvestorRange,
-                "IsRelative": pInstrumentMarginRate.IsRelative,
-                "LongMarginRatioByMoney": pInstrumentMarginRate.LongMarginRatioByMoney,
-                "LongMarginRatioByVolume": pInstrumentMarginRate.LongMarginRatioByVolume,
-                "ShortMarginRatioByMoney": pInstrumentMarginRate.ShortMarginRatioByMoney,
-                "ShortMarginRatioByVolume": pInstrumentMarginRate.ShortMarginRatioByVolume
+    def OnRspQryInstrumentMarginRate(
+            self,
+            instrument_margin_rate: tdapi.CThostFtdcInstrumentMarginRateField,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField,
+            request_id: int,
+            is_last: bool
+    ):
+        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInstrumentMarginRate, rsp_info_field, request_id, is_last)
+        qry_instrument_margin_rate = None
+        if instrument_margin_rate:
+            qry_instrument_margin_rate = {
+                "BrokerID": instrument_margin_rate.BrokerID,
+                "ExchangeID": instrument_margin_rate.ExchangeID,
+                "HedgeFlag": instrument_margin_rate.HedgeFlag,
+                "InstrumentID": instrument_margin_rate.InstrumentID,
+                "InvestUnitID": instrument_margin_rate.InvestUnitID,
+                "InvestorID": instrument_margin_rate.InvestorID,
+                "InvestorRange": instrument_margin_rate.InvestorRange,
+                "IsRelative": instrument_margin_rate.IsRelative,
+                "LongMarginRatioByMoney": instrument_margin_rate.LongMarginRatioByMoney,
+                "LongMarginRatioByVolume": instrument_margin_rate.LongMarginRatioByVolume,
+                "ShortMarginRatioByMoney": instrument_margin_rate.ShortMarginRatioByMoney,
+                "ShortMarginRatioByVolume": instrument_margin_rate.ShortMarginRatioByVolume
                 }
-        response[Constant.InstrumentMarginRate] = qryInstrumentMarginRate
+        response[Constant.InstrumentMarginRate] = qry_instrument_margin_rate
         self.rsp_callback(response)
 
-    def reqQryInstrumentCommissionRate(self, request: dict[str, Any]) -> None:
-        req, requestId = CTPObjectHelper.extract_request(request, Constant.QryInstrumentCommissionRate, tdapi.CThostFtdcQryInstrumentCommissionRateField)
-        ret = self._api.ReqQryInstrumentCommissionRate(req, requestId)
+    def req_qry_instrument_commission_rate(self, request: dict[str, Any]) -> None:
+        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryInstrumentCommissionRate, tdapi.CThostFtdcQryInstrumentCommissionRateField)
+        ret = self._api.ReqQryInstrumentCommissionRate(req, request_id)
         self.method_called(Constant.OnRspQryInstrumentCommissionRate, ret)
 
-    def OnRspQryInstrumentCommissionRate(self, pInstrumentCommissionRate: tdapi.CThostFtdcInstrumentCommissionRateField , pRspInfo: tdapi.CThostFtdcRspInfoField, nRequestID: int, bIsLast: bool):
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInstrumentCommissionRate, pRspInfo, nRequestID, bIsLast)
-        qryInstrumentCommissionRate = None
-        if pInstrumentCommissionRate:
-            qryInstrumentCommissionRate = {
-                "BizType": pInstrumentCommissionRate.BizType,
-                "BrokerID": pInstrumentCommissionRate.BrokerID,
-                "CloseRatioByMoney": pInstrumentCommissionRate.CloseRatioByMoney,
-                "CloseRatioByVolume": pInstrumentCommissionRate.CloseRatioByVolume,
-                "CloseTodayRatioByMoney": pInstrumentCommissionRate.CloseTodayRatioByMoney,
-                "CloseTodayRatioByVolume": pInstrumentCommissionRate.CloseTodayRatioByVolume,
-                "ExchangeID": pInstrumentCommissionRate.ExchangeID,
-                "InstrumentID": pInstrumentCommissionRate.InstrumentID,
-                "InvestUnitID": pInstrumentCommissionRate.InvestUnitID,
-                "InvestorID": pInstrumentCommissionRate.InvestorID,
-                "InvestorRange": pInstrumentCommissionRate.InvestorRange,
-                "OpenRatioByMoney": pInstrumentCommissionRate.OpenRatioByMoney,
-                "OpenRatioByVolume": pInstrumentCommissionRate.OpenRatioByVolume
+    def OnRspQryInstrumentCommissionRate(
+            self,
+            instrument_commission_rate_field: tdapi.CThostFtdcInstrumentCommissionRateField,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField,
+            request_id: int,
+            is_last: bool
+    ):
+        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInstrumentCommissionRate, rsp_info_field, request_id, is_last)
+        qry_instrument_commission_rate = None
+        if instrument_commission_rate_field:
+            qry_instrument_commission_rate = {
+                "BizType": instrument_commission_rate_field.BizType,
+                "BrokerID": instrument_commission_rate_field.BrokerID,
+                "CloseRatioByMoney": instrument_commission_rate_field.CloseRatioByMoney,
+                "CloseRatioByVolume": instrument_commission_rate_field.CloseRatioByVolume,
+                "CloseTodayRatioByMoney": instrument_commission_rate_field.CloseTodayRatioByMoney,
+                "CloseTodayRatioByVolume": instrument_commission_rate_field.CloseTodayRatioByVolume,
+                "ExchangeID": instrument_commission_rate_field.ExchangeID,
+                "InstrumentID": instrument_commission_rate_field.InstrumentID,
+                "InvestUnitID": instrument_commission_rate_field.InvestUnitID,
+                "InvestorID": instrument_commission_rate_field.InvestorID,
+                "InvestorRange": instrument_commission_rate_field.InvestorRange,
+                "OpenRatioByMoney": instrument_commission_rate_field.OpenRatioByMoney,
+                "OpenRatioByVolume": instrument_commission_rate_field.OpenRatioByVolume
                 }
-        response[Constant.InstrumentCommissionRate] = qryInstrumentCommissionRate
+        response[Constant.InstrumentCommissionRate] = qry_instrument_commission_rate
         self.rsp_callback(response)
