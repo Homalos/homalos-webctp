@@ -13,6 +13,7 @@ from .md_client import MdClient
 
 
 class BaseConnection(abc.ABC):
+
     def __init__(self, websocket: WebSocket) -> None:
         """
         初始化基础连接对象

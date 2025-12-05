@@ -1,12 +1,12 @@
-import logging
 from typing import Any
 
 import anyio
+
+from .base_client import BaseClient
+from ..clients import CTPTdClient
 from ..constants import CallError
 from ..constants import TdConstant as Constant
-from ..clients import CTPTdClient
 from ..model import REQUEST_PAYLOAD
-from .base_client import BaseClient
 
 
 class TdClient(BaseClient):
@@ -38,7 +38,7 @@ class TdClient(BaseClient):
                 "Detail": str(err),
             }
 
-    async def call(self, request: dict[str, Any]) -> dict[str, Any]:
+    async def call(self, request: dict[str, Any]) -> None:
         message_type = request[Constant.MessageType]
         ret = self.validate_request(message_type, request)
         if ret is not None:
@@ -89,10 +89,10 @@ class TdClient(BaseClient):
         self._call_map[Constant.ReqOrderAction] = self._client.req_order_action
         self._call_map[Constant.ReqOrderInsert] = self._client.req_order_insert
         self._call_map[Constant.ReqUserPasswordUpdate] = self._client.req_user_password_update
-        self._call_map[Constant.ReqQryTrade] = self._client.reqQryTrade
-        self._call_map[Constant.ReqQryInvestorPosition] = self._client.reqQryInvestorPosition
-        self._call_map[Constant.ReqQryTradingAccount] = self._client.reqQryTradingAccount
-        self._call_map[Constant.ReqQryInvestor] = self._client.reqQryInvestor
-        self._call_map[Constant.ReqQryTradingCode] = self._client.reqQryTradingCode
-        self._call_map[Constant.ReqQryInstrumentMarginRate] = self._client.reqQryInstrumentMarginRate
-        self._call_map[Constant.ReqQryInstrumentCommissionRate] = self._client.reqQryInstrumentCommissionRate
+        self._call_map[Constant.ReqQryTrade] = self._client.req_qry_trade
+        self._call_map[Constant.ReqQryInvestorPosition] = self._client.req_qry_investor_position
+        self._call_map[Constant.ReqQryTradingAccount] = self._client.req_qry_trading_account
+        self._call_map[Constant.ReqQryInvestor] = self._client.req_qry_investor
+        self._call_map[Constant.ReqQryTradingCode] = self._client.req_qry_trading_code
+        self._call_map[Constant.ReqQryInstrumentMarginRate] = self._client.req_qry_instrument_margin_rate
+        self._call_map[Constant.ReqQryInstrumentCommissionRate] = self._client.req_qry_instrument_commission_rate
