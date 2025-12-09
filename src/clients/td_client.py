@@ -1483,6 +1483,15 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         self.rsp_callback(response)
 
     def req_qry_trading_account(self, request: dict[str, Any]) -> None:
+        """
+        发送查询资金账户请求
+
+        Args:
+            request: 查询请求参数字典，包含查询资金账户所需的相关字段
+
+        Returns:
+            None: 此方法无返回值，查询结果将通过回调函数返回
+        """
         req, request_id = CTPObjectHelper.extract_request(request, Constant.QryTradingAccount, tdapi.CThostFtdcQryTradingAccountField)
         ret = self._api.ReqQryTradingAccount(req, request_id)
         self.method_called(Constant.OnRspQryTradingAccount, ret)
@@ -1494,6 +1503,20 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             request_id: int,
             is_last: bool
     ):
+        """
+        处理交易账户查询响应回调
+
+        当客户端发送交易账户查询请求后，CTP API通过此回调返回查询结果。
+
+        Args:
+            trading_account_field: 交易账户信息字段，包含账户余额、可用资金等详细信息
+            rsp_info_field: 响应信息字段，包含错误码和错误信息
+            request_id: 请求ID，用于匹配对应的查询请求
+            is_last: 是否为最后一次响应（查询结果可能分批次返回）
+
+        Returns:
+            None: 无直接返回值，通过rsp_callback将响应结果传递给上层调用者
+        """
         response = CTPObjectHelper.build_response_dict(Constant.OnRspQryTradingAccount, rsp_info_field, request_id, is_last)
         qry_trading_account = None
         if trading_account_field:
@@ -1552,6 +1575,15 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         self.rsp_callback(response)
 
     def req_qry_investor(self, request: dict[str, Any]) -> None:
+        """
+        发送查询投资者信息请求
+
+        Args:
+            request: 包含查询投资者信息请求参数的字典
+
+        Returns:
+            None: 该方法没有返回值，通过回调函数返回查询结果
+        """
         req, request_id = CTPObjectHelper.extract_request(request, Constant.QryInvestor, tdapi.CThostFtdcQryInvestorField)
         ret = self._api.ReqQryInvestor(req, request_id)
         self.method_called(Constant.OnRspQryInvestor, ret)
@@ -1563,6 +1595,20 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             request_id: int,
             is_last: bool
     ):
+        """
+        处理查询投资者信息的响应回调
+
+        当客户端发送查询投资者信息请求后，CTP API会通过此方法返回查询结果
+
+        Args:
+            investor_field: CThostFtdcInvestorField对象，包含投资者详细信息
+            rsp_info_field: CThostFtdcRspInfoField对象，包含响应信息（错误码和错误消息）
+            request_id: 请求ID，用于匹配请求和响应
+            is_last: 标识是否为最后一条响应数据
+
+        Returns:
+            None: 该方法没有返回值，通过回调函数返回查询结果
+        """
         response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInvestor, rsp_info_field, request_id, is_last)
         qry_investor = None
         if investor_field:
@@ -1585,6 +1631,19 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         self.rsp_callback(response)
 
     def req_qry_trading_code(self, request: dict[str, Any]) -> None:
+        """查询交易编码信息
+
+        向CTP交易API发送查询交易编码的请求，该函数用于获取特定投资者或账户的交易编码配置信息
+
+        Args:
+            request: 查询请求参数字典，包含查询条件
+                - 通常包含投资者代码、交易所代码等查询条件
+                - 具体参数格式参考CTP API文档
+
+        Returns:
+            None: 本函数不直接返回结果，查询结果将通过回调函数返回
+                异步处理模式，响应结果将在OnRspQryTradingCode回调中返回
+        """
         req, request_id = CTPObjectHelper.extract_request(request, Constant.QryTradingCode, tdapi.CThostFtdcQryTradingCodeField)
         ret = self._api.ReqQryTradingCode(req, request_id)
         self.method_called(Constant.OnRspQryTradingCode, ret)
@@ -1596,6 +1655,20 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             request_id: int,
             is_last: bool
     ):
+        """
+        查询交易编码响应回调函数
+
+        当服务器返回查询交易编码请求的结果时被调用
+
+        Args:
+            trading_code_field: 交易编码信息字段，包含交易编码相关数据
+            rsp_info_field: 响应信息字段，包含错误码和错误信息
+            request_id: 请求标识ID，用于匹配对应的请求
+            is_last: 标识是否为最后一条响应数据
+
+        Returns:
+            无返回值，通过回调函数将响应数据传递给上层应用
+        """
         response = CTPObjectHelper.build_response_dict(Constant.OnRspQryTradingCode, rsp_info_field, request_id, is_last)
         qry_trading_code = None
         if trading_code_field:
@@ -1614,6 +1687,22 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         self.rsp_callback(response)
 
     def req_qry_instrument_margin_rate(self, request: dict[str, Any]) -> None:
+        """
+        请求查询合约保证金率
+
+        通过CTP接口查询指定合约的保证金率信息。
+
+        Args:
+            request: 包含查询条件的字典，字段应符合CThostFtdcQryInstrumentMarginRateField结构要求
+                - InstrumentID: 合约代码
+                - BrokerID: 经纪公司代码
+                - InvestorID: 投资者代码
+                - HedgeFlag: 投机套保标志
+                - ExchangeID: 交易所代码
+
+        Returns:
+            None: 结果将通过回调函数OnRspQryInstrumentMarginRate返回
+        """
         req, request_id = CTPObjectHelper.extract_request(request, Constant.QryInstrumentMarginRate, tdapi.CThostFtdcQryInstrumentMarginRateField)
         ret = self._api.ReqQryInstrumentMarginRate(req, request_id)
         self.method_called(Constant.OnRspQryInstrumentMarginRate, ret)
@@ -1625,6 +1714,20 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             request_id: int,
             is_last: bool
     ):
+        """
+        查询合约保证金率响应回调函数
+
+        处理CTP接口返回的查询合约保证金率结果，将响应数据转换为字典格式并通过回调函数返回。
+
+        Args:
+            instrument_margin_rate: 合约保证金率字段对象，包含保证金率相关信息
+            rsp_info_field: 响应信息字段对象，包含错误代码和错误信息
+            request_id: 请求ID，用于匹配请求和响应
+            is_last: 是否为最后一条响应
+
+        Returns:
+            None: 结果通过rsp_callback回调函数返回，包含标准响应格式和保证金率信息
+        """
         response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInstrumentMarginRate, rsp_info_field, request_id, is_last)
         qry_instrument_margin_rate = None
         if instrument_margin_rate:
@@ -1646,6 +1749,20 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         self.rsp_callback(response)
 
     def req_qry_instrument_commission_rate(self, request: dict[str, Any]) -> None:
+        """
+        查询合约手续费率
+
+        通过CTP API发送查询合约手续费率请求
+
+        Args:
+            request: 包含查询参数的字典，应包括以下字段：
+                - InstrumentID: 合约代码
+                - InvestorID: 投资者代码
+                - BrokerID: 经纪商代码
+
+        Returns:
+            None: 结果将通过回调函数返回
+        """
         req, request_id = CTPObjectHelper.extract_request(request, Constant.QryInstrumentCommissionRate, tdapi.CThostFtdcQryInstrumentCommissionRateField)
         ret = self._api.ReqQryInstrumentCommissionRate(req, request_id)
         self.method_called(Constant.OnRspQryInstrumentCommissionRate, ret)
@@ -1657,6 +1774,20 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             request_id: int,
             is_last: bool
     ):
+        """
+        查询合约手续费率响应回调函数
+
+        当服务器返回查询合约手续费率结果时触发此回调
+
+        Args:
+            instrument_commission_rate_field: 合约手续费率字段，包含手续费率详细信息
+            rsp_info_field: 响应信息字段，包含错误代码和错误消息
+            request_id: 请求ID，用于匹配请求和响应
+            is_last: 是否为最后一条响应数据
+
+        Returns:
+            None: 无直接返回值，通过rsp_callback返回处理结果
+        """
         response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInstrumentCommissionRate, rsp_info_field, request_id, is_last)
         qry_instrument_commission_rate = None
         if instrument_commission_rate_field:
