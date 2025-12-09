@@ -853,6 +853,17 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         self.rsp_callback(response)
 
     def req_qry_option_instr_comm_rate(self, request: dict[str, Any]) -> None:
+        """
+        查询期权合约手续费率
+
+        向CTP交易服务器发送查询期权合约手续费率的请求
+
+        Args:
+            request: 查询参数字典，包含查询期权合约手续费率所需的字段
+
+        Returns:
+            None: 通过回调函数返回查询结果
+        """
         req, request_id = CTPObjectHelper.extract_request(request, Constant.QryOptionInstrCommRate, tdapi.CThostFtdcQryOptionInstrCommRateField)
         ret = self._api.ReqQryOptionInstrCommRate(req, request_id)
         self.method_called(Constant.OnRspQryOptionInstrCommRate, ret)
@@ -864,6 +875,20 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             request_id: int,
             is_last: bool
     ):
+        """
+        查询期权合约手续费率响应回调函数
+
+        当客户端发送查询期权合约手续费率请求后，服务器返回响应时调用此方法。
+
+        Args:
+            option_instr_comm_rate_field: 期权合约手续费率信息字段，包含具体的手续费率数据
+            rsp_info_field: 响应信息字段，包含错误代码和错误消息
+            request_id: 请求ID，用于标识对应的请求
+            is_last: 是否最后一条响应，True表示这是最后一条响应
+
+        Returns:
+            无返回值，通过回调函数返回处理结果
+        """
         response = CTPObjectHelper.build_response_dict(Constant.OnRspQryOptionInstrCommRate, rsp_info_field, request_id, is_last)
         result = {}
         if option_instr_comm_rate_field:
@@ -887,6 +912,18 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         self.rsp_callback(response)
 
     def req_user_password_update(self, request: dict[str, Any]) -> None:
+        """
+        发送用户密码更新请求
+
+        Args:
+            request: 包含用户密码更新信息的字典，应包括以下字段：
+                - OldPassword: 旧密码
+                - NewPassword: 新密码
+                - 其他CTP协议要求的字段
+
+        Returns:
+            None: 此方法不直接返回结果，结果通过回调函数返回
+        """
         req, request_id = CTPObjectHelper.extract_request(request, Constant.UserPasswordUpdate, tdapi.CThostFtdcUserPasswordUpdateField)
         ret = self._api.ReqUserPasswordUpdate(req, request_id)
         self.method_called(Constant.OnRspUserPasswordUpdate, ret)
@@ -898,6 +935,19 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             request_id: int,
             is_last: bool
     ):
+        """
+        处理用户密码更新请求的响应回调
+
+        Args:
+            user_password_update_field: 用户密码更新字段，包含BrokerID、UserID、新旧密码等信息
+            rsp_info_field: 响应信息字段，包含错误码和错误消息
+            request_id: 请求ID，用于标识对应的请求
+            is_last: 标识是否为该请求的最后一个响应包
+
+        Notes:
+            此方法将响应数据封装为字典格式，并通过rsp_callback回调返回给上层
+            如果user_password_update_field不为空，会提取其中的关键字段信息
+        """
         response = CTPObjectHelper.build_response_dict(Constant.OnRspUserPasswordUpdate, rsp_info_field, request_id, is_last)
         user_password_update = None
         if user_password_update_field:
@@ -911,6 +961,21 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         self.rsp_callback(response)
 
     def req_order_insert(self, request: dict[str, Any]) -> None:
+        """
+        发送报单录入请求
+
+        将用户传入的报单请求字典转换为CTP协议对象，并调用交易API的报单录入接口。
+
+        Args:
+            request: 报单请求字典，包含报单所需的各项参数，
+                     如InstrumentID（合约代码）、Direction（买卖方向）、
+                     LimitPrice（价格）、VolumeTotalOriginal（数量）等
+
+        Returns:
+            None: 该方法无返回值，处理结果通过回调函数返回。
+                  调用结果将通过method_called方法处理，并在OnRspOrderInsert
+                  回调中返回响应信息。
+        """
         req, request_id = CTPObjectHelper.extract_request(request, Constant.InputOrder, tdapi.CThostFtdcInputOrderField)
         ret = self._api.ReqOrderInsert(req, request_id)
         self.method_called(Constant.OnRspOrderInsert, ret)
@@ -922,6 +987,18 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             request_id: int,
             is_last: bool
     ):
+        """
+        处理订单插入请求的响应回调
+
+        Args:
+            input_order_field: 输入的订单字段信息，为None表示无订单信息
+            rsp_info_field: 响应信息字段，包含错误码和错误信息
+            request_id: 请求ID，用于匹配请求和响应
+            is_last: 是否是该请求的最后一条响应
+
+        Returns:
+            None: 通过回调函数返回响应结果
+        """
         response = CTPObjectHelper.build_response_dict(Constant.OnRspOrderInsert, rsp_info_field, request_id, is_last)
         order_insert = {}
         if input_order_field:
@@ -934,6 +1011,16 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             input_order_field: tdapi.CThostFtdcInputOrderField,
             rsp_info_field: tdapi.CThostFtdcRspInfoField
     ):
+        """
+        处理报单录入错误回报回调
+
+        Args:
+            input_order_field: 输入的报单字段，包含报单信息
+            rsp_info_field: 响应信息字段，包含错误信息
+
+        Returns:
+            无返回值，通过回调函数返回响应结果
+        """
         response = CTPObjectHelper.build_response_dict(Constant.OnErrRtnOrderInsert, rsp_info_field)
         err_rtn_order_insert = {}
         if input_order_field:
@@ -942,6 +1029,17 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         self.rsp_callback(response)
 
     def OnRtnOrder(self, order_field: tdapi.CThostFtdcOrderField):
+        """
+        订单回报回调函数
+
+        当有订单状态变更时，CTP交易接口会调用此函数返回最新的订单信息
+
+        Args:
+            order_field: CThostFtdcOrderField对象，包含订单的详细信息
+
+        Returns:
+            None: 通过回调函数向客户端返回订单信息
+        """
         response = CTPObjectHelper.build_response_dict(Constant.OnRtnOrder)
         rtn_order = None
         if order_field:
@@ -950,6 +1048,18 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         self.rsp_callback(response)
 
     def OnRtnTrade(self, trade_field: tdapi.CThostFtdcTradeField):
+        """
+        成交回报回调函数
+
+        当有成交回报时，CTP交易API会调用此方法。该回调用于处理成交确认信息，
+        将成交数据转换为标准字典格式并触发响应回调。
+
+        Args:
+            trade_field (CThostFtdcTradeField): CTP成交回报数据结构，包含完整的成交信息
+
+        Returns:
+            None: 此方法无返回值，但会通过rsp_callback返回包含成交信息的响应字典
+        """
         response = CTPObjectHelper.build_response_dict(Constant.OnRtnTrade)
         rtn_trade = None
         if trade_field:
@@ -990,6 +1100,17 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         self.rsp_callback(response)
 
     def req_order_action(self, request: dict[str, Any]) -> None:
+        """
+        发送报单操作请求
+
+        用于执行报单的撤销、修改等操作
+
+        Args:
+            request: 包含报单操作参数的字典，应符合CTP API的CThostFtdcInputOrderActionField结构
+
+        Returns:
+            None: 该函数不直接返回值，操作结果通过异步回调返回
+        """
         req, request_id = CTPObjectHelper.extract_request(request, Constant.InputOrderAction, tdapi.CThostFtdcInputOrderActionField)
         ret = self._api.ReqOrderAction(req, request_id)
         self.method_called(Constant.OnRspOrderAction, ret)
@@ -1001,6 +1122,20 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             request_id: int,
             is_last: bool
     ):
+        """
+        报单操作请求响应回调函数
+
+        当客户端发起报单操作请求（如撤单、改单等）后，CTP交易API会通过此回调返回操作结果。
+
+        Args:
+            input_order_action_field: 输入的报单操作字段，包含操作相关信息，可能为None
+            rsp_info_field: 响应信息字段，包含错误代码和错误信息
+            request_id: 请求编号，用于匹配异步请求和响应
+            is_last: 是否为最后一条响应，True表示这是该请求的最后一条响应
+
+        Returns:
+            None: 该函数不直接返回值，操作结果通过rsp_callback异步回调返回
+        """
         response = CTPObjectHelper.build_response_dict(Constant.OnRspOrderAction, rsp_info_field, request_id, is_last)
         order_action = None
         if input_order_action_field:
@@ -1031,6 +1166,18 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             order_action_filed: tdapi.CThostFtdcOrderActionField,
             rsp_info_field: tdapi.CThostFtdcRspInfoField
     ):
+        """
+        订单操作错误回报回调函数
+
+        当订单操作请求发生错误时，CTP交易接口会调用此函数返回错误信息
+
+        Args:
+            order_action_filed: CThostFtdcOrderActionField对象，包含订单操作相关字段信息
+            rsp_info_field: CThostFtdcRspInfoField对象，包含错误响应信息
+
+        Returns:
+            None: 无直接返回值，通过回调函数返回响应数据
+        """
         response = CTPObjectHelper.build_response_dict(Constant.OnErrRtnOrderAction, rsp_info_field)
         order_action = None
         if order_action_filed:
@@ -1069,6 +1216,22 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         self.rsp_callback(response)
 
     def req_qry_max_order_volume(self, request: dict[str, Any]) -> None:
+        """
+        查询最大报单数量
+
+        向CTP交易接口发送查询最大报单数量请求
+
+        Args:
+            request: 包含查询参数的字典，格式为:
+                {
+                    "字段名1": 值1,
+                    "字段名2": 值2,
+                    ...
+                }
+
+        Returns:
+            None: 无直接返回值，结果将通过回调函数返回
+        """
         req, request_id = CTPObjectHelper.extract_request(request, Constant.QryMaxOrderVolume, tdapi.CThostFtdcQryMaxOrderVolumeField)
         ret = self._api.ReqQryMaxOrderVolume(req, request_id)
         self.method_called(Constant.OnRspQryMaxOrderVolume, ret)
@@ -1080,6 +1243,18 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             request_id: int,
             is_last: bool
     ):
+        """
+        处理查询最大报单数量响应
+
+        Args:
+            qry_max_order_volume_filed: 查询最大报单数量字段
+            rsp_info_field: 响应信息字段
+            request_id: 请求ID
+            is_last: 是否为最后一条响应
+
+        Returns:
+            无返回值，但会通过回调函数返回响应结果
+        """
         response = CTPObjectHelper.build_response_dict(Constant.OnRspQryMaxOrderVolume, rsp_info_field, request_id, is_last)
         max_order_volume = None
         if qry_max_order_volume_filed:
@@ -1098,6 +1273,18 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         self.rsp_callback(response)
 
     def req_qry_order(self, request: dict[str, Any]) -> None:
+        """
+        发送查询订单请求
+
+        该方法用于向CTP交易接口发送查询订单的请求，用于获取当前账户的订单信息。
+
+        Args:
+            request: 查询订单请求参数字典，包含查询条件
+                - 通常包含InstrumentID（合约代码）、ExchangeID（交易所代码）等字段
+
+        Returns:
+            None: 该方法无直接返回值，查询结果将通过回调函数返回
+        """
         req, request_id = CTPObjectHelper.extract_request(request, Constant.QryOrder, tdapi.CThostFtdcQryOrderField)
         ret = self._api.ReqQryOrder(req, request_id)
         self.method_called(Constant.OnRspQryOrder, ret)
@@ -1108,6 +1295,23 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             request_id: int,
             is_last: bool
     ):
+        """
+        处理查询订单请求的响应回调
+
+        Args:
+            order_field: 订单信息字段对象，包含查询到的订单详情
+            rsp_info_field: 响应信息字段对象，包含错误码和错误信息
+            request_id: 请求ID，用于标识对应的请求
+            is_last: 标识是否是最后一条响应数据
+
+        Returns:
+            无直接返回值，通过rsp_callback回调返回响应结果字典，包含:
+            - 响应类型(OnRspQryOrder)
+            - 错误信息(如有)
+            - 请求ID
+            - 是否最后一条
+            - 订单信息字典(如存在)
+        """
         response = CTPObjectHelper.build_response_dict(Constant.OnRspQryOrder, rsp_info_field, request_id, is_last)
         qry_order = {}
         if order_field:
@@ -1117,11 +1321,34 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
 
 
     def req_qry_trade(self, request: dict[str, Any]) -> None:
+        """
+        查询成交记录
+
+        Args:
+            request: 查询请求字典，包含查询条件参数
+
+        Returns:
+            None: 该方法不直接返回值，查询结果通过回调函数返回
+        """
         req, request_id = CTPObjectHelper.extract_request(request, Constant.QryTrade, tdapi.CThostFtdcQryTradeField)
         ret = self._api.ReqQryTrade(req, request_id)
         self.method_called(Constant.OnRspQryTrade, ret)
 
     def OnRspQryTrade(self, trade_field: tdapi.CThostFtdcTradeField, rsp_info_field: tdapi.CThostFtdcRspInfoField, request_id: int, is_last: bool):
+        """
+        处理查询成交回报
+
+        当请求查询成交信息后，交易接口会通过此方法返回查询结果
+
+        Args:
+            trade_field: 成交信息字段，包含成交的详细信息，可能为None
+            rsp_info_field: 响应信息字段，包含错误代码和错误消息
+            request_id: 请求ID，用于匹配请求和响应
+            is_last: 是否最后一条记录，True表示这是最后一条查询结果
+
+        Returns:
+            None: 该方法不直接返回值，查询结果通过回调函数返回
+        """
         response = CTPObjectHelper.build_response_dict(Constant.OnRspQryTrade, rsp_info_field, request_id, is_last)
         qry_trade = {}
         if trade_field:
@@ -1162,6 +1389,17 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         self.rsp_callback(response)
 
     def req_qry_investor_position(self, request: dict[str, Any]) -> None:
+        """
+        请求查询投资者持仓信息
+
+        发送投资者持仓查询请求到CTP交易API，查询当前用户的持仓情况。
+
+        Args:
+            request: 查询请求参数字典，包含查询条件信息
+
+        Returns:
+            None: 该方法无返回值，查询结果通过回调函数返回
+        """
         req, request_id = CTPObjectHelper.extract_request(request, Constant.QryInvestorPosition, tdapi.CThostFtdcQryInvestorPositionField)
         ret = self._api.ReqQryInvestorPosition(req, request_id)
         self.method_called(Constant.OnRspQryInvestorPosition, ret)
@@ -1173,6 +1411,20 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             request_id: int,
             is_last: bool
     ):
+        """
+        处理投资者持仓查询响应回调
+
+        当接收到交易所返回的投资者持仓查询结果时触发此回调函数
+
+        Args:
+            investor_position_field: 投资者持仓字段，包含持仓详细信息
+            rsp_info_field: 响应信息字段，包含错误码和错误信息
+            request_id: 请求ID，用于标识对应的查询请求
+            is_last: 是否为最后一次响应，True表示这是最后一条数据
+
+        Returns:
+            None: 无直接返回值，通过rsp_callback返回处理结果
+        """
         response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInvestorPosition, rsp_info_field, request_id, is_last)
         qry_investor_position = None
         if investor_position_field:
