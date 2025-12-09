@@ -9,8 +9,16 @@ class CallError(object):
         self._ret = ret
         self._error_id = error_id
         self._error_message = error_message
-    
+
     def to_rsp_info(self) -> dict[str, Any]:
+        """
+        将错误信息转换为CTP响应信息格式
+
+        Returns:
+            dict[str, Any]: 包含错误ID和错误消息的字典，格式为:
+                - ErrorID: 错误代码
+                - ErrorMsg: 错误描述信息
+        """
         return {
             "ErrorID": self._error_id,
             "ErrorMsg": self._error_message
@@ -18,14 +26,44 @@ class CallError(object):
 
     @classmethod
     def register_error(cls, ret: int, error_id: int, error_message: str):
+        """
+        注册错误映射关系
+
+        将CTP返回码映射到对应的错误ID和错误消息
+
+        Args:
+            ret: CTP原始返回码
+            error_id: 自定义错误代码
+            error_message: 错误描述信息
+        """
         cls._errors[ret] = CallError(ret, error_id, error_message)
 
     @classmethod
     def get_error(cls, ret: int) -> Any:
+        """
+        根据CTP原始返回码获取对应的错误信息对象
+
+        Args:
+            ret: CTP原始返回码
+
+        Returns:
+            CallError: 对应的错误信息对象，包含错误代码和描述信息
+        """
         return cls._errors[ret]
 
     @classmethod
     def get_rsp_info(cls, ret: int) -> dict[str, Any]:
+        """
+        根据CTP原始返回码获取响应信息格式的错误信息
+
+        Args:
+            ret: CTP原始返回码
+
+        Returns:
+            dict[str, Any]: 包含错误ID和错误消息的字典，格式为:
+                - ErrorID: 错误代码
+                - ErrorMsg: 错误描述信息
+        """
         return cls._errors[ret].to_rsp_info()
 
 
