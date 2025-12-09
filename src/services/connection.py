@@ -113,6 +113,15 @@ class BaseConnection(abc.ABC):
 
     @abc.abstractmethod
     def create_client(self):
+        """
+        创建并初始化对应的客户端实例
+
+        抽象方法，由具体子类实现以创建特定类型的客户端
+        （交易客户端TdClient或行情客户端MdClient）
+
+        Returns:
+            TdClient | MdClient: 初始化完成的客户端实例，具体类型取决于子类实现
+        """
         pass
 
 
