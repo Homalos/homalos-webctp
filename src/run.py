@@ -23,6 +23,24 @@ except ImportError:
 
 
 async def run(config_file_path: str, app_type: str):
+    """
+    运行CTP应用服务
+
+    根据指定的应用类型启动对应的CTP交易或行情服务
+
+    Args:
+        config_file_path: 配置文件路径
+        app_type: 应用类型，支持以下值：
+            - "td": 交易服务
+            - "md": 行情服务
+            - "dev": 开发测试服务
+
+    Returns:
+        None
+
+    Raises:
+        SystemExit: 当应用类型不支持时退出程序
+    """
     GlobalConfig.load_config(config_file_path)
 
     app: str = ""
