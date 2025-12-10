@@ -7,7 +7,7 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: md_client
+@Description: 行情客户端 (继承 CThostFtdcMdSpi)
 """
 import logging
 import time

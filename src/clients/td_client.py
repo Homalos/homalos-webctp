@@ -7,7 +7,7 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: td_client
+@Description: 交易客户端 (继承 CThostFtdcTraderSpi)
 """
 import logging
 from typing import Callable, Any

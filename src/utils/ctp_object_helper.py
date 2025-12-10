@@ -7,7 +7,7 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: ctp_object_helper
+@Description: CTP 对象辅助函数
 """
 class CTPObjectHelper(object):
 

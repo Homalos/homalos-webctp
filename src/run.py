@@ -7,7 +7,7 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: run
+@Description: 运行CTP应用服务
 """
 import uvicorn
 

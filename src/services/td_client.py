@@ -7,7 +7,7 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: td_client
+@Description: 交易服务 (继承 BaseClient)
 """
 from typing import Any
 

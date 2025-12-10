@@ -7,7 +7,7 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: td_app
+@Description: 交易服务 FastAPI 应用
 """
 from fastapi import FastAPI, WebSocket
 

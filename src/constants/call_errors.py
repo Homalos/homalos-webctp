@@ -7,7 +7,7 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: call_errors
+@Description: 错误码定义
 """
 from typing import Any
 

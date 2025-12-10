@@ -7,7 +7,7 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: md_client
+@Description: 行情服务 (继承 BaseClient)
 """
 from typing import Any
 

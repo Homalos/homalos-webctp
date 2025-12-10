@@ -7,7 +7,7 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: constant
+@Description: 消息类型常量
 """
 class CommonConstant(object):
     MessageType = "MsgType"

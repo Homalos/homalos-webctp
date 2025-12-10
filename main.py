@@ -7,7 +7,7 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 项目入口点
+@Description: 项目主入口
 """
 import sys
 from pathlib import Path

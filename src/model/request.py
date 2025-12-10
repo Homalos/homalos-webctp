@@ -7,7 +7,7 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: request
+@Description: 请求数据模型
 """
 from pydantic import BaseModel, Field
 

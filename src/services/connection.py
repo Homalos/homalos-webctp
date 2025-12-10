@@ -7,7 +7,7 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: connection
+@Description: WebSocket 连接管理
 """
 import abc
 import anyio
@@ -146,6 +146,7 @@ class TdConnection(BaseConnection):
         client = TdClient()
         client.rsp_callback = self.send
         return client
+
 
 class MdConnection(BaseConnection):
     def __init__(self, websocket: WebSocket) -> None:

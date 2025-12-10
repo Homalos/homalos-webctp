@@ -7,11 +7,12 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: config
+@Description: 配置管理
 """
 import os
 import yaml
 from pathlib import Path
+
 
 class GlobalConfig(object):
 

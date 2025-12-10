@@ -7,9 +7,10 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: math helper
+@Description: 数学辅助函数
 """
 import sys
+
 
 class MathHelper(object):
 

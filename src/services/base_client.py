@@ -7,7 +7,7 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: base_client
+@Description: 客户端基类 (抽象类)
 """
 import logging
 import uuid
