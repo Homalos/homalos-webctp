@@ -13,7 +13,7 @@ import logging
 import uuid
 from abc import ABC, abstractmethod
 from queue import Queue, Empty
-from typing import Callable, Any
+from typing import Callable, Any, Awaitable
 
 import anyio
 from anyio.abc import TaskGroup
@@ -25,27 +25,27 @@ class BaseClient(ABC):
     """
 
     def __init__(self) -> None:
-        self._rsp_callback: Callable[[dict[str, Any]], None] | None = None
+        self._rsp_callback: Callable[[dict[str, Any]], Awaitable[None]] | None = None
         self._task_group: TaskGroup | None = None
         self._running: bool = False
         self._queue: Queue = Queue()
-        self._client = None
+        self._client: Any = None
         self._client_lock: anyio.Lock = anyio.Lock()
         self._stop_event: anyio.Event | None = None
         self._call_map: dict[str, Callable[[dict[str, Any]], int]] = {}
 
     @property
-    def rsp_callback(self) -> Callable[[dict[str, Any]], None]:
+    def rsp_callback(self) -> Callable[[dict[str, Any]], Awaitable[None]] | None:
         """
         获取响应回调函数
 
         Returns:
-            Callable[[dict[str, Any]], None]: 响应回调函数，接收一个字典参数并返回None
+            Callable[[dict[str, Any]], Awaitable[None]] | None: 响应回调函数，接收一个字典参数并返回None
         """
         return self._rsp_callback
 
     @rsp_callback.setter
-    def rsp_callback(self, callback: Callable[[dict[str, Any]], None]) -> None:
+    def rsp_callback(self, callback: Callable[[dict[str, Any]], Awaitable[None]] | None) -> None:
         """
         设置响应回调函数
 
@@ -55,16 +55,16 @@ class BaseClient(ABC):
         self._rsp_callback = callback
 
     @property
-    def task_group(self) -> TaskGroup:
+    def task_group(self) -> TaskGroup | None:
         """获取异步任务组实例
 
         Returns:
-            TaskGroup: 用于管理异步任务的TaskGroup对象
+            TaskGroup | None: 用于管理异步任务的TaskGroup对象
         """
         return self._task_group
 
     @task_group.setter
-    def task_group(self, task_group: TaskGroup) -> None:
+    def task_group(self, task_group: TaskGroup | None) -> None:
         """设置异步任务组实例
 
         Args:
@@ -110,9 +110,12 @@ class BaseClient(ABC):
                 )
                 self._client.rsp_callback = self.on_rsp_or_rtn
                 self._init_call_map()
+                if not self._task_group:
+                    raise RuntimeError("Task group is not set")
                 # Use UUID to generate unique task name for better tracking and security
                 task_name = f"{uuid.uuid4().hex[:8]}-{self._get_client_type()}-bg-task"
                 self._task_group.start_soon(self.run, name=task_name)
+            assert self._client is not None
             await anyio.to_thread.run_sync(self._client.connect)
 
     async def stop(self) -> None:
@@ -170,14 +173,15 @@ class BaseClient(ABC):
             rsp = await anyio.to_thread.run_sync(
                 self._queue.get, True, wait_time, cancellable=True
             )
-            await self.rsp_callback(rsp)
+            if self.rsp_callback:
+                await self.rsp_callback(rsp)
         except Empty:
             pass
         except Exception as e:
             logging.exception(f"Exception in {self._get_client_type()} client: {e}")
 
     @abstractmethod
-    def _create_ctp_client(self, user_id: str, password: str):
+    def _create_ctp_client(self, user_id: str, password: str) -> Any:
         """创建特定的CTP客户端实例(Td或Md)
 
         Args:

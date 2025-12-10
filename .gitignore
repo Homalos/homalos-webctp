@@ -10,3 +10,5 @@ logs/
 .agent
 compress.bat
 files.txt
+.mypy_cache
+.ruff_cache
