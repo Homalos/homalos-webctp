@@ -1,3 +1,14 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+@ProjectName: homalos-webctp
+@FileName   : base_client.py
+@Date       : 2025/12/3 14:18
+@Author     : Lumosylva
+@Email      : donnymoving@gmail.com
+@Software   : PyCharm
+@Description: base_client
+"""
 import logging
 import uuid
 from abc import ABC, abstractmethod
@@ -10,9 +21,7 @@ from anyio.abc import TaskGroup
 
 class BaseClient(ABC):
     """
-    BaseClient is the boundary of websocket and client,
-    and the boundary of async code and sync code.
-    It is responsible for controlling the status of CTP client.
+    BaseClient 是 websocket 和客户端的边界，也是异步代码和同步代码的边界。它负责控制 CTP 客户端的状态。
     """
 
     def __init__(self) -> None:
