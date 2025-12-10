@@ -16,23 +16,17 @@ src="https://img.shields.io/badge/Group%231-Join-blue"/></a>
 
 * [Overview](#Overview)
 * [Installation and Operation](#Installation and Operation)
-
-* [Environment Dependencies](#Environment Dependencies)
-
-* [Environment Setup](#Environment Setup)
-
-* [Running](#Running)
-
+    * [Environment Dependencies](#Environment Dependencies)
+    * [Environment Setup](#Environment Setup)
+    * [Run](#Run)
 * [Request Example](#Request Example)
-
 * [Protocol](#Protocol)
-
-* [General Protocol Format](#General Protocol Format)
-
-* [Explanation of Some General Error Codes](#Explanation of Some General Error Codes)
-
-* [Development Notes](#Development Notes)
-
+    * [General Protocol Format](#General Protocol Format)
+    * [Explanation of Some General Error Codes](#Explanation of Some General Error Codes)
+    * [Detailed API Documentation](#Detailed API Documentation)
+* [Project Structure](#Project Structure)
+* [Architecture Description](#Architecture Description)
+* [Test](#Test)
 * [Other Notes](#Other Notes)
 
 ---
@@ -43,9 +37,9 @@ homalos-webctp is a CTP service based on the Python CTP API that provides a WebS
 
 - **Current Status:** Under Development
 
-## Installation and operation
+## Installation and Operation
 
-### Environment Dependence
+### Environment Dependencies
 
 - **Python** ：3.13
 
@@ -53,7 +47,7 @@ homalos-webctp is a CTP service based on the Python CTP API that provides a WebS
 
 - **CTP API**：6.7.10
 
-### Environment setup
+### Environment Setup
 
 1. Environment Preparation
 
@@ -632,7 +626,7 @@ response
 }
 ```
 
-### Explanation of some common error codes
+### Explanation of Some General Error Codes
 
 <details>
 <summary>👈</summary>
@@ -664,7 +658,7 @@ ErrorID="16" ErrorMsg="CTP:Contract not found"
 ```
 </details>
 
-### Detailed API documentation
+### Detailed API Documentation
 
 [Transaction Service Agreement Document](./docs/td_protocol.md)
 
@@ -707,7 +701,7 @@ It is recommended to conduct thorough testing in the SimNow simulation environme
 
 For more detailed information, please refer to the [Development Documentation](./docs/development.md).
 
-## Other notes
+## Other Notes
 
 * Due to limited resources, only a simple test of the SimNow platform was conducted. Please conduct thorough testing yourself before integrating it into the production environment.
 * Users are solely responsible for any consequences arising from real-money trading.
