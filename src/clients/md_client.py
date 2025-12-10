@@ -9,7 +9,6 @@
 @Software   : PyCharm
 @Description: 行情客户端 (继承 CThostFtdcMdSpi)
 """
-import logging
 import time
 import uuid
 from typing import Callable, Any
@@ -18,7 +17,7 @@ from ..ctp import thostmduserapi as mdapi
 
 from ..constants import CallError
 from ..constants import MdConstant as Constant
-from ..utils import CTPObjectHelper, GlobalConfig, MathHelper
+from ..utils import CTPObjectHelper, GlobalConfig, MathHelper, logger
 
 
 class MdClient(mdapi.CThostFtdcMdSpi):
@@ -26,7 +25,6 @@ class MdClient(mdapi.CThostFtdcMdSpi):
     def __init__(self, user_id, password):
         super().__init__()
         self._front_address: str = GlobalConfig.MdFrontAddress
-        logging.debug(f"Md front_address: {self._front_address}")
         self._broker_id: str = GlobalConfig.BrokerID
         self._user_id: str = user_id or str(uuid.uuid4())
         self._password: str = password
@@ -37,7 +35,8 @@ class MdClient(mdapi.CThostFtdcMdSpi):
         self._reconnect_count: int = 0
         self._max_reconnect_attempts: int = 5
         self._last_connect_time: float = 0
-        self._reconnect_interval: float = 5.0  # seconds
+        self._reconnect_interval: float = 10.0  # seconds (CTP auto-reconnect interval is ~6s)
+        logger.info(f"Md front_address: {self._front_address}", tag='md_client')
 
     @property
     def rsp_callback(self) -> Callable[[dict[str, Any]], None]:
@@ -87,7 +86,7 @@ class MdClient(mdapi.CThostFtdcMdSpi):
         Returns:
             None: 该方法没有返回值
         """
-        logging.debug(f"release md client: {self._user_id}")
+        logger.debug(f"release md client: {self._user_id}")
         self._api.RegisterSpi(None)
         self._api.Release()
         self._api = None
@@ -141,18 +140,30 @@ class MdClient(mdapi.CThostFtdcMdSpi):
         Note:
             该方法由CTP API自动调用，不应手动调用
         """
-        logging.info("Md client connected")
+        logger.info("Md client connected")
         # Reconnection control: prevent infinite reconnection loops due to configuration errors
         current_time = time.time()
         if current_time - self._last_connect_time < self._reconnect_interval:
             self._reconnect_count += 1
             if self._reconnect_count > self._max_reconnect_attempts:
-                logging.error(
+                error_msg = (
                     f"Exceeded maximum reconnection attempts ({self._max_reconnect_attempts}). "
-                    "Please check your configuration (broker, front address, etc.)"
+                    "Possible reasons: non-trading hours, incorrect broker/front address, or network issues."
                 )
+                logger.error(error_msg)
+                
+                # Send error response to WebSocket client
+                if self._rsp_callback:
+                    response = {
+                        Constant.MessageType: Constant.OnRspUserLogin,
+                        Constant.RspInfo: {
+                            "ErrorID": -4097,
+                            "ErrorMsg": error_msg
+                        }
+                    }
+                    self._rsp_callback(response)
                 return
-            logging.warning(f"Reconnection attempt {self._reconnect_count}/{self._max_reconnect_attempts}")
+            logger.warning(f"Reconnection attempt {self._reconnect_count}/{self._max_reconnect_attempts}")
         else:
             # Reset counter if enough time has passed
             self._reconnect_count = 0
@@ -172,7 +183,41 @@ class MdClient(mdapi.CThostFtdcMdSpi):
         Note:
             此方法为CTP API标准回调接口，无需手动调用
         """
-        logging.warning(f"Md client disconnected, error_code={reason}")
+        logger.warning(f"Md client disconnected, error_code={reason}")
+        
+        # Track disconnection attempts (when connection never succeeds)
+        current_time = time.time()
+        
+        # Handle first disconnection
+        if self._last_connect_time == 0:
+            self._reconnect_count = 1
+            logger.debug(f"First disconnection, count=1")
+        elif current_time - self._last_connect_time < self._reconnect_interval:
+            self._reconnect_count += 1
+            logger.debug(f"Reconnection count increased to {self._reconnect_count}")
+        else:
+            # Too much time passed, reset counter
+            self._reconnect_count = 1
+            logger.debug(f"Reconnection count reset to 1 (time gap: {current_time - self._last_connect_time:.1f}s)")
+        
+        self._last_connect_time = current_time
+        
+        # Notify WebSocket client about disconnection after max attempts
+        if self._rsp_callback and self._reconnect_count >= self._max_reconnect_attempts:
+            error_msg = (
+                f"CTP connection failed after {self._max_reconnect_attempts} attempts (error_code={reason}). "
+                "Possible reasons: non-trading hours, incorrect broker/front address, or network issues."
+            )
+            logger.error(error_msg)
+            
+            response = {
+                Constant.MessageType: "OnFrontDisconnected",
+                Constant.RspInfo: {
+                    "ErrorID": reason,
+                    "ErrorMsg": error_msg
+                }
+            }
+            self._rsp_callback(response)
 
     def login(self):
         """
@@ -184,11 +229,11 @@ class MdClient(mdapi.CThostFtdcMdSpi):
         Returns:
             int: CTP API请求ID，用于标识本次登录请求
         """
-        logging.info(f"start to login for {self._user_id}")
+        logger.info(f"start to login for {self._user_id}")
         req = mdapi.CThostFtdcReqUserLoginField()
-        req.BrokerID = ""
-        req.UserID = ""
-        req.Password = ""
+        req.BrokerID = self._broker_id
+        req.UserID = self._user_id
+        req.Password = self._password
         return self._api.ReqUserLogin(req, 0)
 
     def OnRspUserLogin(
@@ -214,9 +259,9 @@ class MdClient(mdapi.CThostFtdcMdSpi):
             None: 无直接返回值，通过self.rsp_callback方法返回处理后的响应数据
         """
         if rsp_info is None or rsp_info.ErrorID == 0:
-            logging.info("Md client login success")
+            logger.info("Md client login success")
         else:
-            logging.info("Md client login failed, please try again")
+            logger.info("Md client login failed, please try again")
 
         response = CTPObjectHelper.build_response_dict(Constant.OnRspUserLogin, rsp_info, request_id, is_last)
         response[Constant.RspUserLogin] = {
@@ -276,7 +321,7 @@ class MdClient(mdapi.CThostFtdcMdSpi):
         Returns:
             None: 无直接返回值，通过self.rsp_callback回调函数返回处理后的数据
         """
-        logging.debug(f"receive depth market data: {depth_marketdata.InstrumentID}")
+        logger.debug(f"receive depth market data: {depth_marketdata.InstrumentID}")
         depth_data = {
             "ActionDay": depth_marketdata.ActionDay,
             "AskPrice1": MathHelper.adjust_price(depth_marketdata.AskPrice1),
@@ -352,7 +397,7 @@ class MdClient(mdapi.CThostFtdcMdSpi):
         Returns:
             None: 无直接返回值，通过回调函数返回响应数据
         """
-        logging.debug(f"recv unsub market data")
+        logger.debug(f"recv unsub market data")
         response = CTPObjectHelper.build_response_dict(Constant.OnRspUnSubMarketData, rsp_info, request_id, is_last)
         if specific_instrument:
             response[Constant.SpecificInstrument] = {
@@ -375,7 +420,7 @@ class MdClient(mdapi.CThostFtdcMdSpi):
         """
         instrument_ids = request[Constant.InstrumentID]
         instrument_ids = list(map(lambda i: i.encode(), instrument_ids))
-        logging.debug(f"subscribe data for {instrument_ids}")
+        logger.debug(f"subscribe data for {instrument_ids}")
         ret = self._api.SubscribeMarketData(instrument_ids, len(instrument_ids))
         self.method_called(Constant.OnRspSubMarketData, ret)
 
@@ -394,6 +439,6 @@ class MdClient(mdapi.CThostFtdcMdSpi):
         """
         instrument_ids = request[Constant.InstrumentID]
         instrument_ids = list(map(lambda i: i.encode(), instrument_ids))
-        logging.debug(f"unsubscribe data for {instrument_ids}")
+        logger.debug(f"unsubscribe data for {instrument_ids}")
         ret = self._api.UnSubscribeMarketData(instrument_ids, len(instrument_ids))
         self.method_called(Constant.OnRspUnSubMarketData, ret)

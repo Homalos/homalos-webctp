@@ -9,7 +9,7 @@
 @Software   : PyCharm
 @Description: 交易客户端 (继承 CThostFtdcTraderSpi)
 """
-import logging
+import time
 from typing import Callable, Any
 
 from .client_helper import build_order_to_dict, build_order_insert_to_dict
@@ -17,7 +17,7 @@ from ..ctp import thosttraderapi as tdapi
 
 from ..constants import CallError
 from ..constants import TdConstant as Constant
-from ..utils import CTPObjectHelper, GlobalConfig, MathHelper
+from ..utils import CTPObjectHelper, GlobalConfig, MathHelper, logger
 
 
 class TdClient(tdapi.CThostFtdcTraderSpi):
@@ -30,10 +30,16 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         self._app_id:str = GlobalConfig.AppID
         self._user_id:str = user_id
         self._password: str = password
-        logging.debug(f"Td front_address: {self._front_address}, broker_id: {self._broker_id}, auth_code: {self._auth_code}, app_id: {self._app_id}, user_id: {self._user_id}")
         self._rsp_callback: Callable[[dict[str, Any]], None] | None = None
         self._api: tdapi.CThostFtdcTraderApi | None = None
         self._connected: bool = False
+        # Reconnection control to prevent infinite reconnection loops
+        self._reconnect_count: int = 0
+        self._max_reconnect_attempts: int = 5
+        self._last_connect_time: float = 0
+        self._reconnect_interval: float = 10.0  # seconds (CTP auto-reconnect interval is ~6s)
+        logger.info(f"Td front_address: {self._front_address}, broker_id: {self._broker_id}, "
+                    f"auth_code: {self._auth_code}, app_id: {self._app_id}, user_id: {self._user_id}")
 
     @property
     def rsp_callback(self) -> Callable[[dict[str, Any]], None]:
@@ -135,12 +141,42 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
 
         功能:
             - 记录连接成功日志
+            - 控制重连频率，防止无限重连
             - 自动触发认证流程
 
         注意:
             此函数由CTP API框架自动调用，开发者不应手动调用
         """
-        logging.info("Td client connected")
+        logger.info("Td client connected")
+        
+        # Reconnection control: prevent infinite reconnection loops
+        current_time = time.time()
+        if current_time - self._last_connect_time < self._reconnect_interval:
+            self._reconnect_count += 1
+            if self._reconnect_count > self._max_reconnect_attempts:
+                error_msg = (
+                    f"Exceeded maximum reconnection attempts ({self._max_reconnect_attempts}). "
+                    "Possible reasons: non-trading hours, incorrect broker/front address, or network issues."
+                )
+                logger.error(error_msg)
+                
+                # Send error response to WebSocket client
+                if self._rsp_callback:
+                    response = {
+                        Constant.MessageType: Constant.OnRspUserLogin,
+                        Constant.RspInfo: {
+                            "ErrorID": -4097,
+                            "ErrorMsg": error_msg
+                        }
+                    }
+                    self._rsp_callback(response)
+                return
+            logger.warning(f"Reconnection attempt {self._reconnect_count}/{self._max_reconnect_attempts}")
+        else:
+            # Reset counter if enough time has passed
+            self._reconnect_count = 0
+        
+        self._last_connect_time = current_time
         self.authenticate()
 
     def OnFrontDisconnected(self, reason):
@@ -152,7 +188,41 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Args:
             reason (int): 断开连接的原因代码，具体错误码参考CTP API文档
         """
-        logging.info(f"Td client disconnected, error_code={reason}")
+        logger.warning(f"Td client disconnected, error_code={reason}")
+        
+        # Track disconnection attempts (when connection never succeeds)
+        current_time = time.time()
+        
+        # Handle first disconnection
+        if self._last_connect_time == 0:
+            self._reconnect_count = 1
+            logger.debug(f"First disconnection, count=1")
+        elif current_time - self._last_connect_time < self._reconnect_interval:
+            self._reconnect_count += 1
+            logger.debug(f"Reconnection count increased to {self._reconnect_count}")
+        else:
+            # Too much time passed, reset counter
+            self._reconnect_count = 1
+            logger.debug(f"Reconnection count reset to 1 (time gap: {current_time - self._last_connect_time:.1f}s)")
+        
+        self._last_connect_time = current_time
+        
+        # Notify WebSocket client about disconnection after max attempts
+        if self._rsp_callback and self._reconnect_count >= self._max_reconnect_attempts:
+            error_msg = (
+                f"CTP connection failed after {self._max_reconnect_attempts} attempts (error_code={reason}). "
+                "Possible reasons: non-trading hours, incorrect broker/front address, or network issues."
+            )
+            logger.error(error_msg)
+            
+            response = {
+                Constant.MessageType: "OnFrontDisconnected",
+                Constant.RspInfo: {
+                    "ErrorID": reason,
+                    "ErrorMsg": error_msg
+                }
+            }
+            self._rsp_callback(response)
 
     def authenticate(self):
         """
@@ -198,10 +268,10 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             None: 此方法无返回值，认证结果通过日志输出和后续操作处理
         """
         if rsp_info_field is None or rsp_info_field.ErrorID == 0:
-            logging.info("authenticate success, start to login")
+            logger.info("authenticate success, start to login")
             self.login()
         else:
-            logging.info("authenticate failed, please try again")
+            logger.info("authenticate failed, please try again")
             self.process_connect_result(Constant.OnRspAuthenticate, rsp_info_field)
 
     def login(self):
@@ -243,12 +313,12 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             None: 该回调函数不返回任何值，结果通过异步事件处理
         """
         if rsp_info_field is None or rsp_info_field.ErrorID == 0:
-            logging.info("loging success, start to confirm settlement info")
+            logger.info("loging success, start to confirm settlement info")
             self.settlement_confirm()
             self.process_connect_result(Constant.OnRspUserLogin, rsp_info_field, rsp_user_login_field)
         else:
             self.process_connect_result(Constant.OnRspUserLogin, rsp_info_field)
-            logging.info("login failed, please try again")
+            logger.info("login failed, please try again")
 
     def settlement_confirm(self):
         """
@@ -286,9 +356,9 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None
         """
-        logging.info("confirm settlement info success")
+        logger.info("confirm settlement info success")
         if rsp_info_field is not None:
-            logging.info(f"settlement confirm rsp info, ErrorID: {rsp_info_field.ErrorID}, ErrorMsg: {rsp_info_field.ErrorMsg}")
+            logger.info(f"settlement confirm rsp info, ErrorID: {rsp_info_field.ErrorID}, ErrorMsg: {rsp_info_field.ErrorMsg}")
 
     def process_connect_result(
             self,
