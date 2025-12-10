@@ -248,6 +248,10 @@ homalos-webctp 是一个基于 Python CTP API 的开发的提供 Websocket 接�
 python main.py --config=./config/config_td.yaml --app_type=td
 # 启动行情服务
 python main.py --config=./config/config_md.yaml --app_type=md
+
+# 或者运行脚本
+start_td_server.bat
+start_md_server.bat
 ```
 
 ## 请求示例

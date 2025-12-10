@@ -250,6 +250,10 @@ Host: 127.0.0.1								# the bind ip address, default 127.0.0.1
 python main.py --config=./config/config_td.yaml --app_type=td
 # Start market data service
 python main.py --config=./config/config_md.yaml --app_type=md
+
+# Or run the script
+start_td_server.bat
+start_md_server.bat
 ```
 
 ## Request Example
