@@ -1,13 +1,23 @@
-* [登录](#登录)
-* [订阅行情](#订阅行情)
-* [取消订阅行情](#取消订阅行情)
-* [行情推送](#行情推送)
+<p align="center">
+  English |
+  <a href="md_protocol_CN.md">简体中文</a>
+</p>
 
-### 登录
+## Market Data Protocol
 
-#### 请求
+### Table of contents
 
-行情登录不需要 UserID 和 Password，但是建议提供 UserID 来作为 con file 的名称，否则会用随机的 uuid 作为 con file 的名称
+
+* [Login](#login)
+* [Subscribe Market Data](#subscribe-market-data)
+* [Unsubscribe Market Data](#unsubscribe-market-data)
+* [Market Data Push](#market-data-push)
+
+### Login
+
+#### Request
+
+Market data login does not require UserID and Password, but it is recommended to provide UserID to be used as the name of the con file, otherwise a random uuid will be used as the name of the con file.
 
 ```json
 {
@@ -19,7 +29,7 @@
 }
 ```
 
-#### 应答
+#### Response
 
 ```json
 {
@@ -48,9 +58,9 @@
 }
 ```
 
-### 订阅行情
+### Subscribe Market Data
 
-#### 请求
+#### Request
 
 ```json
 {
@@ -63,7 +73,7 @@
 }
 ```
 
-#### 应答
+#### Response
 
 ```json
 {
@@ -78,7 +88,7 @@
 }
 ```
 
-### 深度行情推送
+### Market Data Push
 
 ```json
 {
@@ -137,9 +147,9 @@
 ```
 
 
-### 取消订阅行情
+### Unsubscribe Market Data
 
-#### 请求
+#### Request
 
 ```json
 {
@@ -152,7 +162,7 @@
 }
 ```
 
-#### 应答
+#### Response
 
 ```json
 {

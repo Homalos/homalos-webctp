@@ -1,31 +1,40 @@
-* [登录](#登录)
-* [请求查询成交](#请求查询成交)
-* [请求查询投资者持仓](#请求查询投资者持仓)
-* [请求查询资金账户](#请求查询资金账户)
-* [请求查询投资者](#请求查询投资者)
-* [请求查询交易编码](#请求查询交易编码)
-* [查询合约保证金率](#查询合约保证金率)
-* [请求查询合约手续费率](#请求查询合约手续费率)
-* [查询期权合约手续费](#查询期权合约手续费)
-* [查询期权交易成本](#查询期权交易成本)
-* [查询报单手续费率](#查询报单手续费率)
-* [查询交易所保证金率](#查询交易所保证金率)
-* [查询投资者持仓明细](#查询投资者持仓明细)
-* [查询行情](#查询行情)
-* [查询产品](#查询产品)
-* [查询交易所](#查询交易所)
-* [查询合约](#查询合约)
-* [查询报单](#查询报单)
-* [查询最大报单数量](#查询最大报单数量)
-* [用户口令变更](#用户口令变更)
-* [报单录入限价单](#报单录入限价单)
-* [报单撤销](#报单撤销)
-* [报单通知](#报单通知)
-* [报单操作错误通](#报单操作错误通知)
+<p align="center">
+  English |
+  <a href="td_protocol_CN.md">简体中文</a>
+</p>
 
-### 登录
+## Trade Protocol
 
-#### 请求
+### Table of contents
+
+* [Login](#login)
+* [Query Trade](#query-trade)
+* [Query Investor Position](#query-investor-position)
+* [Query Trading Account](#query-trading-account)
+* [Query Investor](#query-investor)
+* [Query Trading Code](#query-trading-code)
+* [Query Instrument Margin Rate](#query-instrument-margin-rate)
+* [Query Instrument Commission Rate](#query-instrument-commission-rate)
+* [Query Option Instrument Commission Rate](#query-option-instrument-commission-rate)
+* [Query Option Instrument Trade Cost](#query-option-instrument-trade-cost)
+* [Query Instrument Order Commission Rate](#query-instrument-order-commission-rate)
+* [Query Exchange Margin Rate](#query-exchange-margin-rate)
+* [Query Investor Position Detail](#query-investor-position-detail)
+* [Query Market Data](#query-market-data)
+* [Query Product](#query-product)
+* [Query Exchange](#query-exchange)
+* [Query Instrument](#query-instrument)
+* [Query Order](#query-order)
+* [Query Max Order Volume](#query-max-order-volume)
+* [User Password Update](#user-password-update)
+* [Order Insert (Limit Order)](#order-insert-limit-order)
+* [Order Action (Cancel Order)](#order-action-cancel-order)
+* [Order Notification](#order-notification)
+* [Order Action Error Notification](#order-action-error-notification)
+
+### Login
+
+#### Request
 
 ```json
 {
@@ -38,14 +47,14 @@
 }
 ```
 
-#### 应答
+#### Response
 
 ```json
 {
   "MsgType": "RspUserLogin",
   "RspInfo": {
     "ErrorID": 0,
-    "ErrorMsg": "成功"
+    "ErrorMsg": "Success"
   },
   "RspUserLogin": {
     "UserID": "028742",
@@ -59,9 +68,9 @@
 }
 ```
 
-### 请求查询成交
+### Query Trade
 
-#### 请求
+#### Request
 
 ```json
 {
@@ -75,7 +84,7 @@
 }
 ```
 
-#### 应答
+#### Response
 
 ```json
 {
@@ -86,9 +95,9 @@
 }
 ```
 
-### 请求查询投资者持仓
+### Query Investor Position
 
-#### 请求
+#### Request
 
 ```json
 {
@@ -102,7 +111,7 @@
 }
 ```
 
-#### 应答
+#### Response
 
 ```json
 {
@@ -163,9 +172,9 @@
 }
 ```
 
-### 请求查询资金账户
+### Query Trading Account
 
-#### 请求
+#### Request
 
 ```json
 {
@@ -178,7 +187,7 @@
 }
 ```
 
-#### 应答
+#### Response
 
 ```json
 {
@@ -239,9 +248,9 @@
 }
 ```
 
-### 请求查询投资者
+### Query Investor
 
-#### 请求
+#### Request
 
 ```json
 {
@@ -254,7 +263,7 @@
 }
 ```
 
-#### 应答
+#### Response
 
 ```json
 {
@@ -269,7 +278,7 @@
     "IdentifiedCardType": "1",
     "InvestorGroupID": "",
     "InvestorID": "028742",
-    "InvestorName": "\u72c2\u4eba",
+    "InvestorName": "ZhangSan",
     "IsActive": 1,
     "MarginModelID": "",
     "Mobile": "",
@@ -279,9 +288,9 @@
 }
 ```
 
-### 请求查询交易编码
+### Query Trading Code
 
-#### 请求
+#### Request
 
 ```json
 {
@@ -295,7 +304,7 @@
 }
 ```
 
-#### 应答
+#### Response
 
 ```json
 {
@@ -316,9 +325,9 @@
 }
 ```
 
-### 查询合约保证金率
+### Query Instrument Margin Rate
 
-#### 请求
+#### Request
 
 ```json
 {
@@ -332,7 +341,7 @@
 }
 ```
 
-#### 应答
+#### Response
 
 ```json
 {
@@ -356,9 +365,9 @@
 }
 ```
 
-### 请求查询合约手续费率
+### Query Instrument Commission Rate
 
-#### 请求
+#### Request
 
 ```json
 {
@@ -372,7 +381,7 @@
 }
 ```
 
-#### 应答
+#### Response
 
 ```json
 {
@@ -397,9 +406,9 @@
 }
 ```
 
-### 查询期权合约手续费
+### Query Option Instrument Commission Rate
 
-#### 请求
+#### Request
 
 ```json
 {
@@ -413,7 +422,7 @@
 }
 ```
 
-#### 应答
+#### Response
 
 ```json
 {
@@ -425,9 +434,9 @@
 }
 ```
 
-### 查询期权交易成本
+### Query Option Instrument Trade Cost
 
-#### 请求
+#### Request
 
 ```json
 {
@@ -444,7 +453,7 @@
 }
 ```
 
-#### 应答
+#### Response
 
 ```json
 {
@@ -455,9 +464,9 @@
 }
 ```
 
-### 查询报单手续费率
+### Query Instrument Order Commission Rate
 
-#### 请求
+#### Request
 
 ```json
 {
@@ -471,7 +480,7 @@
 }
 ```
 
-#### 应答
+#### Response
 
 ```json
 {
@@ -482,9 +491,9 @@
 }
 ```
 
-### 查询交易所保证金率
+### Query Exchange Margin Rate
 
-#### 请求
+#### Request
 
 ```json
 {
@@ -498,7 +507,7 @@
 }
 ```
 
-#### 应答
+#### Response
 
 ```json
 {
@@ -509,9 +518,9 @@
 }
 ```
 
-### 查询投资者持仓明细
+### Query Investor Position Detail
 
-#### 请求
+#### Request
 
 ```json
 {
@@ -525,7 +534,7 @@
 }
 ```
 
-#### 应答
+#### Response
 
 ```json
 {
@@ -536,9 +545,9 @@
 }
 ```
 
-### 查询行情
+### Query Market Data
 
-#### 请求
+#### Request
 
 ```json
 {
@@ -551,7 +560,7 @@
 }
 ```
 
-#### 应答
+#### Response
 
 ```json
 {
@@ -610,9 +619,9 @@
 }
 ```
 
-### 查询产品
+### Query Product
 
-#### 请求
+#### Request
 
 ```json
 {
@@ -624,7 +633,7 @@
 }
 ```
 
-#### 应答
+#### Response
 
 ```json
 {
@@ -646,7 +655,7 @@
     "PriceTick": 1.0,
     "ProductClass": "1",
     "ProductID": "\u0006",
-    "ProductName": "\u9ec4\u5927\u8c462\u53f7",
+    "ProductName": "No. 2 Soybean",
     "TradeCurrencyID": "CNY",
     "UnderlyingMultiple": 1.7976931348623157e+308,
     "VolumeMultiple": 10,
@@ -656,9 +665,9 @@
 }
 ```
 
-### 查询交易所
+### Query Exchange
 
-#### 请求
+#### Request
 
 ```json
 {
@@ -670,7 +679,7 @@
 }
 ```
 
-#### 应答
+#### Response
 
 ```json
 {
@@ -679,15 +688,15 @@
   "IsLast": true,
   "QryExchange": {
     "ExchangeID": "DCE",
-    "ExchangeName": "\u5927\u8fde\u5546\u54c1\u4ea4\u6613\u6240",
+    "ExchangeName": "Dalian Commodity Exchange",
     "ExchangeProperty": "1"
   }
 }
 ```
 
-### 查询合约
+### Query Instrument
 
-#### 请求
+#### Request
 
 ```json
 {
@@ -702,7 +711,7 @@
 }
 ```
 
-#### 应答
+#### Response
 
 ```json
 {
@@ -749,9 +758,9 @@
 }
 ```
 
-### 查询报单
+### Query Order
 
-#### 请求
+#### Request
 
 ```json
 {
@@ -764,7 +773,7 @@
 }
 ```
 
-#### 应答
+#### Response
 
 ```json
 {
@@ -820,7 +829,7 @@
     "FrontID": 3,
     "SessionID": 1653223221,
     "UserProductInfo": "TickTrader",
-    "StatusMsg": "全部成交报单已提交",
+    "StatusMsg": "All traded order submitted",
     "UserForceClose": 0,
     "ActiveUserID": "",
     "BrokerOrderSeq": 134843,
@@ -839,9 +848,9 @@
 }
 ```
 
-### 查询最大报单数量
+### Query Max Order Volume
 
-#### 请求
+#### Request
 
 ```json
 {
@@ -855,14 +864,14 @@
 }
 ```
 
-#### 应答
+#### Response
 
 ```json
 {
   "MsgType": "RspQryMaxOrderVolume",
   "RspInfo": {
     "ErrorID": 0,
-    "ErrorMsg": "CTP:正确"
+    "ErrorMsg": "CTP:Correct"
   },
   "IsLast": true,
   "QryMaxOrderVolume": {
@@ -879,11 +888,11 @@
 }
 ```
 
-### 用户口令变更
+### User Password Update
 
-变更完成后，需要等一会儿才会生效
+After the change is completed, it will take a while to take effect.
 
-#### 请求
+#### Request
 
 ```json
 {
@@ -898,14 +907,14 @@
 }
 ```
 
-#### 应答
+#### Response
 
 ```json
 {
   "MsgType": "RspUserPasswordUpdate",
   "RspInfo": {
     "ErrorID": 0,
-    "ErrorMsg": "CTP:正确"
+    "ErrorMsg": "CTP:Correct"
   },
   "IsLast": true,
   "UserPasswordUpdate": {
@@ -917,9 +926,9 @@
 }
 ```
 
-### 报单录入（限价单）
+### Order Insert (Limit Order)
 
-#### 请求
+#### Request
 
 ```json
 {
@@ -946,16 +955,16 @@
 }
 ```
 
-#### 应答
+#### Response
 
-成功时，会有报单通知；失败时，会有应答
+On success, there will be an order notification; on failure, there will be a response.
 
 ```json
 {
   "MsgType": "RspOrderInsert",
   "RspInfo": {
     "ErrorID": 16,
-    "ErrorMsg": "CTP:找不到合约"
+    "ErrorMsg": "CTP:Instrument not found"
   },
   "IsLast": true,
   "InputOrder": {
@@ -993,9 +1002,9 @@
 }
 ```
 
-### 报单撤销
+### Order Action (Cancel Order)
 
-#### 请求
+#### Request
 
 ```json
 {
@@ -1013,14 +1022,14 @@
 }
 ```
 
-#### 应答
+#### Response
 
 ```json
 {
   "MsgType": "RspOrderAction",
   "RspInfo": {
     "ErrorID": 25,
-    "ErrorMsg": "CTP:撤单找不到相应报单"
+    "ErrorMsg": "CTP:Cancel order - corresponding order not found"
   },
   "IsLast": true,
   "InputOrderAction": {
@@ -1045,7 +1054,7 @@
 }
 ```
 
-### 报单通知
+### Order Notification
 
 ```json
 {
@@ -1100,7 +1109,7 @@
     "FrontID": 1,
     "SessionID": 2129811508,
     "UserProductInfo": "",
-    "StatusMsg": "报单已提交",
+    "StatusMsg": "Order submitted",
     "UserForceClose": 0,
     "ActiveUserID": "",
     "BrokerOrderSeq": 308670,
@@ -1119,14 +1128,14 @@
 }
 ```
 
-### 报单操作错误通知
+### Order Action Error Notification
 
 ```json
 {
   "MsgType": "ErrRtnOrderAction",
   "RspInfo": {
     "ErrorID": 25,
-    "ErrorMsg": "CTP:撤单找不到相应报单"
+    "ErrorMsg": "CTP:Cancel order - corresponding order not found"
   },
   "OrderAction": {
     "BrokerID": "9999",
