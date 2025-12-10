@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 @ProjectName: homalos-webctp
@@ -160,3 +160,61 @@ def build_order_to_dict(order_field) -> dict:
         "ExchangeInstID": order_field.ExchangeInstID,
         "IPAddress": order_field.IPAddress
     }
+
+
+class ReconnectionController:
+    """CTP 客户端重连控制器"""
+    
+    def __init__(self, max_attempts: int = 5, interval: float = 10.0, client_type: str = "CTP"):
+        """
+        初始化重连控制器
+        
+        Args:
+            max_attempts: 最大重连尝试次数
+            interval: 重连间隔阈值（秒）
+            client_type: 客户端类型
+        """
+        self.reconnect_count: int = 0
+        self.max_reconnect_attempts: int = max_attempts
+        self.last_connect_time: float = 0.0
+        self.reconnect_interval: float = interval
+        self.client_type: str = client_type
+    
+    def check_on_connected(self, callback, message_type: str, logger, current_time: float) -> bool:
+        """在 OnFrontConnected 中检查重连状态"""
+        if current_time - self.last_connect_time < self.reconnect_interval:
+            self.reconnect_count += 1
+            if self.reconnect_count > self.max_reconnect_attempts:
+                error_msg = (
+                    f"Exceeded maximum reconnection attempts ({self.max_reconnect_attempts}). "
+                    "Possible reasons: non-trading hours, incorrect broker/front address, or network issues."
+                )
+                logger.error(error_msg)
+                if callback:
+                    callback({"MsgType": message_type, "RspInfo": {"ErrorID": -4097, "ErrorMsg": error_msg}})
+                return False
+            logger.warning(f"Reconnection attempt {self.reconnect_count}/{self.max_reconnect_attempts}")
+        else:
+            self.reconnect_count = 0
+        self.last_connect_time = current_time
+        return True
+    
+    def track_on_disconnected(self, reason: int, callback, logger, current_time: float) -> None:
+        """在 OnFrontDisconnected 中跟踪断开次数"""
+        if self.last_connect_time == 0:
+            self.reconnect_count = 1
+            logger.debug("First disconnection, count=1")
+        elif current_time - self.last_connect_time < self.reconnect_interval:
+            self.reconnect_count += 1
+            logger.debug(f"Reconnection count increased to {self.reconnect_count}")
+        else:
+            self.reconnect_count = 1
+            logger.debug(f"Reconnection count reset to 1 (time gap: {current_time - self.last_connect_time:.1f}s)")
+        self.last_connect_time = current_time
+        if callback and self.reconnect_count >= self.max_reconnect_attempts:
+            error_msg = (
+                f"CTP connection failed after {self.max_reconnect_attempts} attempts (error_code={reason}). "
+                "Possible reasons: non-trading hours, incorrect broker/front address, or network issues."
+            )
+            logger.error(error_msg)
+            callback({"MsgType": "OnFrontDisconnected", "RspInfo": {"ErrorID": reason, "ErrorMsg": error_msg}})
