@@ -9,8 +9,6 @@
 @Software   : PyCharm
 @Description: run
 """
-import sys
-
 import uvicorn
 
 from .utils.log import logger
