@@ -9156,3 +9156,16 @@ class SyncDeltaRULEInterParameterField(BaseModel):
 class WebCTPReqSyncDeltaRULEInterParameter(WebCTPRequest):
     SyncDeltaRULEInterParameter: SyncDeltaRULEInterParameterField = Field(
         title="风险结算追平RULE跨品种抵扣参数")
+
+
+class QryInstrumentField(BaseModel):
+    """查询合约"""
+    ExchangeID: str = Field("", title="交易所代码")
+    InstrumentID: str = Field("", title="合约代码")
+    ExchangeInstID: str = Field("", title="合约在交易所的代码")
+    ProductID: str = Field("", title="产品代码")
+
+
+class WebCTPReqQryInstrument(WebCTPRequest):
+    ReqQryInstrument: QryInstrumentField = Field(title="查询合约")
+
