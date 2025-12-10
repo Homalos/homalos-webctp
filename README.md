@@ -1,149 +1,169 @@
 <p align="center">
-  <font size="5px">✨ 基于Python CTP API 开发的提供 websocket 接口的 CTP 服务✨</font>
+  <font size="5px">✨ A CTP service providing a WebSocket interface, developed based on the Python CTP API✨</font>
 </p>
 
+<p align="center">
+  <a href="https://qun.qq.com/universal-share/share?ac=1&authKey=dzGDk%2F%2Bpy%2FwpVyR%2BTrt9%2B5cxLZrEHL793cZlFWvOXuV5I8szMnOU4Wf3ylap7Ph0&busi_data=eyJncm91cENvZGUiOiI0NDYwNDI3NzciLCJ0b2tlbiI6IlFrM0ZhZmRLd0xIaFdsZE9FWjlPcHFwSWxBRFFLY2xZbFhaTUh4K2RldisvcXlBckZ4NVIrQzVTdDNKUFpCNi8iLCJ1aW4iOiI4MjEzMDAwNzkifQ%3D%3D&data=O1Bf7_yhnvrrLsJxc3g5-p-ga6TWx6EExnG0S1kDNJTyK4sV_Nd9m4p-bkG4rhj_5TdtS5lMjVZRBv4amHyvEA&svctype=4&tempid=h5_group_info"><img alt="Group#1" title="Group#1"
+src="https://img.shields.io/badge/Group%231-Join-blue"/></a>
+</p>
+
+<p align="center">
+  English |
+  <a href="README_CN.md">简体中文</a>
+</p>
 
 ---
 
-* [概述](#概述)
-* [安装及运行](#安装及运行)
-    * [环境依赖](#环境依赖)
-    * [环境搭建](#环境搭建)
-    * [运行](#运行)
-* [请求示例](#请求示例)
-* [协议](#协议)
-    * [通用协议格式](#通用协议格式)
-    * [部分通用错误码说明](#部分通用错误码说明)
-* [开发说明](#开发说明)
-* [其他说明](#其他说明)
+* [Overview](#Overview)
+* [Installation and Operation](#Installation and Operation)
+
+* [Environment Dependencies](#Environment Dependencies)
+
+* [Environment Setup](#Environment Setup)
+
+* [Running](#Running)
+
+* [Request Example](#Request Example)
+
+* [Protocol](#Protocol)
+
+* [General Protocol Format](#General Protocol Format)
+
+* [Explanation of Some General Error Codes](#Explanation of Some General Error Codes)
+
+* [Development Notes](#Development Notes)
+
+* [Other Notes](#Other Notes)
 
 ---
 
-## 概述
+## Overview
 
-homalos-webctp 是一个基于 Python CTP API 的开发的提供 Websocket 接口的 CTP 服务，旨在提供接口的方式进行期货量化交易的操作和开发。
+homalos-webctp is a CTP service based on the Python CTP API that provides a WebSocket interface. It aims to provide an interface for the operation and development of futures quantitative trading.
 
-- **当前状态**: 开发中
+- **Current Status:** Under Development
 
-## 安装及运行
+## Installation and operation
 
-### 环境依赖
+### Environment Dependence
 
 - **Python** ：3.13
 
-- **工具**：UV
+- **Tools: UV**
 
 - **CTP API**：6.7.10
 
-### 环境搭建
+### Environment setup
 
-1. 准备环境
+1. Environment Preparation
 
-   安装 UV，推荐使用 UV
+   Install UV lamp; UV lamps are recommended.
 
-   <details>
-   <summary>👈方式一、系统全局安装，推荐此种方式，其他 Python 项目也可以使用 UV 管理。</summary>
-   
-   在 Windows 系统安装
-   
+2. <details>
+   <summary>👈Method 1: System-wide installation. This method is recommended. Other Python projects can also use UV management.</summary>
+
+
+   Install on Windows system
+
    ```bash
    powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
    ```
-   
-   在 Linux 系统安装
-   
+
+   Installing on a Linux system
+
    ```bash
    curl -LsSf https://astral.sh/uv/install.sh | sh
    ```
    </details>
-   
+
    <details>
-   <summary>👈方式二、在已有 Python 中安装</summary>
-   
-   和上述方式二选一，如果执行了方式一，则方式二直接跳过。此种安装方式的 UV 只能在这一个 Python 环境中使用。
-   
+   <summary>👈Method 2: Install on an existing Python installation</summary>
+   Choose one of the two methods above. If method one is executed, method two will be skipped. The UV (unique visitors) for this installation method can only be used in this Python environment.
+
    ```bash
    pip install uv
    ```
    </details>
-   
-2. 安装 Python
 
-   如果在步骤1中选择了全局安装 UV，则需要执行这一步，已安装直接跳过
-   
+3. Install Python
+
+   If you selected to install UV globally in step 1, you need to perform this step; otherwise, skip it.
+
    ```bash
    uv python install 3.13
    ```
-   
+
    <details>
    <summary>👈Tips</summary>
-   此种方式是全局安装 Python，与项目中的 Python 环境是隔离的，互不影响
+   This method installs Python globally, isolating it from the Python environment in the project, and does not affect it.
    </details>
-   
-3. 克隆项目
+
+4. Cloning project
 
    ```bash
    git clone https://github.com/Homalos/homalos-webctp.git
    cd homalos-webctp
    ```
 
-4. 安装依赖
+5. Install dependencies
 
    ```bash
    uv sync
    ```
 
-   根据 pyproject.toml 中的信息，自动在当前项目根目录下创建名为 .venv 的 Python 虚拟环境及所有依赖安装
+   Based on the information in pyproject.toml, automatically create a Python virtual environment named .venv in the current project root directory and install all dependencies.
 
-5. 配置
+6. Configuration
 
    <details>
-   <summary>👈配置参考</summary>
+   <summary>👈Configuration Reference</summary>
+
    
-   > :pushpin: 配置参考示例 config.example.yaml，示例中行情和交易前置地址，默认配置的是 SimNow 7x24 环境， 更多 SimNow 环境详细信息参考 [SimNow官网](https://www.simnow.com.cn/product.action)、[openctp环境监控](http://121.37.80.177)，可根据需变更为其他支持CTPAPI(官方实现)的柜台环境。
+   > :pushpin:The configuration example is config.example.yaml. The example uses the front-end address for market data and trading. The default configuration is the SimNow 7x24 environment. For more detailed information on the SimNow environment, please refer to [SimNow Official Website](https://www.simnow.com.cn/product.action) and [OpenCTP Environment Monitoring](http://121.37.80.177). You can change it to other trading environment that supports CTPAPI (official implementation) as needed. 
    >
-   > :pushpin: SimNow 7x24 环境：
+   > :pushpin: SimNow 7x24 environment：
    >
    > <table>
-   ><tr>
-   > 	<th colspan="3">前置信息</th>
+   > <tr>
+   > 	<th colspan="3">Front Information</th>
    > </tr>
    > <tr>
    > 	<td>BrokerID</td>
    > 	<td>9999</td>
-   > 	<td>券商ID</td>
+   > 	<td>Brokerage ID</td>
    > </tr>
    > <tr>
    > 	<td>Trade Front</td>
    > 	<td>182.254.243.31:40001</td>
-   > 	<td rowspan="2">看穿式前置，使用监控中心生产秘钥</td>
+   > 	<td rowspan="2">A transparent front-end system uses a monitoring center to generate keys.</td>
    > </tr>
    > <tr>
    > 	<td>Market Front</td>
    > 	<td>182.254.243.31:40011</td>
    > </tr>
    > <tr>
-   > 	<td rowspan="2">交易阶段(服务时间)</td>
-   > 	<td>交易日，16:00～次日09:00</td>
+   > 	<td rowspan="2">Transaction phase (service time)</td>
+   > 	<td>Trading days, 16:00 to 09:00 the following day</td>
    > 	<td></td>
    > </tr>
    > <tr>
-   > 	<td>非交易日，16:00～次日12:00</td>
+   > 	<td>On non-trading days, from 16:00 to 12:00 the following day</td>
    > 	<td></td>
    > </tr>
    > </table>
-   > 
-   > - 该环境仅服务于CTP API开发爱好者，仅为用户提供CTP API测试需求，不提供结算等其它服务。
    >
-   > - 新注册用户，需要等到第三个交易日才能使用第二套环境。
    >
-   > - 账户、钱、仓跟第一套环境上一个交易日保持一致。
+   > - This environment is only for CTP API development enthusiasts and is only provided for users' CTP API testing needs. It does not provide other services such as settlement.
    >
-   > :pushpin:  SimNow 非7x24环境：
+   > - Newly registered users will need to wait until the third trading day to use the second environment.
+   >
+   > - The account, funds, and warehouses remain consistent with the previous trading day's environment.
+   >
+   > :pushpin:  SimNow Non-7x24 environment：
    >
    > <table>
-   ><tr>
-   > 	<th colspan="4">前置信息</th>
+   > <tr>
+   > 	<th colspan="4">Font Information</th>
    > </tr>
    > <tr>
    > 	<td>BrokerID</td>
@@ -155,20 +175,20 @@ homalos-webctp 是一个基于 Python CTP API 的开发的提供 Websocket 接�
    > </tr>
    > <tr>
    > 	<td>AuthCode</td>
-   > 	<td colspan="3">0000000000000000（16个0）</td>
+   > 	<td colspan="3">0000000000000000（16 zeros）</td>
    > </tr>
    > <tr>
-   > 	<td rowspan="2">第一组</td>
+   > 	<td rowspan="2">Group 1</td>
    > 	<td>Trade Front</td>
    > 	<td>182.254.243.31:30001</td>
-   > 	<td rowspan="6">看穿式前置，使用监控中心生产秘钥</td>
+   > 	<td rowspan="6">A transparent front-end system uses a monitoring center to generate keys.</td>
    > </tr>
    > <tr>
    > 	<td>Market Front</td>
    > 	<td>182.254.243.31:30012</td>
    > </tr>
    > <tr>
-   > 	<td rowspan="2">第二组</td>
+   > 	<td rowspan="2">Group 2</td>
    > 	<td>Trade Front</td>
    > 	<td>182.254.243.31:30002</td>
    > </tr>
@@ -177,7 +197,7 @@ homalos-webctp 是一个基于 Python CTP API 的开发的提供 Websocket 接�
    > 	<td>182.254.243.31:30012</td>
    > </tr>
    > <tr>
-   > 	<td rowspan="2">第三组</td>
+   > 	<td rowspan="2">Group 3</td>
    > 	<td>Trade Front</td>
    > 	<td>182.254.243.31:30003</td>
    > </tr>
@@ -186,73 +206,74 @@ homalos-webctp 是一个基于 Python CTP API 的开发的提供 Websocket 接�
    > 	<td>182.254.243.31:30013</td>
    > </tr>
    > <tr>
-   > 	<td>交易阶段(服务时间)</td>
-   > 	<td colspan="3">与实际生产环境保持一致。</td>
+   > 	<td>Transaction phase (service time)</td>
+   > 	<td colspan="3">It should be consistent with the actual production environment.</td>
    > </tr>
    > </table>
-   > 
-   > - 支持上期所期权、能源中心期权、中金所期权、广期所期权、郑商所期权、大商所期权
    >
-   > - 用户注册后，默认的 APPID 为 simnow_client_test，认证码为 0000000000000000（16个0），默认开启终端认证，程序化用户可以选择不开终端认证接入。
    >
-   > - 交易品种：六所所有期货品种以及上期所、能源中心、中金所、广期所所有期权品种，以及郑商所、大商所部分期权品种。
-   > - 账户资金：初始资金两千万，支持入金，每日最多三次。
-   > 
+   > - Supports options from the Shanghai Futures Exchange, the National Energy Exchange, the China Financial Futures Exchange, the Guangzhou Futures Exchange, the Zhengzhou Commodity Exchange, and the Dalian Commodity Exchange.
+   >
+   > - After user registration, the default APPID is simnow_client_test, and the authentication code is 0000000000000000 (16 zeros). Terminal authentication is enabled by default, but programmatic users can choose not to enable terminal authentication for access.
+   >
+   > - Trading instruments: All futures instruments traded on the six exchanges, as well as all options instruments traded on the Shanghai Futures Exchange, the Energy Exchange, the China Financial Futures Exchange, and the Guangzhou Futures Exchange, and some options instruments traded on the Zhengzhou Commodity Exchange and the Dalian Commodity Exchange.
+   > - Account funds: Initial capital of 20 million, supports deposits, up to three times per day.
+>
    > 见 [SimNow官网](https://www.simnow.com.cn/product.action)
-   </details>
+> </details>
 
-   创建自己的行情配置 config_md.yaml :
+   Create your own market data configuration file: config_md.yaml
 
    ```yaml
-   TdFrontAddress: tcp://182.254.243.31:40001	# 交易前置地址
-   MdFrontAddress: tcp://182.254.243.31:40011	# 行情前置地址
-   BrokerID: "9999"							# 券商ID
-   AuthCode: "0000000000000000"				# 认证码
-   AppID: simnow_client_test					# 应用ID
+   TdFrontAddress: tcp://182.254.243.31:40001	# Trade Front Address
+   MdFrontAddress: tcp://182.254.243.31:40011	# Market Front Address
+   BrokerID: "9999"							# Brokerage ID
+   AuthCode: "0000000000000000"				# Authentication code
+   AppID: simnow_client_test					# Application ID
    Port: 8080									# the listening port, default 8080
-   Host: 127.0.0.1								# the bind ip address, default 127.0.0.1
+Host: 127.0.0.1								# the bind ip address, default 127.0.0.1
    LogLevel: INFO								# NOTSET, DEBUG, INFO, WARN, ERROR, CRITICAL
    ```
 
-   创建自己的交易配置 config_td.yaml :
+   Create your own trading configuration file config_td.yaml:
    ```yaml 
-   TdFrontAddress: tcp://182.254.243.31:40001	# 交易前置地址
-   MdFrontAddress: tcp://182.254.243.31:40011	# 行情前置地址
-   BrokerID: "9999"							# 券商ID
-   AuthCode: "0000000000000000"				# 认证码
-   AppID: simnow_client_test					# 应用ID
+   TdFrontAddress: tcp://182.254.243.31:40001	# Trade Front Address
+   MdFrontAddress: tcp://182.254.243.31:40011	# Market Front Address
+   BrokerID: "9999"							# Brokerage ID
+   AuthCode: "0000000000000000"				# Authentication code
+   AppID: simnow_client_test					# Application ID
    Port: 8081									# the listening port, default 8081
    Host: 127.0.0.1								# the bind ip address, default 127.0.0.1
    LogLevel: INFO								# NOTSET, DEBUG, INFO, WARN, ERROR, CRITICAL
    ```
 
-### 运行
+### Run
 
 ```bash
-# 激活项目根目录下的虚拟环境，不激活用的是系统默认 Python 而不是项目所需要的 Python环境
+# Activate the virtual environment in the project root directory. Deactivating it will use the system default Python environment instead of the one required by the project.
 .venv\Scripts\activate
-# 启动交易服务
+# Start trading service
 python main.py --config=./config/config_td.yaml --app_type=td
-# 启动行情服务
+# Start market data service
 python main.py --config=./config/config_md.yaml --app_type=md
 ```
 
-## 请求示例
+## Request Example
 
-> :pushpin: 见 [md_protocol.md](docs/md_protocol.md)、[td_protocol.md](docs/td_protocol.md)
+> :pushpin: See [md_protocol.md](docs/md_protocol.md)、[td_protocol.md](docs/td_protocol.md)
 
-### 部分示例
+### Partial Examples
 
-示例是基于 SimNow 电信1环境，不同环境的数据存在差异，以下示例数据未必可全部通过，根据环境调整即可。
+The example is based on the SimNow Telecom 1 environment. Data may differ in different environments, and the example data below may not be universally applicable. Adjustments should be made according to your environment.
 
-行情连接地址：ws://127.0.0.1:8080/md/
+Market data link: ws://127.0.0.1:8080/md/
 
-交易连接地址：ws://127.0.0.1:8081/td/
+Trading link: ws://127.0.0.1:8081/td/
 
 <details>
-<summary>登录</summary>
+<summary>Log in</summary>
 
-请求
+request
 
 ```json
 {
@@ -264,7 +285,7 @@ python main.py --config=./config/config_md.yaml --app_type=md
 }
 ```
 
-应答
+response
 
 ```json
 {
@@ -295,9 +316,9 @@ python main.py --config=./config/config_md.yaml --app_type=md
 </details>
 
 <details>
-<summary>订阅行情</summary>
+<summary>Subscribe to market data</summary>
 
-请求
+request
 
 ```json
 {
@@ -310,7 +331,7 @@ python main.py --config=./config/config_md.yaml --app_type=md
 }
 ```
 
-应答
+response
 
 ```json
 {
@@ -352,7 +373,7 @@ python main.py --config=./config/config_md.yaml --app_type=md
 }
 ```
 
-深度行情应答
+In-depth market response
 
 ```json
 {
@@ -524,9 +545,9 @@ python main.py --config=./config/config_md.yaml --app_type=md
 </details>
 
 <details>
-<summary>取消订阅行情</summary>
+<summary>Cancel subscription market data</summary>
 
-请求
+request
 
 ```json
 {
@@ -539,7 +560,7 @@ python main.py --config=./config/config_md.yaml --app_type=md
 }
 ```
 
-应答
+response
 
 ```json
 {
@@ -582,12 +603,12 @@ python main.py --config=./config/config_md.yaml --app_type=md
 ```
 </details>
 
-## 协议
+## Protocol
 
-### 通用协议格式
+### General Protocol Format
 
 ``` python
-# 请求
+# request
 {
   "MsgType": "{method_name}",
   "{request_field}": {
@@ -598,7 +619,7 @@ python main.py --config=./config/config_md.yaml --app_type=md
   "RequestID": 1
 }
 
-# 响应
+# response
 {
     "MsgType": "{rsp_of_method}",
     "RspInfo": {
@@ -607,86 +628,86 @@ python main.py --config=./config/config_md.yaml --app_type=md
     },
     "IsLast": true,
     "RequestID": 1
-    "{response_filed}": {response_body}  # 具体参见详细文档
+    "{response_filed}": {response_body}  # Please refer to the detailed documentation for details.
 }
 ```
 
-### 部分通用错误码说明
+### Explanation of some common error codes
 
 <details>
 <summary>👈</summary>
 
 ```bash
-ErrorID="-400" ErrorMsg="参数有误"
-ErrorID="-401" ErrorMsg="未登录"
-ErrorID="-404" ErrorMsg="Webctp还未实现该方法"
-ErrorID="-1" ErrorMsg="CTP:请求失败"
-ErrorID="-2" ErrorMsg="CTP:未处理请求超过许可数"
-ErrorID="-3" ErrorMsg="CTP:每秒发送请求数超过许可数"
-ErrorID="0" ErrorMsg="CTP:正确"
-ErrorID="1" ErrorMsg="CTP:不在已同步状态"
-ErrorID="2" ErrorMsg="CTP:会话信息不一致"
-ErrorID="3" ErrorMsg="CTP:不合法的登录"
-ErrorID="4" ErrorMsg="CTP:用户不活跃"
-ErrorID="5" ErrorMsg="CTP:重复的登录"
-ErrorID="6" ErrorMsg="CTP:还没有登录"
-ErrorID="7" ErrorMsg="CTP:还没有初始化"
-ErrorID="8" ErrorMsg="CTP:前置不活跃"
-ErrorID="9" ErrorMsg="CTP:无此权限"
-ErrorID="10" ErrorMsg="CTP:修改别人的口令"
-ErrorID="11" ErrorMsg="CTP:找不到该用户"
-ErrorID="12" ErrorMsg="CTP:找不到该经纪公司"
-ErrorID="13" ErrorMsg="CTP:找不到投资者"
-ErrorID="14" ErrorMsg="CTP:原口令不匹配"
-ErrorID="15" ErrorMsg="CTP:报单字段有误"
-ErrorID="16" ErrorMsg="CTP:找不到合约"
+ErrorID="-400" ErrorMsg="Incorrect parameters"
+ErrorID="-401" ErrorMsg="Not logged in"
+ErrorID="-404" ErrorMsg="This method has not yet been implemented."
+ErrorID="-1" ErrorMsg="CTP:Request failed"
+ErrorID="-2" ErrorMsg="CTP:Unprocessed requests exceed the number of licenses"
+ErrorID="-3" ErrorMsg="CTP:The number of requests sent per second exceeded the number of licenses."
+ErrorID="0" ErrorMsg="CTP:correct"
+ErrorID="1" ErrorMsg="CTP:Not in synchronized state"
+ErrorID="2" ErrorMsg="CTP:Inconsistent session information"
+ErrorID="3" ErrorMsg="CTP:Invalid login"
+ErrorID="4" ErrorMsg="CTP:User inactive"
+ErrorID="5" ErrorMsg="CTP:Duplicate logins"
+ErrorID="6" ErrorMsg="CTP:Not logged in yet"
+ErrorID="7" ErrorMsg="CTP:Not initialized yet"
+ErrorID="8" ErrorMsg="CTP:Pre-inactive"
+ErrorID="9" ErrorMsg="CTP:No permission required"
+ErrorID="10" ErrorMsg="CTP:Change other people's passwords"
+ErrorID="11" ErrorMsg="CTP:User not found"
+ErrorID="12" ErrorMsg="CTP:The brokerage firm could not be found."
+ErrorID="13" ErrorMsg="CTP:Cannot find investors"
+ErrorID="14" ErrorMsg="CTP:Original password does not match"
+ErrorID="15" ErrorMsg="CTP:The order field is incorrect."
+ErrorID="16" ErrorMsg="CTP:Contract not found"
 ```
 </details>
 
-### 详细接口文档
+### Detailed API documentation
 
-[交易服务协议文档](./docs/td_protocol.md)
+[Transaction Service Agreement Document](./docs/td_protocol.md)
 
-[行情服务协议文档](./docs/md_protocol.md)
+[Market Data Service Agreement Document](./docs/md_protocol.md)
 
-## 项目结构
+## Project Structure
 
 ```reStructuredText
 homalos-webctp/
-├── 📁 config/					# 项目配置
-├── 📁 docs/					# 项目文档
-├── 📁 libs/					# 第三方库，包括CTP原始动态库
-├── 📁 src/						# 核心源代码
-├── 📁 tests/					# 测试脚本
-├── 📁 CHANGELOG.md				# 历史更新
-├── 📁 LICENSE.txt				# License文件
-├── 📁 README.md				# 说明文档
-├── 📁 main.py					# 项目入口
-├── 📁 pyproject.toml			# 项目配置文件，依赖由UV管理
-└── 📁 uv.lock					# UV文件锁，由UV管理
+├── 📁 config/					# Project Configuration
+├── 📁 docs/					# Project Documentation
+├── 📁 libs/					# Third-party libraries, including the original CTP dynamic library
+├── 📁 src/						# Core source code
+├── 📁 tests/					# test script
+├── 📁 CHANGELOG.md				# Historical Updates
+├── 📁 LICENSE.txt				# License file
+├── 📁 README.md				# Documentation
+├── 📁 main.py					# Project entrance
+├── 📁 pyproject.toml			# Project configuration files, dependencies managed by UV.
+└── 📁 uv.lock					# UV file lock, managed by UV
 ```
 
-## 架构说明
+## Architecture Description
 
-### 三层架构
+### Three-Tier Architecture
 
-1. **应用层 (apps/)**: FastAPI WebSocket 端点
-2. **服务层 (services/)**: 异步/同步边界处理，消息路由
-3. **客户端层 (clients/)**: CTP API 封装
+1. **Application Layer (apps/)**: FastAPI WebSocket endpoint
+2. **Service Layer (services/)**: Asynchronous/synchronous boundary handling, message routing
+3. **Client Layer (clients/): CTP API Encapsulation**
 
-### 核心组件
+### Core components
 
-- **BaseClient**: 抽象基类，提供公共的客户端管理逻辑
-- **TdClient/MdClient (services)**: 处理 WebSocket 消息和 CTP 客户端的交互
-- **TdClient/MdClient (clients)**: 封装 CTP API 调用
+- **BaseClient**: An abstract base class that provides common client management logic.
+- **TdClient/MdClient (services)**: Handling WebSocket messages and interactions with CTP clients
+- **TdClient/MdClient (clients)**: Encapsulate CTP API calls
 
-## 测试
+## Test
 
-建议在 SimNow 仿真环境中进行充分测试后再接入生产环境。
+It is recommended to conduct thorough testing in the SimNow simulation environment before connecting to the production environment.
 
-更多详细信息请参考 [开发文档](./docs/development.md)
+For more detailed information, please refer to the [Development Documentation](./docs/development.md).
 
-## 其他说明
+## Other notes
 
-* 由于精力有限，只进行了 SimNow 平台的简单的测试，请自行充分测试后再接入生产环境。
-* 使用 webctp 进行实盘交易的后果完全有使用者自行承担。
+* Due to limited resources, only a simple test of the SimNow platform was conducted. Please conduct thorough testing yourself before integrating it into the production environment.
+* Users are solely responsible for any consequences arising from real-money trading.
