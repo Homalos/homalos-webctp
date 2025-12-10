@@ -12,7 +12,7 @@ src="https://img.shields.io/badge/Group%231-Join-blue"/></a>
   <a href="README_CN.md">简体中文</a>
 </p>
 
----
+## Table of contents
 
 * [Overview](#overview)
 * [Installation and Operation](#installation-and-operation)
@@ -31,8 +31,6 @@ src="https://img.shields.io/badge/Group%231-Join-blue"/></a>
     - [Core components](#core-components)
 * [Test](#test)
 * [Other Notes](#other-notes)
-
----
 
 ## Overview
 

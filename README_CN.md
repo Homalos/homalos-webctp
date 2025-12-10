@@ -12,7 +12,7 @@ src="https://img.shields.io/badge/Group%231-Join-blue"/></a>
   <a href="README.md">English</a>
 </p>
 
----
+## 目录
 
 * [概述](#概述)
 * [安装及运行](#安装及运行)
@@ -31,8 +31,6 @@ src="https://img.shields.io/badge/Group%231-Join-blue"/></a>
     - [核心组件](#核心组件)
 * [测试](#测试)
 * [其他说明](#其他说明)
-
----
 
 ## 概述
 
