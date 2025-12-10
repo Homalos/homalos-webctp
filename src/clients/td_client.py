@@ -1,3 +1,14 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+@ProjectName: homalos-webctp
+@FileName   : td_client.py
+@Date       : 2025/12/3 13:30
+@Author     : Lumosylva
+@Email      : donnymoving@gmail.com
+@Software   : PyCharm
+@Description: td_client
+"""
 import logging
 from typing import Callable, Any
 
