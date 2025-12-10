@@ -26,6 +26,8 @@ class GlobalConfig(object):
     LogLevel: str
     ConFilePath: str
     Token: str
+    HeartbeatInterval: float
+    HeartbeatTimeout: float
 
 
     @classmethod
@@ -64,6 +66,9 @@ class GlobalConfig(object):
             cls.ConFilePath = config.get("ConFilePath", "./con_file/")
             # 优先从环境变量获取 Token，其次从配置文件获取，如果都没有则为空字符串（意味着无鉴权或默认行为，但在生产环境应强制）
             cls.Token = os.environ.get("WEBCTP_TOKEN", config.get("Token", ""))
+            # Heartbeat configuration
+            cls.HeartbeatInterval = float(os.environ.get("WEBCTP_HEARTBEAT_INTERVAL", config.get("HeartbeatInterval", 30.0)))
+            cls.HeartbeatTimeout = float(os.environ.get("WEBCTP_HEARTBEAT_TIMEOUT", config.get("HeartbeatTimeout", 60.0)))
 
         if not cls.ConFilePath.endswith("/"):
             cls.ConFilePath = cls.ConFilePath + "/"
