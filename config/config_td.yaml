@@ -8,4 +8,5 @@ AppID: simnow_client_test
 Port: 8081         # the listening port, default 8080
 Host: 127.0.0.1      # the bind ip address, default 127.0.0.1
 LogLevel: INFO     # NOTSET, DEBUG, INFO, WARN, ERROR, CRITICAL
-  
+HeartbeatInterval: 30.0  # WebSocket heartbeat interval in seconds, default 30.0
+HeartbeatTimeout: 60.0   # WebSocket heartbeat timeout in seconds, default 60.0
