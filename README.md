@@ -15,7 +15,7 @@ src="https://img.shields.io/badge/Group%231-Join-blue"/></a>
 ---
 
 * [Overview](#Overview)
-* [Installation and Operation](#Installation and Operation)
+* [Installation and Operation](#installation-and-operation)
     * [Environment Dependencies](#Environment Dependencies)
     * [Environment Setup](#Environment Setup)
     * [Run](#Run)
