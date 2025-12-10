@@ -12,7 +12,7 @@
 import time
 from typing import Callable, Any
 
-from .client_helper import build_order_to_dict, build_order_insert_to_dict
+from .client_helper import build_order_to_dict, build_order_insert_to_dict, ReconnectionController
 from ..ctp import thosttraderapi as tdapi
 
 from ..constants import CallError
@@ -33,11 +33,8 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         self._rsp_callback: Callable[[dict[str, Any]], None] | None = None
         self._api: tdapi.CThostFtdcTraderApi | None = None
         self._connected: bool = False
-        # Reconnection control to prevent infinite reconnection loops
-        self._reconnect_count: int = 0
-        self._max_reconnect_attempts: int = 5
-        self._last_connect_time: float = 0
-        self._reconnect_interval: float = 10.0  # seconds (CTP auto-reconnect interval is ~6s)
+        # Reconnection control
+        self._reconnection_ctrl = ReconnectionController(max_attempts=5, interval=10.0, client_type="Td")
         logger.info(f"Td front_address: {self._front_address}, broker_id: {self._broker_id}, "
                     f"auth_code: {self._auth_code}, app_id: {self._app_id}, user_id: {self._user_id}")
 
@@ -148,35 +145,13 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             此函数由CTP API框架自动调用，开发者不应手动调用
         """
         logger.info("Td client connected")
-        
-        # Reconnection control: prevent infinite reconnection loops
-        current_time = time.time()
-        if current_time - self._last_connect_time < self._reconnect_interval:
-            self._reconnect_count += 1
-            if self._reconnect_count > self._max_reconnect_attempts:
-                error_msg = (
-                    f"Exceeded maximum reconnection attempts ({self._max_reconnect_attempts}). "
-                    "Possible reasons: non-trading hours, incorrect broker/front address, or network issues."
-                )
-                logger.error(error_msg)
-                
-                # Send error response to WebSocket client
-                if self._rsp_callback:
-                    response = {
-                        Constant.MessageType: Constant.OnRspUserLogin,
-                        Constant.RspInfo: {
-                            "ErrorID": -4097,
-                            "ErrorMsg": error_msg
-                        }
-                    }
-                    self._rsp_callback(response)
-                return
-            logger.warning(f"Reconnection attempt {self._reconnect_count}/{self._max_reconnect_attempts}")
-        else:
-            # Reset counter if enough time has passed
-            self._reconnect_count = 0
-        
-        self._last_connect_time = current_time
+        if not self._reconnection_ctrl.check_on_connected(
+            callback=self._rsp_callback,
+            message_type=Constant.OnRspUserLogin,
+            logger=logger,
+            current_time=time.time()
+        ):
+            return
         self.authenticate()
 
     def OnFrontDisconnected(self, reason):
@@ -189,40 +164,12 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             reason (int): 断开连接的原因代码，具体错误码参考CTP API文档
         """
         logger.warning(f"Td client disconnected, error_code={reason}")
-        
-        # Track disconnection attempts (when connection never succeeds)
-        current_time = time.time()
-        
-        # Handle first disconnection
-        if self._last_connect_time == 0:
-            self._reconnect_count = 1
-            logger.debug(f"First disconnection, count=1")
-        elif current_time - self._last_connect_time < self._reconnect_interval:
-            self._reconnect_count += 1
-            logger.debug(f"Reconnection count increased to {self._reconnect_count}")
-        else:
-            # Too much time passed, reset counter
-            self._reconnect_count = 1
-            logger.debug(f"Reconnection count reset to 1 (time gap: {current_time - self._last_connect_time:.1f}s)")
-        
-        self._last_connect_time = current_time
-        
-        # Notify WebSocket client about disconnection after max attempts
-        if self._rsp_callback and self._reconnect_count >= self._max_reconnect_attempts:
-            error_msg = (
-                f"CTP connection failed after {self._max_reconnect_attempts} attempts (error_code={reason}). "
-                "Possible reasons: non-trading hours, incorrect broker/front address, or network issues."
-            )
-            logger.error(error_msg)
-            
-            response = {
-                Constant.MessageType: "OnFrontDisconnected",
-                Constant.RspInfo: {
-                    "ErrorID": reason,
-                    "ErrorMsg": error_msg
-                }
-            }
-            self._rsp_callback(response)
+        self._reconnection_ctrl.track_on_disconnected(
+            reason=reason,
+            callback=self._rsp_callback,
+            logger=logger,
+            current_time=time.time()
+        )
 
     def authenticate(self):
         """
