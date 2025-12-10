@@ -671,15 +671,18 @@ ErrorID="16" ErrorMsg="CTP:找不到合约"
 ```reStructuredText
 homalos-webctp/
 ├── 📁 config/					# 项目配置
-├── 📁 docs/					# 项目文档
+├── 📁 docs/					# 项目其它文档
 ├── 📁 libs/					# 第三方库，包括CTP原始动态库
 ├── 📁 src/						# 核心源代码
 ├── 📁 tests/					# 测试脚本
 ├── 📁 CHANGELOG.md				# 历史更新
 ├── 📁 LICENSE.txt				# License文件
-├── 📁 README.md				# 说明文档
-├── 📁 main.py					# 项目入口
+├── 📁 README.md				# 项目英文文档
+├── 📁 README_CN.md				# 项目中文文档
+├── 📁 main.py					# 项目主入口
 ├── 📁 pyproject.toml			# 项目配置文件，依赖由UV管理
+├── 📁 start_md_server.bat		# 行情服务启动脚本
+├── 📁 start_td_server.bat		# 交易服务启动脚本
 └── 📁 uv.lock					# UV文件锁，由UV管理
 ```
 

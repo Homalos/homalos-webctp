@@ -673,15 +673,18 @@ ErrorID="16" ErrorMsg="CTP:Contract not found"
 ```reStructuredText
 homalos-webctp/
 ├── 📁 config/					# Project Configuration
-├── 📁 docs/					# Project Documentation
+├── 📁 docs/					# Other project documents
 ├── 📁 libs/					# Third-party libraries, including the original CTP dynamic library
 ├── 📁 src/						# Core source code
 ├── 📁 tests/					# test script
 ├── 📁 CHANGELOG.md				# Historical Updates
 ├── 📁 LICENSE.txt				# License file
-├── 📁 README.md				# Documentation
-├── 📁 main.py					# Project entrance
+├── 📁 README.md				# Project English Documentation
+├── 📁 README_CN.md				# Project Chinese Documentation
+├── 📁 main.py					# Project main entrance
 ├── 📁 pyproject.toml			# Project configuration files, dependencies managed by UV.
+├── 📁 start_md_server.bat 		# Market data service startup script
+├── 📁 start_td_server.bat 		# Trading service startup script
 └── 📁 uv.lock					# UV file lock, managed by UV
 ```
 
