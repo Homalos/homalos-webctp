@@ -1,3 +1,14 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+@ProjectName: homalos-webctp
+@FileName   : md_client.py
+@Date       : 2025/12/3 14:20
+@Author     : Lumosylva
+@Email      : donnymoving@gmail.com
+@Software   : PyCharm
+@Description: md_client
+"""
 from typing import Any
 
 import anyio
@@ -10,10 +21,7 @@ from .base_client import BaseClient
 
 class MdClient(BaseClient):
     """
-    MdClient is the boundary of websocket and client,
-    and the boundary of async code and sync code.
-    It is responsible for controlling the status of
-    ctp client.
+    MdClient 是 websocket 和客户端之间的边界，也是异步代码和同步代码之间的边界。它负责控制 ctp 客户端的状态。
     """
 
     def __init__(self) -> None:
