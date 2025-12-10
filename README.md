@@ -705,3 +705,7 @@ For more detailed information, please refer to the [Development Documentation](.
 
 * Due to limited resources, only a simple test of the SimNow platform was conducted. Please conduct thorough testing yourself before integrating it into the production environment.
 * Users are solely responsible for any consequences arising from real-money trading.
+
+---
+
+*Last updated: 2025-12-10*
