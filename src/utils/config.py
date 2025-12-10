@@ -25,6 +25,8 @@ class GlobalConfig(object):
     Port: int
     LogLevel: str
     ConFilePath: str
+    Token: str
+
 
     @classmethod
     def load_config(cls, config_file_path: str):
@@ -50,15 +52,18 @@ class GlobalConfig(object):
         """
         with open(config_file_path) as f:
             config = yaml.safe_load(f)
-            cls.TdFrontAddress = config.get("TdFrontAddress", "")
-            cls.MdFrontAddress = config.get("MdFrontAddress", "")
-            cls.BrokerID = config.get("BrokerID", "")
-            cls.AuthCode = config.get("AuthCode", "")
-            cls.AppID = config.get("AppID", "")
-            cls.Host = config.get("Host", "0.0.0.0")
+            cls.TdFrontAddress = os.environ.get("WEBCTP_TD_ADDRESS", config.get("TdFrontAddress", ""))
+            cls.MdFrontAddress = os.environ.get("WEBCTP_MD_ADDRESS", config.get("MdFrontAddress", ""))
+            cls.BrokerID = os.environ.get("WEBCTP_BROKER_ID", config.get("BrokerID", ""))
+            cls.AuthCode = os.environ.get("WEBCTP_AUTH_CODE", config.get("AuthCode", ""))
+            cls.AppID = os.environ.get("WEBCTP_APP_ID", config.get("AppID", ""))
+            cls.Host = os.environ.get("WEBCTP_HOST", config.get("Host", "0.0.0.0"))
+
             cls.Port = config.get("Port", 8080)
             cls.LogLevel = config.get("LogLevel", "INFO")
             cls.ConFilePath = config.get("ConFilePath", "./con_file/")
+            # 优先从环境变量获取 Token，其次从配置文件获取，如果都没有则为空字符串（意味着无鉴权或默认行为，但在生产环境应强制）
+            cls.Token = os.environ.get("WEBCTP_TOKEN", config.get("Token", ""))
 
         if not cls.ConFilePath.endswith("/"):
             cls.ConFilePath = cls.ConFilePath + "/"
