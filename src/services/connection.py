@@ -19,6 +19,8 @@ from starlette.websockets import WebSocketState
 
 from ..constants.call_errors import CallError
 from ..constants.constant import CommonConstant as Constant
+from ..utils.config import GlobalConfig
+from .heartbeat import HeartbeatManager
 from .td_client import TdClient
 from .md_client import MdClient
 
@@ -34,6 +36,7 @@ class BaseConnection(abc.ABC):
         """
         self._ws: WebSocket = websocket
         self._client: TdClient | MdClient | None = None
+        self._heartbeat: HeartbeatManager | None = None
 
     async def connect(self):
         """
@@ -57,6 +60,8 @@ class BaseConnection(abc.ABC):
         Returns:
             None: 此方法不返回任何值
         """
+        if self._heartbeat:
+            await self._heartbeat.stop()
         await self._client.stop()
 
     async def send(self, data: dict[str, Any]) -> None:
@@ -100,6 +105,16 @@ class BaseConnection(abc.ABC):
             WebSocketDisconnect: 当WebSocket连接断开时
         """
         await self.connect()
+        
+        # 启动心跳
+        self._heartbeat = HeartbeatManager(
+            interval=GlobalConfig.HeartbeatInterval,
+            timeout=GlobalConfig.HeartbeatTimeout
+        )
+        await self._heartbeat.start(
+            send_callback=self.send,
+            disconnect_callback=self.disconnect
+        )
 
         async with anyio.create_task_group() as task_group:
             self._client.task_group = task_group
@@ -107,6 +122,12 @@ class BaseConnection(abc.ABC):
                 while True:
                     try:
                         data = await self.recv()
+                        
+                        # 处理 Pong 消息
+                        if data.get(Constant.MessageType) == Constant.Pong:
+                            self._heartbeat.on_pong_received()
+                            continue
+                        
                         await self._client.call(data)
                     except json.decoder.JSONDecodeError as err:
                         await self.send({
