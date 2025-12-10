@@ -19,6 +19,10 @@ class CommonConstant(object):
 
     ReqUserLogin = "ReqUserLogin"
     RspUserLogin = "RspUserLogin"
+    
+    # Heartbeat
+    Ping = "Ping"
+    Pong = "Pong"
 
 
 class MdConstant(CommonConstant):
