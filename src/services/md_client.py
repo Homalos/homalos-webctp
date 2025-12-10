@@ -26,7 +26,7 @@ class MdClient(BaseClient):
 
     def __init__(self) -> None:
         super().__init__()
-        self._client: CTPMdClient = None
+        self._client: CTPMdClient | None = None
 
     async def call(self, request: dict[str, Any]) -> None:
         """
@@ -53,13 +53,15 @@ class MdClient(BaseClient):
                     Constant.MessageType: message_type,
                     Constant.RspInfo: CallError.get_rsp_info(401)
                 }
-                await self.rsp_callback(response)
+                if self.rsp_callback:
+                    await self.rsp_callback(response)
             else:
                 response = {
                     Constant.MessageType: message_type,
                     Constant.RspInfo: CallError.get_rsp_info(404)
                 }
-                await self.rsp_callback(response)
+                if self.rsp_callback:
+                    await self.rsp_callback(response)
 
     def _create_ctp_client(self, user_id: str, password: str):
         """创建CTP行情客户端实例
