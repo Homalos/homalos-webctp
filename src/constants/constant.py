@@ -1,3 +1,14 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+@ProjectName: homalos-webctp
+@FileName   : constant.py
+@Date       : 2025/12/3 13:50
+@Author     : Lumosylva
+@Email      : donnymoving@gmail.com
+@Software   : PyCharm
+@Description: constant
+"""
 class CommonConstant(object):
     MessageType = "MsgType"
     RspInfo = "RspInfo"
