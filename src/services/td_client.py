@@ -1,3 +1,14 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+@ProjectName: homalos-webctp
+@FileName   : td_client.py
+@Date       : 2025/12/3 14:30
+@Author     : Lumosylva
+@Email      : donnymoving@gmail.com
+@Software   : PyCharm
+@Description: td_client
+"""
 from typing import Any
 
 import anyio
@@ -11,10 +22,7 @@ from ..model import REQUEST_PAYLOAD
 
 class TdClient(BaseClient):
     """
-    TdClient is the boundary of websocket and client,
-    and the boundary of async code and sync code.
-    It is responsible for controlling the status of
-    ctp client.
+    TdClient 是 websocket 和客户端之间的边界，也是异步代码和同步代码之间的边界。它负责控制 ctp 客户端的状态。
     """
 
     def __init__(self) -> None:
