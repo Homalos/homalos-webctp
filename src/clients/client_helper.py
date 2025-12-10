@@ -7,7 +7,7 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 客户端工具函数
+@Description: 客户端工具函数，将md_client.py和td_client.py中的公共代码抽离出来，提高代码复用率
 """
 
 def build_order_insert_to_dict(input_order_field) -> dict:
