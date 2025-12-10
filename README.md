@@ -14,20 +14,7 @@ src="https://img.shields.io/badge/Group%231-Join-blue"/></a>
 
 ---
 
-* [Overview](#Overview)
-* [Installation and Operation](#installation-and-operation)
-    * [Environment Dependencies](#Environment Dependencies)
-    * [Environment Setup](#Environment Setup)
-    * [Run](#Run)
-* [Request Example](#Request Example)
-* [Protocol](#Protocol)
-    * [General Protocol Format](#General Protocol Format)
-    * [Explanation of Some General Error Codes](#Explanation of Some General Error Codes)
-    * [Detailed API Documentation](#Detailed API Documentation)
-* [Project Structure](#Project Structure)
-* [Architecture Description](#Architecture Description)
-* [Test](#Test)
-* [Other Notes](#Other Notes)
+[TOC]
 
 ---
 
