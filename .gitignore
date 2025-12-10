@@ -1,14 +1,16 @@
 __pycache__/
 .venv/
+.venv
 *.con
 /openctp
 /con_file
 .idea
-.venv
 .git
 logs/
 .agent
+.agent/
 compress.bat
 files.txt
 .mypy_cache
 .ruff_cache
+.pytest_cache
