@@ -1,3 +1,14 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+@ProjectName: homalos-webctp
+@FileName   : td_app.py
+@Date       : 2025/12/3 13:1020
+@Author     : Lumosylva
+@Email      : donnymoving@gmail.com
+@Software   : PyCharm
+@Description: td_app
+"""
 from fastapi import FastAPI, WebSocket
 
 from ..services.connection import TdConnection
