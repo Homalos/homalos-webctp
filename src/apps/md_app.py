@@ -11,12 +11,15 @@
 """
 from fastapi import FastAPI, WebSocket
 from ..services.connection import MdConnection
+from ..utils import GlobalConfig
+
 
 
 app = FastAPI()
 
 @app.websocket("/")
-async def md_websocket(websocket: WebSocket):
+async def md_websocket(websocket: WebSocket, token: str | None = None):
+
     """
     WebSocket端点，用于处理CTP行情数据连接
 
@@ -26,5 +29,12 @@ async def md_websocket(websocket: WebSocket):
     Returns:
         None: 无返回值，通过WebSocket持续发送和接收数据
     """
+
+
+    if GlobalConfig.Token and token != GlobalConfig.Token:
+        await websocket.close(code=1008)
+        return
+
     connection = MdConnection(websocket)
+
     await connection.run()
