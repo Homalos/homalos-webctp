@@ -215,9 +215,8 @@ homalos-webctp is a CTP service based on the Python CTP API that provides a WebS
    >
    > - Trading instruments: All futures instruments traded on the six exchanges, as well as all options instruments traded on the Shanghai Futures Exchange, the Energy Exchange, the China Financial Futures Exchange, and the Guangzhou Futures Exchange, and some options instruments traded on the Zhengzhou Commodity Exchange and the Dalian Commodity Exchange.
    > - Account funds: Initial capital of 20 million, supports deposits, up to three times per day.
->
-   > 见 [SimNow官网](https://www.simnow.com.cn/product.action)
-> </details>
+>See [SimNow official website](https://www.simnow.com.cn/product.action)
+   > </details>
 
    Create your own market data configuration file: config_md.yaml
 
