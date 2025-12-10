@@ -78,7 +78,8 @@ class TdClient(BaseClient):
         message_type = request[Constant.MessageType]
         ret = self.validate_request(message_type, request)
         if ret is not None:
-            await self.rsp_callback(ret)
+            if self.rsp_callback:
+                await self.rsp_callback(ret)
         else:
             if message_type == Constant.ReqUserLogin:
                 user_id: str = request[Constant.ReqUserLogin]["UserID"]
@@ -93,14 +94,16 @@ class TdClient(BaseClient):
                         Constant.MessageType: message_type,
                         Constant.RspInfo: CallError.get_rsp_info(401)
                     }
-                    await self.rsp_callback(response)
+                    if self.rsp_callback:
+                        await self.rsp_callback(response)
 
                 else:
                     response = {
                         Constant.MessageType: message_type,
                         Constant.RspInfo: CallError.get_rsp_info(404)
                     }
-                    await self.rsp_callback(response)
+                    if self.rsp_callback:
+                        await self.rsp_callback(response)
     def _create_ctp_client(self, user_id: str, password: str):
         """创建CTP交易客户端实例
 
