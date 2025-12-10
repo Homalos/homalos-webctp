@@ -31,10 +31,6 @@ class BaseConnection(abc.ABC):
 
         Args:
             websocket: WebSocket连接对象，用于与客户端进行双向通信
-
-        Attributes:
-            _ws: WebSocket连接实例
-            _client: 交易客户端或行情客户端实例，初始化为None
         """
         self._ws: WebSocket = websocket
         self._client: TdClient | MdClient | None = None
