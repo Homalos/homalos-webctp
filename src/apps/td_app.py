@@ -12,12 +12,15 @@
 from fastapi import FastAPI, WebSocket
 
 from ..services.connection import TdConnection
+from ..utils import GlobalConfig
+
 
 
 app = FastAPI()
 
 @app.websocket("/")
-async def td_websocket(websocket: WebSocket):
+async def td_websocket(websocket: WebSocket, token: str | None = None):
+
     """
     处理交易端WebSocket连接
 
@@ -30,4 +33,8 @@ async def td_websocket(websocket: WebSocket):
         None: 该函数会持续运行直到连接断开
     """
     connection = TdConnection(websocket)
+    if GlobalConfig.Token and token != GlobalConfig.Token:
+        await websocket.close(code=1008)
+        return
+
     await connection.run()
