@@ -1,3 +1,14 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+@ProjectName: homalos-webctp
+@FileName   : ctp_object_helper.py
+@Date       : 2025/12/3 14:50
+@Author     : Lumosylva
+@Email      : donnymoving@gmail.com
+@Software   : PyCharm
+@Description: ctp_object_helper
+"""
 class CTPObjectHelper(object):
 
     exclude_attrs = ["thisown"]
