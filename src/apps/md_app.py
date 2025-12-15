@@ -16,6 +16,7 @@ from loguru import logger
 
 from ..services.connection import MdConnection
 from ..services.cache_manager import CacheManager
+from ..services.strategy_manager import StrategyManager
 from ..utils import GlobalConfig
 from ..utils.metrics import MetricsCollector
 
@@ -23,6 +24,7 @@ from ..utils.metrics import MetricsCollector
 # 全局实例
 _cache_manager: Optional[CacheManager] = None
 _metrics_collector: Optional[MetricsCollector] = None
+_strategy_manager: Optional[StrategyManager] = None
 _initialized: bool = False
 
 
@@ -34,28 +36,16 @@ async def startup_event():
     """
     应用启动事件处理器
     
-    初始化 CacheManager 和 MetricsCollector
+    初始化 CacheManager、MetricsCollector 和 StrategyManager
     """
-    global _cache_manager, _metrics_collector, _initialized
+    global _cache_manager, _metrics_collector, _strategy_manager, _initialized
     
     if _initialized:
         return
     
     logger.info("正在初始化行情服务...")
     
-    # 初始化 CacheManager
-    try:
-        _cache_manager = CacheManager()
-        if GlobalConfig.Cache.enabled:
-            await _cache_manager.initialize(GlobalConfig.Cache)
-            logger.info("CacheManager 初始化成功")
-        else:
-            logger.info("Redis 缓存未启用")
-    except Exception as e:
-        logger.warning(f"CacheManager 初始化失败，将在无缓存模式下运行: {e}")
-        _cache_manager = None
-    
-    # 初始化 MetricsCollector
+    # 初始化 MetricsCollector（先初始化，以便注入到其他组件）
     try:
         _metrics_collector = MetricsCollector(GlobalConfig.Metrics)
         if GlobalConfig.Metrics.enabled:
@@ -68,6 +58,32 @@ async def startup_event():
         logger.warning(f"MetricsCollector 初始化失败: {e}")
         _metrics_collector = None
     
+    # 初始化 CacheManager
+    try:
+        _cache_manager = CacheManager()
+        if GlobalConfig.Cache.enabled:
+            await _cache_manager.initialize(GlobalConfig.Cache)
+            # 注入 MetricsCollector
+            if _metrics_collector:
+                _cache_manager.set_metrics_collector(_metrics_collector)
+            logger.info("CacheManager 初始化成功")
+        else:
+            logger.info("Redis 缓存未启用")
+    except Exception as e:
+        logger.warning(f"CacheManager 初始化失败，将在无缓存模式下运行: {e}")
+        _cache_manager = None
+    
+    # 初始化 StrategyManager
+    try:
+        _strategy_manager = StrategyManager(
+            cache_manager=_cache_manager,
+            max_strategies=GlobalConfig.Strategy.max_strategies if hasattr(GlobalConfig, 'Strategy') else None
+        )
+        logger.info("StrategyManager 初始化成功")
+    except Exception as e:
+        logger.warning(f"StrategyManager 初始化失败: {e}")
+        _strategy_manager = None
+    
     _initialized = True
     logger.info("行情服务初始化完成")
 
@@ -77,11 +93,23 @@ async def shutdown_event():
     """
     应用关闭事件处理器
     
-    清理 CacheManager 和 MetricsCollector 资源
+    清理 CacheManager、MetricsCollector 和 StrategyManager 资源
     """
-    global _cache_manager, _metrics_collector, _initialized
+    global _cache_manager, _metrics_collector, _strategy_manager, _initialized
     
     logger.info("正在关闭行情服务...")
+    
+    # 停止所有策略
+    if _strategy_manager:
+        try:
+            # 停止所有运行中的策略
+            strategies = _strategy_manager.list_strategies()
+            for strategy_info in strategies:
+                if strategy_info.status.value == "running":
+                    await _strategy_manager.stop_strategy(strategy_info.strategy_id)
+            logger.info("所有策略已停止")
+        except Exception as e:
+            logger.error(f"停止策略失败: {e}")
     
     # 停止 MetricsCollector
     if _metrics_collector:
@@ -140,6 +168,10 @@ class MdConnectionWithMetrics(MdConnection):
         # 注入 MetricsCollector
         if _metrics_collector:
             client.set_metrics_collector(_metrics_collector)
+        
+        # 注入 StrategyManager
+        if _strategy_manager:
+            client.set_strategy_manager(_strategy_manager)
         
         return client
     
