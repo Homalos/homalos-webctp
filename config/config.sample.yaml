@@ -28,6 +28,11 @@ HeartbeatTimeout: 60.0   # WebSocket heartbeat timeout in seconds, default 60.0
 #   Enabled: true
 #   ReportInterval: 60  # 报告间隔（秒）
 #   SampleRate: 1.0     # 采样率（0.0-1.0）
+#   # 告警阈值配置
+#   LatencyWarningThresholdMs: 100.0        # 延迟告警阈值（毫秒）
+#   CacheHitRateWarningThreshold: 50.0      # Redis 命中率告警阈值（百分比）
+#   CpuWarningThreshold: 80.0               # CPU 使用率告警阈值（百分比）
+#   MemoryWarningThreshold: 80.0            # 内存使用率告警阈值（百分比）
 
 # 策略管理配置（可选）
 # Strategy:
