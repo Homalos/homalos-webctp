@@ -14,15 +14,14 @@ import time
 import asyncio
 import random
 from collections import deque, defaultdict
-from typing import Dict, List, Optional, Any, Tuple
-from statistics import quantiles
+from typing import Dict, List, Optional, Any
 
 try:
     from .log import logger
-    from .config import MetricsConfig, GlobalConfig
+    from .config import MetricsConfig, GlobalConfig, AlertsConfig
 except ImportError:
     from log import logger
-    from config import MetricsConfig, GlobalConfig
+    from config import MetricsConfig, GlobalConfig, AlertsConfig
 
 
 class MetricsCollector:
@@ -62,14 +61,19 @@ class MetricsCollector:
     # 滑动窗口时间（秒）
     WINDOW_SIZE_SECONDS = 600  # 10 分钟
     
-    def __init__(self, config: Optional[MetricsConfig] = None):
+    def __init__(self, config: Optional[MetricsConfig] = None, alerts_config: Optional[AlertsConfig] = None):
         """初始化性能指标收集器
         
         Args:
             config: 指标配置，如果为 None 则使用 GlobalConfig.Metrics
+            alerts_config: 告警配置，如果为 None 则使用 GlobalConfig.Alerts
         """
         # 使用提供的配置或全局配置
         self.config = config if config is not None else GlobalConfig.Metrics
+        self.alerts_config = alerts_config if alerts_config is not None else GlobalConfig.Alerts
+        
+        # 告警频率控制：记录上次告警时间
+        self._last_alert_time: Dict[str, float] = {}
         
         # 延迟指标：{metric_name: deque([(timestamp, latency_ms), ...])}
         self._latencies: Dict[str, deque] = defaultdict(lambda: deque())
@@ -267,11 +271,12 @@ class MetricsCollector:
                     report_lines.append(f"    P95: {p95_value:.2f} ms")
                     
                     # 延迟告警检查：P95 超过阈值
-                    if p95_value > self.config.latency_warning_threshold_ms:
-                        logger.warning(
+                    threshold = self.alerts_config.order_p95_threshold if "order" in metric_name.lower() else self.alerts_config.market_p95_threshold
+                    if p95_value > threshold:
+                        self._trigger_alert(
+                            f"latency_{metric_name}",
                             f"⚠️ 延迟告警: {metric_name} P95 延迟 ({p95_value:.2f} ms) "
-                            f"超过阈值 ({self.config.latency_warning_threshold_ms:.2f} ms)",
-                            tag="metrics_alert"
+                            f"超过阈值 ({threshold:.2f} ms)"
                         )
                 
                 if 0.99 in percentiles:
@@ -289,16 +294,17 @@ class MetricsCollector:
             total_cache_requests = cache_hit + cache_miss
             if total_cache_requests > 0:
                 hit_rate = (cache_hit / total_cache_requests) * 100
-                report_lines.append(f"\n【Redis 命中率】")
+                report_lines.append("\n【Redis 命中率】")
                 report_lines.append(f"  命中: {cache_hit}, 未命中: {cache_miss}")
                 report_lines.append(f"  命中率: {hit_rate:.2f}%")
                 
                 # Redis 命中率告警检查：命中率低于阈值
-                if hit_rate < self.config.cache_hit_rate_warning_threshold:
-                    logger.warning(
+                threshold_percent = self.alerts_config.redis_hit_rate_threshold * 100
+                if hit_rate < threshold_percent:
+                    self._trigger_alert(
+                        "redis_hit_rate",
                         f"⚠️ Redis 命中率告警: 当前命中率 ({hit_rate:.2f}%) "
-                        f"低于阈值 ({self.config.cache_hit_rate_warning_threshold:.2f}%)",
-                        tag="metrics_alert"
+                        f"低于阈值 ({threshold_percent:.2f}%)"
                     )
             
             # 计算吞吐量（如果有上次快照）
@@ -333,11 +339,11 @@ class MetricsCollector:
                 report_lines.append(f"  CPU 使用率: {cpu_percent:.1f}%")
                 
                 # CPU 使用率告警检查
-                if cpu_percent > self.config.cpu_warning_threshold:
-                    logger.warning(
+                if cpu_percent > self.alerts_config.cpu_threshold:
+                    self._trigger_alert(
+                        "cpu_usage",
                         f"⚠️ CPU 使用率告警: 当前 CPU 使用率 ({cpu_percent:.1f}%) "
-                        f"超过阈值 ({self.config.cpu_warning_threshold:.1f}%)",
-                        tag="metrics_alert"
+                        f"超过阈值 ({self.alerts_config.cpu_threshold:.1f}%)"
                     )
             
             # 内存使用率
@@ -346,11 +352,11 @@ class MetricsCollector:
                 report_lines.append(f"  内存使用率: {memory_percent:.1f}%")
                 
                 # 内存使用率告警检查
-                if memory_percent > self.config.memory_warning_threshold:
-                    logger.warning(
+                if memory_percent > self.alerts_config.memory_threshold:
+                    self._trigger_alert(
+                        "memory_usage",
                         f"⚠️ 内存使用率告警: 当前内存使用率 ({memory_percent:.1f}%) "
-                        f"超过阈值 ({self.config.memory_warning_threshold:.1f}%)",
-                        tag="metrics_alert"
+                        f"超过阈值 ({self.alerts_config.memory_threshold:.1f}%)"
                     )
             
             if "memory_used_mb" in system_metrics:
@@ -409,6 +415,24 @@ class MetricsCollector:
                     logger.error(f"生成指标报告时出错: {e}", tag="metrics")
         
         self._report_task = asyncio.create_task(report_loop())
+    
+    def _trigger_alert(self, alert_type: str, message: str) -> None:
+        """触发告警（带频率控制）
+        
+        Args:
+            alert_type: 告警类型（用于频率控制）
+            message: 告警消息
+        """
+        current_time = time.time()
+        last_time = self._last_alert_time.get(alert_type, 0)
+        
+        # 检查是否在最小间隔内
+        if current_time - last_time < self.alerts_config.min_interval:
+            return  # 跳过此次告警
+        
+        # 记录告警时间并输出
+        self._last_alert_time[alert_type] = current_time
+        logger.warning(message, tag="metrics_alert")
     
     def _collect_system_metrics(self) -> Dict[str, float]:
         """
