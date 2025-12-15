@@ -13,7 +13,7 @@
 import pytest
 import pytest_asyncio
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 from hypothesis import given, strategies as st, settings
 import fakeredis.aioredis
 
@@ -602,36 +602,36 @@ async def test_property_degradation_transparency(data):
         
         # Get 操作应该返回 None（不抛出异常）
         result = await cache.get(key)
-        assert result is None, f"Get 操作在 Redis 不可用时应返回 None，而不是抛出异常"
+        assert result is None, "Get 操作在 Redis 不可用时应返回 None，而不是抛出异常"
         
         # Set 操作应该返回 False（不抛出异常）
         result = await cache.set(key, serialized)
-        assert result is False, f"Set 操作在 Redis 不可用时应返回 False，而不是抛出异常"
+        assert result is False, "Set 操作在 Redis 不可用时应返回 False，而不是抛出异常"
         
         # Delete 操作应该返回 False（不抛出异常）
         result = await cache.delete(key)
-        assert result is False, f"Delete 操作在 Redis 不可用时应返回 False，而不是抛出异常"
+        assert result is False, "Delete 操作在 Redis 不可用时应返回 False，而不是抛出异常"
         
         # Hash 操作
         result = await cache.hget(key, "field")
-        assert result is None, f"Hget 操作在 Redis 不可用时应返回 None"
+        assert result is None, "Hget 操作在 Redis 不可用时应返回 None"
         
         result = await cache.hset(key, "field", serialized)
-        assert result is False, f"Hset 操作在 Redis 不可用时应返回 False"
+        assert result is False, "Hset 操作在 Redis 不可用时应返回 False"
         
         result = await cache.hgetall(key)
-        assert result == {}, f"Hgetall 操作在 Redis 不可用时应返回空字典"
+        assert result == {}, "Hgetall 操作在 Redis 不可用时应返回空字典"
         
         # Pub/Sub 操作
         result = await cache.publish(key, serialized)
-        assert result == 0, f"Publish 操作在 Redis 不可用时应返回 0"
+        assert result == 0, "Publish 操作在 Redis 不可用时应返回 0"
         
         # Sorted Set 操作
         result = await cache.zadd(key, {"member": 1.0})
-        assert result == 0, f"Zadd 操作在 Redis 不可用时应返回 0"
+        assert result == 0, "Zadd 操作在 Redis 不可用时应返回 0"
         
         result = await cache.zrange(key, 0, -1)
-        assert result == [], f"Zrange 操作在 Redis 不可用时应返回空列表"
+        assert result == [], "Zrange 操作在 Redis 不可用时应返回空列表"
 
 
 @settings(max_examples=50)
