@@ -52,6 +52,17 @@ class CacheManager:
         self._available: bool = False
         self._serializer = get_msgpack_serializer()
         self._health_check_task: Optional[asyncio.Task] = None
+        self._metrics_collector: Optional[Any] = None  # 避免循环导入
+
+    def set_metrics_collector(self, metrics_collector: Any) -> None:
+        """
+        设置性能指标收集器实例
+
+        Args:
+            metrics_collector: MetricsCollector 实例，用于收集性能指标
+        """
+        self._metrics_collector = metrics_collector
+        logger.info("CacheManager: MetricsCollector 已注入")
 
     async def initialize(self, config: CacheConfig) -> None:
         """
@@ -199,11 +210,26 @@ class CacheManager:
             logger.debug(f"Redis 不可用，跳过 get 操作: {key}")
             return None
 
+        import time
+        start_time = time.time()
+        
         try:
             data = await asyncio.wait_for(
                 self._redis.get(key),
                 timeout=self._config.socket_timeout if self._config else 5.0
             )
+            
+            # 记录 Redis 操作延迟
+            if self._metrics_collector:
+                latency_ms = (time.time() - start_time) * 1000
+                self._metrics_collector.record_latency("redis_get_latency", latency_ms)
+                
+                # 记录缓存命中/未命中
+                if data is not None:
+                    self._metrics_collector.record_counter("cache_hit")
+                else:
+                    self._metrics_collector.record_counter("cache_miss")
+            
             return data
         except (RedisError, asyncio.TimeoutError) as e:
             logger.warning(f"Redis get 操作失败: {key}, 错误: {e}")
@@ -231,6 +257,9 @@ class CacheManager:
             logger.debug(f"Redis 不可用，跳过 set 操作: {key}")
             return False
 
+        import time
+        start_time = time.time()
+        
         try:
             if ttl:
                 result = await asyncio.wait_for(
@@ -242,6 +271,12 @@ class CacheManager:
                     self._redis.set(key, value),
                     timeout=self._config.socket_timeout if self._config else 5.0
                 )
+            
+            # 记录 Redis 操作延迟
+            if self._metrics_collector:
+                latency_ms = (time.time() - start_time) * 1000
+                self._metrics_collector.record_latency("redis_set_latency", latency_ms)
+            
             return bool(result)
         except (RedisError, asyncio.TimeoutError) as e:
             logger.warning(f"Redis set 操作失败: {key}, 错误: {e}")
@@ -294,11 +329,26 @@ class CacheManager:
             logger.debug(f"Redis 不可用，跳过 hget 操作: {name}.{key}")
             return None
 
+        import time
+        start_time = time.time()
+        
         try:
             data = await asyncio.wait_for(
                 self._redis.hget(name, key),
                 timeout=self._config.socket_timeout if self._config else 5.0
             )
+            
+            # 记录 Redis 操作延迟
+            if self._metrics_collector:
+                latency_ms = (time.time() - start_time) * 1000
+                self._metrics_collector.record_latency("redis_hget_latency", latency_ms)
+                
+                # 记录缓存命中/未命中
+                if data is not None:
+                    self._metrics_collector.record_counter("cache_hit")
+                else:
+                    self._metrics_collector.record_counter("cache_miss")
+            
             return data
         except (RedisError, asyncio.TimeoutError) as e:
             logger.warning(f"Redis hget 操作失败: {name}.{key}, 错误: {e}")
@@ -324,11 +374,20 @@ class CacheManager:
             logger.debug(f"Redis 不可用，跳过 hset 操作: {name}.{key}")
             return False
 
+        import time
+        start_time = time.time()
+        
         try:
             result = await asyncio.wait_for(
                 self._redis.hset(name, key, value),
                 timeout=self._config.socket_timeout if self._config else 5.0
             )
+            
+            # 记录 Redis 操作延迟
+            if self._metrics_collector:
+                latency_ms = (time.time() - start_time) * 1000
+                self._metrics_collector.record_latency("redis_hset_latency", latency_ms)
+            
             return result >= 0
         except (RedisError, asyncio.TimeoutError) as e:
             logger.warning(f"Redis hset 操作失败: {name}.{key}, 错误: {e}")
@@ -381,11 +440,20 @@ class CacheManager:
             logger.debug(f"Redis 不可用，跳过 publish 操作: {channel}")
             return 0
 
+        import time
+        start_time = time.time()
+        
         try:
             result = await asyncio.wait_for(
                 self._redis.publish(channel, message),
                 timeout=self._config.socket_timeout if self._config else 5.0
             )
+            
+            # 记录 Redis 操作延迟
+            if self._metrics_collector:
+                latency_ms = (time.time() - start_time) * 1000
+                self._metrics_collector.record_latency("redis_publish_latency", latency_ms)
+            
             return result
         except (RedisError, asyncio.TimeoutError) as e:
             logger.warning(f"Redis publish 操作失败: {channel}, 错误: {e}")
