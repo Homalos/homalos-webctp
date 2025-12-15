@@ -9,13 +9,55 @@
 @Software   : PyCharm
 @Description: 配置管理
 """
+
 import os
 import yaml
 from pathlib import Path
+from dataclasses import dataclass, field
+from typing import Optional, List
+
+
+@dataclass
+class CacheConfig:
+    """Redis 缓存配置"""
+
+    enabled: bool = False
+    host: str = "localhost"
+    port: int = 6379
+    password: Optional[str] = None
+    db: int = 0
+    max_connections: int = 50
+    socket_timeout: float = 5.0
+    socket_connect_timeout: float = 5.0
+
+    # TTL 配置
+    market_snapshot_ttl: int = 60  # 行情快照 TTL（秒）
+    market_tick_ttl: int = 5  # 实时 tick TTL（秒）
+    order_ttl: int = 86400  # 订单 TTL（秒）
+
+
+@dataclass
+class MetricsConfig:
+    """性能指标配置"""
+
+    enabled: bool = True
+    report_interval: int = 60  # 报告间隔（秒）
+    latency_buckets: List[float] = field(
+        default_factory=lambda: [10, 50, 100, 200, 500, 1000]
+    )  # 延迟桶（毫秒）
+    sample_rate: float = 1.0  # 采样率（0.0-1.0）
+
+
+@dataclass
+class StrategyConfig:
+    """策略管理配置"""
+
+    max_strategies: int = 10  # 最大策略数量
+    default_max_memory_mb: int = 512  # 默认单策略最大内存（MB）
+    default_max_cpu_percent: float = 50.0  # 默认单策略最大CPU使用率（%）
 
 
 class GlobalConfig(object):
-
     TdFrontAddress: str
     MdFrontAddress: str
     BrokerID: str
@@ -29,6 +71,10 @@ class GlobalConfig(object):
     HeartbeatInterval: float
     HeartbeatTimeout: float
 
+    # 新增配置对象
+    Cache: CacheConfig
+    Metrics: MetricsConfig
+    Strategy: StrategyConfig
 
     @classmethod
     def load_config(cls, config_file_path: str):
@@ -51,13 +97,24 @@ class GlobalConfig(object):
             Port: 服务端口，默认8080
             LogLevel: 日志级别，默认'INFO'
             ConFilePath: 连接文件路径，默认'./con_file/'
+            Cache: Redis 缓存配置
+            Metrics: 性能监控配置
+            Strategy: 策略管理配置
         """
-        with open(config_file_path) as f:
+        with open(config_file_path, encoding="utf-8") as f:
             config = yaml.safe_load(f)
-            cls.TdFrontAddress = os.environ.get("WEBCTP_TD_ADDRESS", config.get("TdFrontAddress", ""))
-            cls.MdFrontAddress = os.environ.get("WEBCTP_MD_ADDRESS", config.get("MdFrontAddress", ""))
-            cls.BrokerID = os.environ.get("WEBCTP_BROKER_ID", config.get("BrokerID", ""))
-            cls.AuthCode = os.environ.get("WEBCTP_AUTH_CODE", config.get("AuthCode", ""))
+            cls.TdFrontAddress = os.environ.get(
+                "WEBCTP_TD_ADDRESS", config.get("TdFrontAddress", "")
+            )
+            cls.MdFrontAddress = os.environ.get(
+                "WEBCTP_MD_ADDRESS", config.get("MdFrontAddress", "")
+            )
+            cls.BrokerID = os.environ.get(
+                "WEBCTP_BROKER_ID", config.get("BrokerID", "")
+            )
+            cls.AuthCode = os.environ.get(
+                "WEBCTP_AUTH_CODE", config.get("AuthCode", "")
+            )
             cls.AppID = os.environ.get("WEBCTP_APP_ID", config.get("AppID", ""))
             cls.Host = os.environ.get("WEBCTP_HOST", config.get("Host", "0.0.0.0"))
 
@@ -67,8 +124,73 @@ class GlobalConfig(object):
             # 优先从环境变量获取 Token，其次从配置文件获取，如果都没有则为空字符串（意味着无鉴权或默认行为，但在生产环境应强制）
             cls.Token = os.environ.get("WEBCTP_TOKEN", config.get("Token", ""))
             # Heartbeat configuration
-            cls.HeartbeatInterval = float(os.environ.get("WEBCTP_HEARTBEAT_INTERVAL", config.get("HeartbeatInterval", 30.0)))
-            cls.HeartbeatTimeout = float(os.environ.get("WEBCTP_HEARTBEAT_TIMEOUT", config.get("HeartbeatTimeout", 60.0)))
+            cls.HeartbeatInterval = float(
+                os.environ.get(
+                    "WEBCTP_HEARTBEAT_INTERVAL", config.get("HeartbeatInterval", 30.0)
+                )
+            )
+            cls.HeartbeatTimeout = float(
+                os.environ.get(
+                    "WEBCTP_HEARTBEAT_TIMEOUT", config.get("HeartbeatTimeout", 60.0)
+                )
+            )
+
+            # 加载 Redis 缓存配置（可选）
+            redis_config = config.get("Redis", {})
+            cls.Cache = CacheConfig(
+                enabled=bool(
+                    os.environ.get(
+                        "WEBCTP_REDIS_ENABLED", redis_config.get("Enabled", False)
+                    )
+                ),
+                host=os.environ.get(
+                    "WEBCTP_REDIS_HOST", redis_config.get("Host", "localhost")
+                ),
+                port=int(
+                    os.environ.get("WEBCTP_REDIS_PORT", redis_config.get("Port", 6379))
+                ),
+                password=os.environ.get(
+                    "WEBCTP_REDIS_PASSWORD", redis_config.get("Password")
+                ),
+                db=int(os.environ.get("WEBCTP_REDIS_DB", redis_config.get("DB", 0))),
+                max_connections=int(redis_config.get("MaxConnections", 50)),
+                socket_timeout=float(redis_config.get("SocketTimeout", 5.0)),
+                socket_connect_timeout=float(
+                    redis_config.get("SocketConnectTimeout", 5.0)
+                ),
+                market_snapshot_ttl=int(redis_config.get("MarketSnapshotTTL", 60)),
+                market_tick_ttl=int(redis_config.get("MarketTickTTL", 5)),
+                order_ttl=int(redis_config.get("OrderTTL", 86400)),
+            )
+
+            # 加载性能监控配置（可选）
+            metrics_config = config.get("Metrics", {})
+            cls.Metrics = MetricsConfig(
+                enabled=bool(
+                    os.environ.get(
+                        "WEBCTP_METRICS_ENABLED", metrics_config.get("Enabled", True)
+                    )
+                ),
+                report_interval=int(
+                    os.environ.get(
+                        "WEBCTP_METRICS_INTERVAL",
+                        metrics_config.get("ReportInterval", 60),
+                    )
+                ),
+                sample_rate=float(metrics_config.get("SampleRate", 1.0)),
+            )
+
+            # 加载策略管理配置（可选）
+            strategy_config = config.get("Strategy", {})
+            cls.Strategy = StrategyConfig(
+                max_strategies=int(strategy_config.get("MaxStrategies", 10)),
+                default_max_memory_mb=int(
+                    strategy_config.get("DefaultMaxMemoryMB", 512)
+                ),
+                default_max_cpu_percent=float(
+                    strategy_config.get("DefaultMaxCPUPercent", 50.0)
+                ),
+            )
 
         if not cls.ConFilePath.endswith("/"):
             cls.ConFilePath = cls.ConFilePath + "/"
