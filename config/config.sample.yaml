@@ -8,4 +8,30 @@ Host: 127.0.0.1      # the bind ip address, default 127.0.0.1
 LogLevel: INFO     # NOTSET, DEBUG, INFO, WARN, ERROR, CRITICAL
 HeartbeatInterval: 30.0  # WebSocket heartbeat interval in seconds, default 30.0
 HeartbeatTimeout: 60.0   # WebSocket heartbeat timeout in seconds, default 60.0
+
+# Redis 缓存配置（可选，默认禁用）
+# Redis:
+#   Enabled: true
+#   Host: localhost
+#   Port: 6379
+#   Password: ""
+#   DB: 0
+#   MaxConnections: 50
+#   SocketTimeout: 5.0
+#   SocketConnectTimeout: 5.0
+#   MarketSnapshotTTL: 60  # 行情快照 TTL（秒）
+#   MarketTickTTL: 5       # 实时 tick TTL（秒）
+#   OrderTTL: 86400        # 订单 TTL（秒，24小时）
+
+# 性能监控配置（可选，默认启用）
+# Metrics:
+#   Enabled: true
+#   ReportInterval: 60  # 报告间隔（秒）
+#   SampleRate: 1.0     # 采样率（0.0-1.0）
+
+# 策略管理配置（可选）
+# Strategy:
+#   MaxStrategies: 10              # 最大策略数量
+#   DefaultMaxMemoryMB: 512        # 默认单策略最大内存（MB）
+#   DefaultMaxCPUPercent: 50.0     # 默认单策略最大CPU使用率（%）
   
