@@ -32,7 +32,6 @@ def mock_cache_manager():
 @pytest.fixture
 async def real_cache_manager():
     """创建真实的 CacheManager 用于属性测试"""
-    from src.utils.config import CacheConfig
     
     # 使用 fakeredis 创建真实的 Redis 实例
     fake_redis = fakeredis.aioredis.FakeRedis()
