@@ -43,19 +43,7 @@ async def startup_event():
     
     logger.info("正在初始化交易服务...")
     
-    # 初始化 CacheManager
-    try:
-        _cache_manager = CacheManager()
-        if GlobalConfig.Cache.enabled:
-            await _cache_manager.initialize(GlobalConfig.Cache)
-            logger.info("CacheManager 初始化成功")
-        else:
-            logger.info("Redis 缓存未启用")
-    except Exception as e:
-        logger.warning(f"CacheManager 初始化失败，将在无缓存模式下运行: {e}")
-        _cache_manager = None
-    
-    # 初始化 MetricsCollector
+    # 初始化 MetricsCollector（先初始化，以便注入到其他组件）
     try:
         _metrics_collector = MetricsCollector(GlobalConfig.Metrics)
         if GlobalConfig.Metrics.enabled:
@@ -67,6 +55,21 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"MetricsCollector 初始化失败: {e}")
         _metrics_collector = None
+    
+    # 初始化 CacheManager
+    try:
+        _cache_manager = CacheManager()
+        if GlobalConfig.Cache.enabled:
+            await _cache_manager.initialize(GlobalConfig.Cache)
+            # 注入 MetricsCollector
+            if _metrics_collector:
+                _cache_manager.set_metrics_collector(_metrics_collector)
+            logger.info("CacheManager 初始化成功")
+        else:
+            logger.info("Redis 缓存未启用")
+    except Exception as e:
+        logger.warning(f"CacheManager 初始化失败，将在无缓存模式下运行: {e}")
+        _cache_manager = None
     
     _initialized = True
     logger.info("交易服务初始化完成")
