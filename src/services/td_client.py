@@ -239,6 +239,48 @@ class TdClient(BaseClient):
         logging.info(f"stop running {self._get_client_type()} coroutine")
         self._stop_event.set()
 
+    async def stop(self) -> None:
+        """
+        停止客户端并清理缓存队列
+        
+        重写父类方法，在停止前：
+        1. 给缓存队列处理一个短暂的时间窗口处理剩余任务
+        2. 清空缓存队列避免内存泄漏
+        """
+        import logging
+        
+        logging.debug(f"stopping {self._get_client_type()} client")
+        self._running = False
+        
+        # 给缓存队列一个短暂的时间窗口处理剩余任务（最多0.5秒）
+        try:
+            await anyio.sleep(0.5)
+        except Exception:
+            pass
+        
+        # 清空缓存队列
+        cleared_count = 0
+        try:
+            while not self._cache_queue.empty():
+                self._cache_queue.get_nowait()
+                cleared_count += 1
+        except Exception:
+            pass
+        
+        if cleared_count > 0:
+            logging.debug(f"TdClient: 清空了 {cleared_count} 个未处理的缓存任务")
+        
+        # 等待停止事件
+        if self._stop_event:
+            await self._stop_event.wait()
+            self._stop_event = None
+        
+        # 释放客户端资源
+        if self._client:
+            await anyio.to_thread.run_sync(self._client.release)
+        
+        logging.debug(f"{self._get_client_type()} client stopped")
+
     def _create_ctp_client(self, user_id: str, password: str):
         """创建CTP交易客户端实例
 
