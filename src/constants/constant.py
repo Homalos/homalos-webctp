@@ -44,6 +44,33 @@ class MdConstant(CommonConstant):
     # Response Field
     SpecificInstrument = "SpecificInstrument"
     DepthMarketData = "DepthMarketData"
+    
+    # 策略管理相关消息类型
+    RegisterStrategy = "RegisterStrategy"
+    UnregisterStrategy = "UnregisterStrategy"
+    StartStrategy = "StartStrategy"
+    StopStrategy = "StopStrategy"
+    QueryStrategyStatus = "QueryStrategyStatus"
+    ListStrategies = "ListStrategies"
+    
+    # 策略管理响应消息类型
+    OnRspRegisterStrategy = "RspRegisterStrategy"
+    OnRspUnregisterStrategy = "RspUnregisterStrategy"
+    OnRspStartStrategy = "RspStartStrategy"
+    OnRspStopStrategy = "RspStopStrategy"
+    OnRspQueryStrategyStatus = "RspQueryStrategyStatus"
+    OnRspListStrategies = "RspListStrategies"
+    
+    # 策略管理请求字段
+    StrategyID = "StrategyID"
+    StrategyName = "StrategyName"
+    StrategyConfig = "StrategyConfig"
+    SubscribedInstruments = "SubscribedInstruments"
+    
+    # 策略管理响应字段
+    StrategyInfo = "StrategyInfo"
+    StrategyList = "StrategyList"
+    Success = "Success"
 
 
 class TdConstant(CommonConstant):
