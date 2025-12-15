@@ -27,7 +27,11 @@ class CommonConstant(object):
 
 class MdConstant(CommonConstant):
 
-    # MessageType
+    # Request MessageType
+    SubscribeMarketData = "SubscribeMarketData"
+    UnSubscribeMarketData = "UnSubscribeMarketData"  # 注意：大写 S，与 CTP API 保持一致
+
+    # Response MessageType
     OnRspSubMarketData = "RspSubMarketData"
     OnRspUnSubMarketData = "RspUnSubMarketData"
 
