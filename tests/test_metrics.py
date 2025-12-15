@@ -11,11 +11,9 @@
 """
 
 import pytest
-import pytest_asyncio
 import asyncio
 import time
-from unittest.mock import patch, MagicMock
-from collections import deque
+from unittest.mock import patch
 
 from src.utils.metrics import MetricsCollector
 from src.utils.config import MetricsConfig
