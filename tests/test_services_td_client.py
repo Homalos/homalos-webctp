@@ -3,7 +3,6 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from src.services.td_client import TdClient
 from src.constants import TdConstant as Constant
-from src.constants import CallError
 
 @pytest.fixture
 def td_service():
