@@ -11,6 +11,8 @@
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+from hypothesis import given, strategies as st, settings
+import fakeredis.aioredis
 from src.services.td_client import TdClient
 from src.services.cache_manager import CacheManager
 from src.constants import TdConstant as Constant
@@ -28,6 +30,25 @@ def mock_cache_manager():
 
 
 @pytest.fixture
+async def real_cache_manager():
+    """创建真实的 CacheManager 用于属性测试"""
+    from src.utils.config import CacheConfig
+    
+    # 使用 fakeredis 创建真实的 Redis 实例
+    fake_redis = fakeredis.aioredis.FakeRedis()
+    
+    cache = CacheManager()
+    cache._redis = fake_redis
+    cache._available = True
+    
+    yield cache
+    
+    # 清理
+    await fake_redis.flushall()
+    await fake_redis.aclose()
+
+
+@pytest.fixture
 def td_client_with_cache(mock_cache_manager):
     """创建带缓存的 TdClient 实例"""
     with patch("src.services.td_client.CTPTdClient"):
@@ -35,6 +56,51 @@ def td_client_with_cache(mock_cache_manager):
         client.set_cache_manager(mock_cache_manager)
         client._user_id = "test_user"
         return client
+
+
+@pytest.fixture
+async def td_client_with_real_cache(real_cache_manager):
+    """创建带真实缓存的 TdClient 实例用于属性测试"""
+    with patch("src.services.td_client.CTPTdClient"):
+        client = TdClient()
+        client.set_cache_manager(real_cache_manager)
+        client._user_id = "test_user"
+        yield client
+
+
+# ============================================================================
+# Hypothesis 策略定义
+# ============================================================================
+
+# 持仓数据策略
+position_strategy = st.fixed_dictionaries({
+    "InstrumentID": st.text(min_size=1, max_size=31, alphabet=st.characters(whitelist_categories=('Lu', 'Ll', 'Nd'))),
+    "Position": st.integers(min_value=0, max_value=1000000),
+    "Direction": st.sampled_from(["0", "1", "2", "3"]),  # 买、卖、净、空
+    "YdPosition": st.integers(min_value=0, max_value=1000000),
+    "TodayPosition": st.integers(min_value=0, max_value=1000000),
+    "PositionCost": st.floats(min_value=0, max_value=1000000000, allow_nan=False, allow_infinity=False),
+})
+
+# 资金数据策略
+account_strategy = st.fixed_dictionaries({
+    "Balance": st.floats(min_value=0, max_value=1000000000, allow_nan=False, allow_infinity=False),
+    "Available": st.floats(min_value=0, max_value=1000000000, allow_nan=False, allow_infinity=False),
+    "WithdrawQuota": st.floats(min_value=0, max_value=1000000000, allow_nan=False, allow_infinity=False),
+    "Credit": st.floats(min_value=0, max_value=1000000000, allow_nan=False, allow_infinity=False),
+    "Mortgage": st.floats(min_value=0, max_value=1000000000, allow_nan=False, allow_infinity=False),
+})
+
+# 订单数据策略
+order_strategy = st.fixed_dictionaries({
+    "OrderRef": st.text(min_size=1, max_size=13, alphabet=st.characters(whitelist_categories=('Nd',))),
+    "OrderSysID": st.text(min_size=1, max_size=21, alphabet=st.characters(whitelist_categories=('Nd',))),
+    "InstrumentID": st.text(min_size=1, max_size=31, alphabet=st.characters(whitelist_categories=('Lu', 'Ll', 'Nd'))),
+    "Direction": st.sampled_from(["0", "1"]),  # 买、卖
+    "OrderStatus": st.sampled_from(["0", "1", "2", "3", "4", "5"]),
+    "VolumeTotalOriginal": st.integers(min_value=1, max_value=1000),
+    "VolumeTraded": st.integers(min_value=0, max_value=1000),
+})
 
 
 @pytest.mark.asyncio
@@ -368,3 +434,189 @@ async def test_query_cached_methods_without_user_id(mock_cache_manager):
         assert result["position_cleared"] is False
         assert result["account_cleared"] is False
         assert result["orders_cleared"] is False
+
+
+
+# ============================================================================
+# 属性测试（Property-Based Testing）
+# ============================================================================
+
+
+@settings(max_examples=100)
+@given(position_data=position_strategy)
+@pytest.mark.asyncio
+async def test_property_position_cache_consistency(position_data):
+    """
+    **Feature: performance-optimization-phase1, Property 1: 缓存一致性**
+    
+    属性测试：对于任何持仓数据更新，当数据写入 Redis 缓存后，从缓存读取应该返回相同的数据
+    
+    验证需求：4.1, 4.4
+    """
+    # 创建真实的 Redis 实例
+    fake_redis = fakeredis.aioredis.FakeRedis()
+    cache = CacheManager()
+    cache._redis = fake_redis
+    cache._available = True
+    
+    # 创建 TdClient 实例
+    with patch("src.services.td_client.CTPTdClient"):
+        client = TdClient()
+        client.set_cache_manager(cache)
+        client._user_id = "test_user"
+        
+        # 构造完整的持仓消息
+        position_message = {
+            Constant.MessageType: Constant.OnRspQryInvestorPosition,
+            Constant.InvestorPosition: position_data
+        }
+        
+        # 写入缓存
+        await client._cache_position_data(position_message)
+        
+        # 从缓存读取
+        instrument_id = position_data["InstrumentID"]
+        cached_data = await client.query_position_cached(instrument_id)
+        
+        # 验证一致性
+        assert cached_data is not None, f"缓存数据不应为空: instrument_id={instrument_id}"
+        
+        # 验证关键字段
+        assert cached_data["InstrumentID"] == position_data["InstrumentID"], \
+            f"InstrumentID 不一致: 原始={position_data['InstrumentID']}, 缓存={cached_data['InstrumentID']}"
+        assert cached_data["Position"] == position_data["Position"], \
+            f"Position 不一致: 原始={position_data['Position']}, 缓存={cached_data['Position']}"
+        assert cached_data["Direction"] == position_data["Direction"], \
+            f"Direction 不一致: 原始={position_data['Direction']}, 缓存={cached_data['Direction']}"
+        
+        # 验证所有字段
+        for key, value in position_data.items():
+            assert key in cached_data, f"缓存中缺少字段: {key}"
+            assert cached_data[key] == value, \
+                f"字段 {key} 不一致: 原始={value}, 缓存={cached_data[key]}"
+    
+    # 清理
+    await fake_redis.flushall()
+    await fake_redis.aclose()
+
+
+
+@settings(max_examples=100)
+@given(account_data=account_strategy)
+@pytest.mark.asyncio
+async def test_property_account_cache_consistency(account_data):
+    """
+    **Feature: performance-optimization-phase1, Property 1: 缓存一致性**
+    
+    属性测试：对于任何资金数据更新，当数据写入 Redis 缓存后，从缓存读取应该返回相同的数据
+    
+    验证需求：4.2, 4.4
+    """
+    # 创建真实的 Redis 实例
+    fake_redis = fakeredis.aioredis.FakeRedis()
+    cache = CacheManager()
+    cache._redis = fake_redis
+    cache._available = True
+    
+    # 创建 TdClient 实例
+    with patch("src.services.td_client.CTPTdClient"):
+        client = TdClient()
+        client.set_cache_manager(cache)
+        client._user_id = "test_user"
+        
+        # 构造完整的资金消息
+        account_message = {
+            Constant.MessageType: Constant.OnRspQryTradingAccount,
+            Constant.TradingAccount: account_data
+        }
+        
+        # 写入缓存
+        await client._cache_account_data(account_message)
+        
+        # 从缓存读取
+        cached_data = await client.query_account_cached()
+        
+        # 验证一致性
+        assert cached_data is not None, "缓存数据不应为空"
+        
+        # 验证关键字段
+        assert cached_data["Balance"] == account_data["Balance"], \
+            f"Balance 不一致: 原始={account_data['Balance']}, 缓存={cached_data['Balance']}"
+        assert cached_data["Available"] == account_data["Available"], \
+            f"Available 不一致: 原始={account_data['Available']}, 缓存={cached_data['Available']}"
+        
+        # 验证所有字段
+        for key, value in account_data.items():
+            assert key in cached_data, f"缓存中缺少字段: {key}"
+            # 对于浮点数，使用近似比较
+            if isinstance(value, float):
+                assert abs(cached_data[key] - value) < 1e-6, \
+                    f"字段 {key} 不一致: 原始={value}, 缓存={cached_data[key]}"
+            else:
+                assert cached_data[key] == value, \
+                    f"字段 {key} 不一致: 原始={value}, 缓存={cached_data[key]}"
+    
+    # 清理
+    await fake_redis.flushall()
+    await fake_redis.aclose()
+
+
+
+@settings(max_examples=100)
+@given(order_data=order_strategy)
+@pytest.mark.asyncio
+async def test_property_order_cache_consistency(order_data):
+    """
+    **Feature: performance-optimization-phase1, Property 1: 缓存一致性**
+    
+    属性测试：对于任何订单数据更新，当数据写入 Redis 缓存后，从缓存读取应该返回相同的数据
+    
+    验证需求：4.3, 4.4
+    """
+    # 创建真实的 Redis 实例
+    fake_redis = fakeredis.aioredis.FakeRedis()
+    cache = CacheManager()
+    cache._redis = fake_redis
+    cache._available = True
+    
+    # 创建 TdClient 实例
+    with patch("src.services.td_client.CTPTdClient"):
+        client = TdClient()
+        client.set_cache_manager(cache)
+        client._user_id = "test_user"
+        
+        # 构造完整的订单消息
+        order_message = {
+            Constant.MessageType: Constant.OnRtnOrder,
+            Constant.Order: order_data
+        }
+        
+        # 写入缓存
+        await client._cache_order_data(order_message)
+        
+        # 从缓存读取（获取最新的订单）
+        cached_orders = await client.query_orders_cached()
+        
+        # 验证一致性
+        assert len(cached_orders) > 0, "缓存中应该有订单数据"
+        
+        # 获取最新的订单（第一个）
+        cached_data = cached_orders[0]
+        
+        # 验证关键字段
+        assert cached_data["OrderRef"] == order_data["OrderRef"], \
+            f"OrderRef 不一致: 原始={order_data['OrderRef']}, 缓存={cached_data['OrderRef']}"
+        assert cached_data["InstrumentID"] == order_data["InstrumentID"], \
+            f"InstrumentID 不一致: 原始={order_data['InstrumentID']}, 缓存={cached_data['InstrumentID']}"
+        assert cached_data["Direction"] == order_data["Direction"], \
+            f"Direction 不一致: 原始={order_data['Direction']}, 缓存={cached_data['Direction']}"
+        
+        # 验证所有字段
+        for key, value in order_data.items():
+            assert key in cached_data, f"缓存中缺少字段: {key}"
+            assert cached_data[key] == value, \
+                f"字段 {key} 不一致: 原始={value}, 缓存={cached_data[key]}"
+    
+    # 清理
+    await fake_redis.flushall()
+    await fake_redis.aclose()
