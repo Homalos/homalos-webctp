@@ -162,6 +162,35 @@ def build_order_to_dict(order_field) -> dict:
     }
 
 
+def extract_login_response_fields(rsp_user_login_field) -> dict:
+    """提取登录响应字段为字典
+    
+    将CTP用户登录响应结构体的所有字段提取为Python字典，
+    避免CTP对象生命周期问题。
+    
+    Args:
+        rsp_user_login_field: CTP用户登录响应结构体
+        
+    Returns:
+        dict: 包含所有登录响应字段的字典
+    """
+    return {
+        "TradingDay": rsp_user_login_field.TradingDay,
+        "LoginTime": rsp_user_login_field.LoginTime,
+        "BrokerID": rsp_user_login_field.BrokerID,
+        "UserID": rsp_user_login_field.UserID,
+        "SystemName": rsp_user_login_field.SystemName,
+        "FrontID": rsp_user_login_field.FrontID,
+        "SessionID": rsp_user_login_field.SessionID,
+        "MaxOrderRef": rsp_user_login_field.MaxOrderRef,
+        "SHFETime": rsp_user_login_field.SHFETime,
+        "DCETime": rsp_user_login_field.DCETime,
+        "CZCETime": rsp_user_login_field.CZCETime,
+        "FFEXTime": rsp_user_login_field.FFEXTime,
+        "INETime": rsp_user_login_field.INETime
+    }
+
+
 class ReconnectionController:
     """CTP 客户端重连控制器"""
     
