@@ -346,7 +346,7 @@ class MdClient(mdapi.CThostFtdcMdSpi):
         Returns:
             None: 无直接返回值，通过回调函数返回响应数据
         """
-        logger.debug(f"recv unsub market data")
+        logger.debug("recv unsub market data")
         response = CTPObjectHelper.build_response_dict(Constant.OnRspUnSubMarketData, rsp_info, request_id, is_last)
         if specific_instrument:
             response[Constant.SpecificInstrument] = {
