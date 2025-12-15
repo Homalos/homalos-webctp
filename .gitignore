@@ -17,3 +17,5 @@ files.txt
 .kiro
 .hypothesis
 .vscode
+config/config_md.yaml
+config/config_td.yaml
