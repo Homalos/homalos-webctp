@@ -73,6 +73,9 @@ class TdClient(BaseClient):
         Returns:
             None: 该方法无返回值
         """
+        # 记录 CTP 回调开始时间
+        callback_start_time = time.time()
+        
         # 异步缓存处理（不阻塞消息推送）
         message_type = data.get(Constant.MessageType, "")
 
@@ -89,6 +92,11 @@ class TdClient(BaseClient):
 
         # 调用父类方法，推送到队列
         super().on_rsp_or_rtn(data)
+        
+        # 记录 CTP 回调到队列的延迟
+        if self._metrics_collector:
+            callback_latency_ms = (time.time() - callback_start_time) * 1000
+            self._metrics_collector.record_latency("td_callback_to_queue_latency", callback_latency_ms)
 
     async def _process_cache_queue(self) -> None:
         """
@@ -463,9 +471,19 @@ class TdClient(BaseClient):
                 if data:
                     position_data = self._serializer.deserialize(data)
                     logger.debug(f"TdClient: 从缓存读取持仓数据 - {instrument_id}")
+                    
+                    # 记录缓存命中
+                    if self._metrics_collector:
+                        self._metrics_collector.record_counter("cache_hit_position")
+                    
                     return position_data
                 else:
                     logger.debug(f"TdClient: 缓存中未找到持仓数据 - {instrument_id}")
+                    
+                    # 记录缓存未命中
+                    if self._metrics_collector:
+                        self._metrics_collector.record_counter("cache_miss_position")
+                    
                     return None
             else:
                 # 查询所有持仓
@@ -477,9 +495,19 @@ class TdClient(BaseClient):
                         position_data = self._serializer.deserialize(data_bytes)
                         result[inst_id] = position_data
                     logger.debug(f"TdClient: 从缓存读取所有持仓数据，共 {len(result)} 个合约")
+                    
+                    # 记录缓存命中
+                    if self._metrics_collector:
+                        self._metrics_collector.record_counter("cache_hit_position")
+                    
                     return result
                 else:
                     logger.debug("TdClient: 缓存中未找到持仓数据")
+                    
+                    # 记录缓存未命中
+                    if self._metrics_collector:
+                        self._metrics_collector.record_counter("cache_miss_position")
+                    
                     return None
 
         except Exception as e:
@@ -509,9 +537,19 @@ class TdClient(BaseClient):
             if data:
                 account_data = self._serializer.deserialize(data)
                 logger.debug(f"TdClient: 从缓存读取资金数据 - {self._user_id}")
+                
+                # 记录缓存命中
+                if self._metrics_collector:
+                    self._metrics_collector.record_counter("cache_hit_account")
+                
                 return account_data
             else:
                 logger.debug("TdClient: 缓存中未找到资金数据")
+                
+                # 记录缓存未命中
+                if self._metrics_collector:
+                    self._metrics_collector.record_counter("cache_miss_account")
+                
                 return None
 
         except Exception as e:
@@ -550,6 +588,11 @@ class TdClient(BaseClient):
 
             if not members:
                 logger.debug("TdClient: 缓存中未找到订单数据")
+                
+                # 记录缓存未命中
+                if self._metrics_collector:
+                    self._metrics_collector.record_counter("cache_miss_orders")
+                
                 return []
 
             # 解析订单数据
@@ -570,6 +613,11 @@ class TdClient(BaseClient):
                     continue
 
             logger.debug(f"TdClient: 从缓存读取订单数据，共 {len(orders)} 条")
+            
+            # 记录缓存命中
+            if self._metrics_collector:
+                self._metrics_collector.record_counter("cache_hit_orders")
+            
             return orders
 
         except Exception as e:
