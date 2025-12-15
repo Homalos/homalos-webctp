@@ -81,9 +81,19 @@ class OrjsonSerializer(Serializer):
     def __init__(self):
         """初始化 OrjsonSerializer"""
         self._fallback_used = False
+        self._metrics_collector = None
         if not ORJSON_AVAILABLE:
             logger.warning("orjson 不可用，将使用标准 json 库作为降级方案")
             self._fallback_used = True
+
+    def set_metrics_collector(self, metrics_collector: Any) -> None:
+        """
+        设置性能指标收集器实例
+
+        Args:
+            metrics_collector: MetricsCollector 实例，用于收集性能指标
+        """
+        self._metrics_collector = metrics_collector
 
     def serialize(self, obj: Any) -> bytes:
         """
@@ -98,19 +108,36 @@ class OrjsonSerializer(Serializer):
         Raises:
             SerializationError: 序列化失败时抛出
         """
+        import time
+        start_time = time.time()
+        
         try:
             if ORJSON_AVAILABLE and not self._fallback_used:
                 # 使用 orjson 进行序列化
-                return orjson.dumps(obj)
+                result = orjson.dumps(obj)
             else:
                 # 降级到标准 json
-                return json.dumps(obj, ensure_ascii=False).encode('utf-8')
+                result = json.dumps(obj, ensure_ascii=False).encode('utf-8')
+            
+            # 记录序列化耗时
+            if self._metrics_collector:
+                latency_ms = (time.time() - start_time) * 1000
+                self._metrics_collector.record_latency("serialization_json_encode", latency_ms)
+            
+            return result
         except (TypeError, ValueError, orjson.JSONEncodeError if ORJSON_AVAILABLE else Exception) as e:
             if ORJSON_AVAILABLE and not self._fallback_used:
                 logger.warning(f"orjson 序列化失败，降级到标准 json: {e}")
                 self._fallback_used = True
                 try:
-                    return json.dumps(obj, ensure_ascii=False).encode('utf-8')
+                    result = json.dumps(obj, ensure_ascii=False).encode('utf-8')
+                    
+                    # 记录序列化耗时
+                    if self._metrics_collector:
+                        latency_ms = (time.time() - start_time) * 1000
+                        self._metrics_collector.record_latency("serialization_json_encode", latency_ms)
+                    
+                    return result
                 except (TypeError, ValueError) as fallback_error:
                     raise SerializationError(f"JSON 序列化失败: {fallback_error}") from fallback_error
             else:
@@ -129,19 +156,36 @@ class OrjsonSerializer(Serializer):
         Raises:
             SerializationError: 反序列化失败时抛出
         """
+        import time
+        start_time = time.time()
+        
         try:
             if ORJSON_AVAILABLE and not self._fallback_used:
                 # 使用 orjson 进行反序列化
-                return orjson.loads(data)
+                result = orjson.loads(data)
             else:
                 # 降级到标准 json
-                return json.loads(data.decode('utf-8'))
+                result = json.loads(data.decode('utf-8'))
+            
+            # 记录反序列化耗时
+            if self._metrics_collector:
+                latency_ms = (time.time() - start_time) * 1000
+                self._metrics_collector.record_latency("serialization_json_decode", latency_ms)
+            
+            return result
         except (json.JSONDecodeError, orjson.JSONDecodeError if ORJSON_AVAILABLE else Exception, UnicodeDecodeError) as e:
             if ORJSON_AVAILABLE and not self._fallback_used:
                 logger.warning(f"orjson 反序列化失败，降级到标准 json: {e}")
                 self._fallback_used = True
                 try:
-                    return json.loads(data.decode('utf-8'))
+                    result = json.loads(data.decode('utf-8'))
+                    
+                    # 记录反序列化耗时
+                    if self._metrics_collector:
+                        latency_ms = (time.time() - start_time) * 1000
+                        self._metrics_collector.record_latency("serialization_json_decode", latency_ms)
+                    
+                    return result
                 except (json.JSONDecodeError, UnicodeDecodeError) as fallback_error:
                     raise SerializationError(f"JSON 反序列化失败: {fallback_error}") from fallback_error
             else:
@@ -159,6 +203,16 @@ class MsgpackSerializer(Serializer):
         """初始化 MsgpackSerializer"""
         if not MSGPACK_AVAILABLE:
             raise ImportError("msgpack 库未安装，无法使用 MsgpackSerializer")
+        self._metrics_collector = None
+
+    def set_metrics_collector(self, metrics_collector: Any) -> None:
+        """
+        设置性能指标收集器实例
+
+        Args:
+            metrics_collector: MetricsCollector 实例，用于收集性能指标
+        """
+        self._metrics_collector = metrics_collector
 
     def serialize(self, obj: Any) -> bytes:
         """
@@ -173,8 +227,18 @@ class MsgpackSerializer(Serializer):
         Raises:
             SerializationError: 序列化失败时抛出
         """
+        import time
+        start_time = time.time()
+        
         try:
-            return msgpack.packb(obj, use_bin_type=True)
+            result = msgpack.packb(obj, use_bin_type=True)
+            
+            # 记录序列化耗时
+            if self._metrics_collector:
+                latency_ms = (time.time() - start_time) * 1000
+                self._metrics_collector.record_latency("serialization_msgpack_encode", latency_ms)
+            
+            return result
         except (TypeError, ValueError, msgpack.PackException) as e:
             raise SerializationError(f"msgpack 序列化失败: {e}") from e
 
@@ -191,8 +255,18 @@ class MsgpackSerializer(Serializer):
         Raises:
             SerializationError: 反序列化失败时抛出
         """
+        import time
+        start_time = time.time()
+        
         try:
-            return msgpack.unpackb(data, raw=False)
+            result = msgpack.unpackb(data, raw=False)
+            
+            # 记录反序列化耗时
+            if self._metrics_collector:
+                latency_ms = (time.time() - start_time) * 1000
+                self._metrics_collector.record_latency("serialization_msgpack_decode", latency_ms)
+            
+            return result
         except (ValueError, msgpack.UnpackException) as e:
             raise SerializationError(f"msgpack 反序列化失败: {e}") from e
 
