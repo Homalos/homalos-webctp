@@ -76,6 +76,7 @@ class TdConstant(CommonConstant):
     OnRspQryTradingCode = "RspQryTradingCode"
     OnRspQryInstrumentMarginRate = "RspQryInstrumentMarginRate"
     OnRspQryInstrumentCommissionRate = "RspQryInstrumentCommissionRate"
+    OnRspQrySettlementInfoConfirm = "RspQrySettlementInfoConfirm"
 
     # RequestField
     QryInstrument = "QryInstrument"
@@ -99,6 +100,7 @@ class TdConstant(CommonConstant):
     QryTradingCode = "QryTradingCode"
     QryInstrumentMarginRate = "QryInstrumentMarginRate"
     QryInstrumentCommissionRate = "QryInstrumentCommissionRate"
+    QrySettlementInfoConfirm = "QrySettlementInfoConfirm"
 
     # ResponseField
     Instrument = "Instrument"
@@ -119,6 +121,7 @@ class TdConstant(CommonConstant):
     TradingCode = "TradingCode"
     InstrumentMarginRate = "InstrumentMarginRate"
     InstrumentCommissionRate = "InstrumentCommissionRate"
+    SettlementInfoConfirm = "SettlementInfoConfirm"
 
     # RequestMethod
     ReqQryInstrument = "ReqQryInstrument"
@@ -142,3 +145,4 @@ class TdConstant(CommonConstant):
     ReqQryTradingCode = "ReqQryTradingCode"
     ReqQryInstrumentMarginRate = "ReqQryInstrumentMarginRate"
     ReqQryInstrumentCommissionRate = "ReqQryInstrumentCommissionRate"
+    ReqQrySettlementInfoConfirm = "ReqQrySettlementInfoConfirm"
