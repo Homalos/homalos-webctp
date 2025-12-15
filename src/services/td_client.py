@@ -9,15 +9,19 @@
 @Software   : PyCharm
 @Description: 交易服务 (继承 BaseClient)
 """
-from typing import Any
+from typing import Any, Optional
+import time
 
 import anyio
 
 from .base_client import BaseClient
+from .cache_manager import CacheManager
 from ..clients import CTPTdClient
 from ..constants import CallError
 from ..constants import TdConstant as Constant
 from ..model import REQUEST_PAYLOAD
+from ..utils.serialization import get_msgpack_serializer
+from loguru import logger
 
 
 class TdClient(BaseClient):
@@ -28,6 +32,63 @@ class TdClient(BaseClient):
     def __init__(self) -> None:
         super().__init__()
         self._client: CTPTdClient | None = None
+        self._cache_manager: Optional[CacheManager] = None
+        self._serializer = get_msgpack_serializer()
+        self._user_id: Optional[str] = None
+
+    def set_cache_manager(self, cache_manager: CacheManager) -> None:
+        """
+        注入 CacheManager 实例
+
+        Args:
+            cache_manager: Redis 缓存管理器实例
+        """
+        self._cache_manager = cache_manager
+        logger.info("TdClient: CacheManager 已注入")
+
+    def on_rsp_or_rtn(self, data: dict[str, Any]) -> None:
+        """
+        处理来自CTP客户端的响应或返回数据，并同步写入缓存
+
+        重写父类方法，在推送到队列前先尝试写入 Redis 缓存。
+        如果缓存失败，不影响正常的消息推送流程（降级处理）。
+
+        Args:
+            data: 包含响应或返回数据的字典，格式为{字段名: 字段值}
+
+        Returns:
+            None: 该方法无返回值
+        """
+        # 异步缓存处理（不阻塞消息推送）
+        message_type = data.get(Constant.MessageType, "")
+
+        # 根据消息类型判断是否需要缓存
+        if message_type == Constant.OnRspQryInvestorPosition:
+            # 持仓查询响应 - 缓存到 Redis Hash
+            try:
+                import asyncio
+                asyncio.create_task(self._cache_position_data(data))
+            except Exception as e:
+                logger.warning(f"TdClient: 创建持仓缓存任务失败: {e}")
+
+        elif message_type == Constant.OnRspQryTradingAccount:
+            # 资金查询响应 - 缓存到 Redis String
+            try:
+                import asyncio
+                asyncio.create_task(self._cache_account_data(data))
+            except Exception as e:
+                logger.warning(f"TdClient: 创建资金缓存任务失败: {e}")
+
+        elif message_type == Constant.OnRtnOrder:
+            # 订单回报 - 缓存到 Redis Sorted Set
+            try:
+                import asyncio
+                asyncio.create_task(self._cache_order_data(data))
+            except Exception as e:
+                logger.warning(f"TdClient: 创建订单缓存任务失败: {e}")
+
+        # 调用父类方法，推送到队列
+        super().on_rsp_or_rtn(data)
 
     def validate_request(self, message_type, data):
         """
@@ -84,6 +145,8 @@ class TdClient(BaseClient):
             if message_type == Constant.ReqUserLogin:
                 user_id: str = request[Constant.ReqUserLogin]["UserID"]
                 password: str = request[Constant.ReqUserLogin]["Password"]
+                # 保存用户ID用于缓存
+                self._user_id = user_id
                 await self.start(user_id, password)
             else:
                 if message_type in self._call_map:
@@ -124,6 +187,337 @@ class TdClient(BaseClient):
             str: 客户端类型字符串，固定返回 "td" 表示交易客户端
         """
         return "td"
+
+    async def _cache_position_data(self, data: dict) -> None:
+        """
+        缓存持仓数据到 Redis Hash
+
+        Args:
+            data: 持仓回报数据字典
+        """
+        if not self._cache_manager or not self._cache_manager.is_available():
+            return
+
+        if not self._user_id:
+            logger.warning("TdClient: 用户ID未设置，跳过持仓缓存")
+            return
+
+        try:
+            # 提取持仓数据
+            position_data = data.get(Constant.InvestorPosition)
+            if not position_data:
+                return
+
+            instrument_id = position_data.get("InstrumentID", "")
+            if not instrument_id:
+                return
+
+            # 序列化持仓数据
+            serialized_data = self._serializer.serialize(position_data)
+
+            # 写入 Redis Hash
+            # Key: account:position:{user_id}
+            # Field: {instrument_id}
+            cache_key = f"account:position:{self._user_id}"
+            await self._cache_manager.hset(cache_key, instrument_id, serialized_data)
+
+            logger.debug(f"TdClient: 持仓数据已缓存 - {instrument_id}")
+
+        except Exception as e:
+            logger.warning(f"TdClient: 缓存持仓数据失败: {e}")
+            # 降级：不影响正常流程
+
+    async def _cache_account_data(self, data: dict) -> None:
+        """
+        缓存资金数据到 Redis String
+
+        Args:
+            data: 资金回报数据字典
+        """
+        if not self._cache_manager or not self._cache_manager.is_available():
+            return
+
+        if not self._user_id:
+            logger.warning("TdClient: 用户ID未设置，跳过资金缓存")
+            return
+
+        try:
+            # 提取资金数据
+            account_data = data.get(Constant.TradingAccount)
+            if not account_data:
+                return
+
+            # 序列化资金数据
+            serialized_data = self._serializer.serialize(account_data)
+
+            # 写入 Redis String
+            # Key: account:funds:{user_id}
+            cache_key = f"account:funds:{self._user_id}"
+            await self._cache_manager.set(cache_key, serialized_data)
+
+            logger.debug(f"TdClient: 资金数据已缓存 - {self._user_id}")
+
+        except Exception as e:
+            logger.warning(f"TdClient: 缓存资金数据失败: {e}")
+            # 降级：不影响正常流程
+
+    async def _cache_order_data(self, data: dict) -> None:
+        """
+        缓存订单数据到 Redis Sorted Set
+
+        Args:
+            data: 订单回报数据字典
+        """
+        if not self._cache_manager or not self._cache_manager.is_available():
+            return
+
+        if not self._user_id:
+            logger.warning("TdClient: 用户ID未设置，跳过订单缓存")
+            return
+
+        try:
+            # 提取订单数据
+            order_data = data.get(Constant.Order)
+            if not order_data:
+                return
+
+            # 序列化订单数据
+            serialized_data = self._serializer.serialize(order_data)
+
+            # 生成唯一的订单标识（使用 OrderRef 或 OrderSysID）
+            order_ref = order_data.get("OrderRef", "")
+            order_sys_id = order_data.get("OrderSysID", "")
+            order_key = order_sys_id if order_sys_id else order_ref
+
+            if not order_key:
+                logger.warning("TdClient: 订单数据缺少标识，跳过缓存")
+                return
+
+            # 写入 Redis Sorted Set
+            # Key: account:orders:{user_id}
+            # Score: 当前时间戳
+            # Member: 序列化的订单数据（带订单标识前缀）
+            cache_key = f"account:orders:{self._user_id}"
+            score = time.time()
+            member_key = f"{order_key}:{serialized_data.hex()}"
+
+            # 使用 zadd 添加到 Sorted Set，并设置 24 小时 TTL
+            from ..utils.config import GlobalConfig
+            ttl = GlobalConfig.Cache.order_ttl if hasattr(GlobalConfig, 'Cache') else 86400
+
+            await self._cache_manager.zadd(
+                cache_key,
+                {member_key: score},
+                ttl=ttl
+            )
+
+            logger.debug(f"TdClient: 订单数据已缓存 - {order_key}")
+
+        except Exception as e:
+            logger.warning(f"TdClient: 缓存订单数据失败: {e}")
+            # 降级：不影响正常流程
+
+    async def query_position_cached(
+        self, instrument_id: Optional[str] = None
+    ) -> Optional[dict[str, Any]]:
+        """
+        从 Redis 缓存查询持仓数据
+
+        Args:
+            instrument_id: 合约代码，None 表示查询所有持仓
+
+        Returns:
+            Optional[dict[str, Any]]: 持仓数据字典
+                - 如果指定 instrument_id，返回单个合约的持仓数据
+                - 如果未指定 instrument_id，返回所有合约的持仓数据字典 {instrument_id: position_data}
+                - Redis 不可用或未找到数据时返回 None
+        """
+        if not self._cache_manager or not self._cache_manager.is_available():
+            logger.debug("TdClient: Redis 不可用，无法查询持仓缓存")
+            return None
+
+        if not self._user_id:
+            logger.warning("TdClient: 用户ID未设置，无法查询持仓缓存")
+            return None
+
+        try:
+            cache_key = f"account:position:{self._user_id}"
+
+            if instrument_id:
+                # 查询单个合约持仓
+                data = await self._cache_manager.hget(cache_key, instrument_id)
+                if data:
+                    position_data = self._serializer.deserialize(data)
+                    logger.debug(f"TdClient: 从缓存读取持仓数据 - {instrument_id}")
+                    return position_data
+                else:
+                    logger.debug(f"TdClient: 缓存中未找到持仓数据 - {instrument_id}")
+                    return None
+            else:
+                # 查询所有持仓
+                all_data = await self._cache_manager.hgetall(cache_key)
+                if all_data:
+                    result = {}
+                    for inst_id_bytes, data_bytes in all_data.items():
+                        inst_id = inst_id_bytes.decode('utf-8')
+                        position_data = self._serializer.deserialize(data_bytes)
+                        result[inst_id] = position_data
+                    logger.debug(f"TdClient: 从缓存读取所有持仓数据，共 {len(result)} 个合约")
+                    return result
+                else:
+                    logger.debug("TdClient: 缓存中未找到持仓数据")
+                    return None
+
+        except Exception as e:
+            logger.warning(f"TdClient: 查询持仓缓存失败: {e}")
+            return None
+
+    async def query_account_cached(self) -> Optional[dict[str, Any]]:
+        """
+        从 Redis 缓存查询资金账户数据
+
+        Returns:
+            Optional[dict[str, Any]]: 资金账户数据字典
+                - Redis 不可用或未找到数据时返回 None
+        """
+        if not self._cache_manager or not self._cache_manager.is_available():
+            logger.debug("TdClient: Redis 不可用，无法查询资金缓存")
+            return None
+
+        if not self._user_id:
+            logger.warning("TdClient: 用户ID未设置，无法查询资金缓存")
+            return None
+
+        try:
+            cache_key = f"account:funds:{self._user_id}"
+            data = await self._cache_manager.get(cache_key)
+
+            if data:
+                account_data = self._serializer.deserialize(data)
+                logger.debug(f"TdClient: 从缓存读取资金数据 - {self._user_id}")
+                return account_data
+            else:
+                logger.debug("TdClient: 缓存中未找到资金数据")
+                return None
+
+        except Exception as e:
+            logger.warning(f"TdClient: 查询资金缓存失败: {e}")
+            return None
+
+    async def query_orders_cached(
+        self, start: int = 0, end: int = -1
+    ) -> list[dict[str, Any]]:
+        """
+        从 Redis 缓存查询订单数据
+
+        Args:
+            start: 起始索引（默认 0，表示最新的订单）
+            end: 结束索引（默认 -1，表示所有订单）
+
+        Returns:
+            list[dict[str, Any]]: 订单数据列表，按时间倒序排列
+                - Redis 不可用或未找到数据时返回空列表
+        """
+        if not self._cache_manager or not self._cache_manager.is_available():
+            logger.debug("TdClient: Redis 不可用，无法查询订单缓存")
+            return []
+
+        if not self._user_id:
+            logger.warning("TdClient: 用户ID未设置，无法查询订单缓存")
+            return []
+
+        try:
+            cache_key = f"account:orders:{self._user_id}"
+
+            # 从 Sorted Set 读取订单数据（倒序，最新的在前）
+            members = await self._cache_manager.zrange(
+                cache_key, start, end, withscores=False
+            )
+
+            if not members:
+                logger.debug("TdClient: 缓存中未找到订单数据")
+                return []
+
+            # 解析订单数据
+            orders = []
+            for member in reversed(members):  # 倒序，最新的在前
+                try:
+                    # 解析 member 格式: {order_key}:{hex_data}
+                    member_str = member.decode('utf-8') if isinstance(member, bytes) else member
+                    parts = member_str.split(':', 1)
+                    if len(parts) == 2:
+                        order_key, hex_data = parts
+                        # 将 hex 字符串转换回字节
+                        serialized_data = bytes.fromhex(hex_data)
+                        order_data = self._serializer.deserialize(serialized_data)
+                        orders.append(order_data)
+                except Exception as e:
+                    logger.warning(f"TdClient: 解析订单数据失败: {e}")
+                    continue
+
+            logger.debug(f"TdClient: 从缓存读取订单数据，共 {len(orders)} 条")
+            return orders
+
+        except Exception as e:
+            logger.warning(f"TdClient: 查询订单缓存失败: {e}")
+            return []
+
+    async def refresh_cache(self) -> dict[str, bool]:
+        """
+        手动刷新缓存
+
+        清除当前用户的所有缓存数据，并触发 CTP API 查询以重新填充缓存。
+
+        Returns:
+            dict[str, bool]: 刷新结果状态字典
+                {
+                    "position_cleared": bool,  # 持仓缓存是否清除成功
+                    "account_cleared": bool,   # 资金缓存是否清除成功
+                    "orders_cleared": bool,    # 订单缓存是否清除成功
+                }
+        """
+        result = {
+            "position_cleared": False,
+            "account_cleared": False,
+            "orders_cleared": False,
+        }
+
+        if not self._cache_manager or not self._cache_manager.is_available():
+            logger.warning("TdClient: Redis 不可用，无法刷新缓存")
+            return result
+
+        if not self._user_id:
+            logger.warning("TdClient: 用户ID未设置，无法刷新缓存")
+            return result
+
+        try:
+            # 清除持仓缓存
+            position_key = f"account:position:{self._user_id}"
+            result["position_cleared"] = await self._cache_manager.delete(position_key)
+
+            # 清除资金缓存
+            account_key = f"account:funds:{self._user_id}"
+            result["account_cleared"] = await self._cache_manager.delete(account_key)
+
+            # 清除订单缓存
+            orders_key = f"account:orders:{self._user_id}"
+            result["orders_cleared"] = await self._cache_manager.delete(orders_key)
+
+            logger.info(
+                f"TdClient: 缓存刷新完成 - "
+                f"持仓: {result['position_cleared']}, "
+                f"资金: {result['account_cleared']}, "
+                f"订单: {result['orders_cleared']}"
+            )
+
+            # 注意：这里不主动触发 CTP API 查询
+            # 缓存会在下次查询时自动填充（Cache-Aside 模式）
+            # 或者在收到 CTP 回报时自动更新
+
+        except Exception as e:
+            logger.error(f"TdClient: 刷新缓存失败: {e}")
+
+        return result
 
     def _init_call_map(self) -> None:
         """初始化API调用映射表
