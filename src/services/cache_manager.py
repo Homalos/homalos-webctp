@@ -29,7 +29,7 @@ except ImportError:
 from loguru import logger
 
 from ..utils.config import CacheConfig
-from ..utils.serialization import get_msgpack_serializer, SerializationError
+from ..utils.serialization import get_msgpack_serializer
 
 
 class CacheManager:
