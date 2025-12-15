@@ -46,6 +46,12 @@ class MetricsConfig:
         default_factory=lambda: [10, 50, 100, 200, 500, 1000]
     )  # 延迟桶（毫秒）
     sample_rate: float = 1.0  # 采样率（0.0-1.0）
+    
+    # 告警阈值配置
+    latency_warning_threshold_ms: float = 100.0  # 延迟告警阈值（毫秒）
+    cache_hit_rate_warning_threshold: float = 50.0  # Redis 命中率告警阈值（百分比）
+    cpu_warning_threshold: float = 80.0  # CPU 使用率告警阈值（百分比）
+    memory_warning_threshold: float = 80.0  # 内存使用率告警阈值（百分比）
 
 
 @dataclass
@@ -178,6 +184,30 @@ class GlobalConfig(object):
                     )
                 ),
                 sample_rate=float(metrics_config.get("SampleRate", 1.0)),
+                latency_warning_threshold_ms=float(
+                    os.environ.get(
+                        "WEBCTP_METRICS_LATENCY_WARNING_THRESHOLD",
+                        metrics_config.get("LatencyWarningThresholdMs", 100.0),
+                    )
+                ),
+                cache_hit_rate_warning_threshold=float(
+                    os.environ.get(
+                        "WEBCTP_METRICS_CACHE_HIT_RATE_WARNING_THRESHOLD",
+                        metrics_config.get("CacheHitRateWarningThreshold", 50.0),
+                    )
+                ),
+                cpu_warning_threshold=float(
+                    os.environ.get(
+                        "WEBCTP_METRICS_CPU_WARNING_THRESHOLD",
+                        metrics_config.get("CpuWarningThreshold", 80.0),
+                    )
+                ),
+                memory_warning_threshold=float(
+                    os.environ.get(
+                        "WEBCTP_METRICS_MEMORY_WARNING_THRESHOLD",
+                        metrics_config.get("MemoryWarningThreshold", 80.0),
+                    )
+                ),
             )
 
             # 加载策略管理配置（可选）
