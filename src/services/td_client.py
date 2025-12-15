@@ -11,6 +11,7 @@
 """
 from typing import Any, Optional
 import time
+from queue import Queue
 
 import anyio
 
@@ -37,6 +38,7 @@ class TdClient(BaseClient):
         self._serializer = get_msgpack_serializer()
         self._user_id: Optional[str] = None
         self._metrics_collector: Optional[MetricsCollector] = None
+        self._cache_queue: Queue = Queue()  # 缓存任务队列
 
     def set_cache_manager(self, cache_manager: CacheManager) -> None:
         """
@@ -74,33 +76,47 @@ class TdClient(BaseClient):
         # 异步缓存处理（不阻塞消息推送）
         message_type = data.get(Constant.MessageType, "")
 
-        # 根据消息类型判断是否需要缓存
-        if message_type == Constant.OnRspQryInvestorPosition:
-            # 持仓查询响应 - 缓存到 Redis Hash
+        # 根据消息类型判断是否需要缓存，将任务放入队列
+        if message_type in (
+            Constant.OnRspQryInvestorPosition,
+            Constant.OnRspQryTradingAccount,
+            Constant.OnRtnOrder
+        ):
             try:
-                import asyncio
-                asyncio.create_task(self._cache_position_data(data))
+                self._cache_queue.put_nowait((message_type, data))
             except Exception as e:
-                logger.warning(f"TdClient: 创建持仓缓存任务失败: {e}")
-
-        elif message_type == Constant.OnRspQryTradingAccount:
-            # 资金查询响应 - 缓存到 Redis String
-            try:
-                import asyncio
-                asyncio.create_task(self._cache_account_data(data))
-            except Exception as e:
-                logger.warning(f"TdClient: 创建资金缓存任务失败: {e}")
-
-        elif message_type == Constant.OnRtnOrder:
-            # 订单回报 - 缓存到 Redis Sorted Set
-            try:
-                import asyncio
-                asyncio.create_task(self._cache_order_data(data))
-            except Exception as e:
-                logger.warning(f"TdClient: 创建订单缓存任务失败: {e}")
+                logger.warning(f"TdClient: 缓存任务入队失败: {e}")
 
         # 调用父类方法，推送到队列
         super().on_rsp_or_rtn(data)
+
+    async def _process_cache_queue(self) -> None:
+        """
+        处理缓存任务队列
+
+        从队列中取出缓存任务并执行对应的缓存方法。
+        此方法在异步上下文中运行，避免了跨线程异步调用问题。
+        """
+        from queue import Empty
+        
+        while self._running:
+            try:
+                # 非阻塞获取任务，避免阻塞事件循环
+                message_type, data = self._cache_queue.get_nowait()
+                
+                # 根据消息类型执行对应的缓存方法
+                if message_type == Constant.OnRspQryInvestorPosition:
+                    await self._cache_position_data(data)
+                elif message_type == Constant.OnRspQryTradingAccount:
+                    await self._cache_account_data(data)
+                elif message_type == Constant.OnRtnOrder:
+                    await self._cache_order_data(data)
+                    
+            except Empty:
+                # 队列为空，短暂休眠避免CPU占用过高
+                await anyio.sleep(0.01)
+            except Exception as e:
+                logger.warning(f"TdClient: 处理缓存任务失败: {e}")
 
     def validate_request(self, message_type, data):
         """
@@ -194,6 +210,35 @@ class TdClient(BaseClient):
                     }
                     if self.rsp_callback:
                         await self.rsp_callback(response)
+    async def run(self) -> None:
+        """
+        运行客户端协程的主循环
+
+        重写父类方法，同时启动消息处理循环和缓存队列处理循环。
+
+        Returns:
+            None: 此方法不返回值
+        """
+        import logging
+        
+        logging.info(f"start to run new {self._get_client_type()} coroutine")
+        self._stop_event = anyio.Event()
+        self._running = True
+        
+        # 使用task_group同时运行消息处理和缓存处理
+        async with anyio.create_task_group() as tg:
+            # 启动缓存队列处理协程
+            tg.start_soon(self._process_cache_queue)
+            
+            # 启动消息处理循环
+            while self._running:
+                await self._process_a_message(1.0)
+            
+            # task_group 会自动等待所有任务完成（优雅停止）
+        
+        logging.info(f"stop running {self._get_client_type()} coroutine")
+        self._stop_event.set()
+
     def _create_ctp_client(self, user_id: str, password: str):
         """创建CTP交易客户端实例
 
