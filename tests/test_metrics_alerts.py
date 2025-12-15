@@ -11,7 +11,6 @@
 """
 
 import pytest
-import asyncio
 from unittest.mock import patch, MagicMock
 from src.utils.metrics import MetricsCollector
 from src.utils.config import MetricsConfig
