@@ -13,7 +13,7 @@
 import pytest
 import pytest_asyncio
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 from hypothesis import given, strategies as st, settings
 import fakeredis.aioredis
 
