@@ -27,13 +27,44 @@ class CacheConfig:
     password: Optional[str] = None
     db: int = 0
     max_connections: int = 50
-    socket_timeout: float = 5.0
-    socket_connect_timeout: float = 5.0
+    socket_timeout: float = 2.0  # 优化：本地部署推荐 2.0 秒
+    socket_connect_timeout: float = 2.0  # 优化：本地部署推荐 2.0 秒
 
     # TTL 配置
-    market_snapshot_ttl: int = 60  # 行情快照 TTL（秒）
+    market_snapshot_ttl: int = 30  # 优化：行情快照 TTL 30 秒，减少过期数据
     market_tick_ttl: int = 5  # 实时 tick TTL（秒）
     order_ttl: int = 86400  # 订单 TTL（秒）
+
+    def validate(self) -> None:
+        """
+        验证配置参数的合理性
+        
+        Raises:
+            ValueError: 配置参数不合理时抛出
+        """
+        if self.socket_timeout <= 0:
+            raise ValueError(f"socket_timeout 必须大于 0，当前值: {self.socket_timeout}")
+        
+        if self.socket_connect_timeout <= 0:
+            raise ValueError(f"socket_connect_timeout 必须大于 0，当前值: {self.socket_connect_timeout}")
+        
+        if self.max_connections <= 0:
+            raise ValueError(f"max_connections 必须大于 0，当前值: {self.max_connections}")
+        
+        # 性能优化建议
+        if self.socket_timeout > 3.0:
+            from loguru import logger
+            logger.warning(
+                f"Redis socket_timeout 设置为 {self.socket_timeout} 秒，"
+                f"对于本地部署建议设置为 1-2 秒以加快降级响应"
+            )
+        
+        if self.market_snapshot_ttl > 60:
+            from loguru import logger
+            logger.warning(
+                f"行情快照 TTL 设置为 {self.market_snapshot_ttl} 秒，"
+                f"对于高频交易建议设置为 30 秒以减少过期数据"
+            )
 
 
 @dataclass
@@ -63,6 +94,25 @@ class StrategyConfig:
     default_max_cpu_percent: float = 50.0  # 默认单策略最大CPU使用率（%）
 
 
+@dataclass
+class AlertsConfig:
+    """告警配置"""
+
+    # 延迟告警阈值（毫秒）
+    order_p95_threshold: float = 150.0  # 订单延迟 P95 阈值
+    market_p95_threshold: float = 80.0  # 行情延迟 P95 阈值
+
+    # Redis 告警阈值
+    redis_hit_rate_threshold: float = 0.65  # Redis 命中率阈值（65%）
+
+    # 系统资源告警阈值
+    cpu_threshold: float = 70.0  # CPU 使用率阈值（70%）
+    memory_threshold: float = 80.0  # 内存使用率阈值（80%）
+
+    # 告警频率控制
+    min_interval: int = 300  # 同类告警最小间隔（秒）
+
+
 class GlobalConfig(object):
     TdFrontAddress: str
     MdFrontAddress: str
@@ -81,6 +131,7 @@ class GlobalConfig(object):
     Cache: CacheConfig
     Metrics: MetricsConfig
     Strategy: StrategyConfig
+    Alerts: AlertsConfig
 
     @classmethod
     def load_config(cls, config_file_path: str):
@@ -160,14 +211,23 @@ class GlobalConfig(object):
                 ),
                 db=int(os.environ.get("WEBCTP_REDIS_DB", redis_config.get("DB", 0))),
                 max_connections=int(redis_config.get("MaxConnections", 50)),
-                socket_timeout=float(redis_config.get("SocketTimeout", 5.0)),
+                socket_timeout=float(redis_config.get("SocketTimeout", 2.0)),  # 优化默认值
                 socket_connect_timeout=float(
-                    redis_config.get("SocketConnectTimeout", 5.0)
+                    redis_config.get("SocketConnectTimeout", 2.0)  # 优化默认值
                 ),
-                market_snapshot_ttl=int(redis_config.get("MarketSnapshotTTL", 60)),
+                market_snapshot_ttl=int(redis_config.get("MarketSnapshotTTL", 30)),  # 优化默认值
                 market_tick_ttl=int(redis_config.get("MarketTickTTL", 5)),
                 order_ttl=int(redis_config.get("OrderTTL", 86400)),
             )
+            
+            # 验证配置
+            if cls.Cache.enabled:
+                try:
+                    cls.Cache.validate()
+                except ValueError as e:
+                    from loguru import logger
+                    logger.error(f"Redis 配置验证失败: {e}")
+                    raise
 
             # 加载性能监控配置（可选）
             metrics_config = config.get("Metrics", {})
@@ -222,11 +282,82 @@ class GlobalConfig(object):
                 ),
             )
 
+            # 加载告警配置（可选，从 alerts.yaml 或主配置文件）
+            cls._load_alerts_config(config_file_path)
+
         if not cls.ConFilePath.endswith("/"):
             cls.ConFilePath = cls.ConFilePath + "/"
 
         if not os.path.exists(cls.ConFilePath):
             os.makedirs(cls.ConFilePath)
+
+    @classmethod
+    def _load_alerts_config(cls, config_file_path: str):
+        """
+        加载告警配置
+
+        优先从 config/alerts.yaml 加载，如果不存在则使用默认值
+
+        Args:
+            config_file_path: 主配置文件路径
+        """
+        # 尝试从 alerts.yaml 加载
+        config_dir = Path(config_file_path).parent
+        alerts_file = config_dir / "alerts.yaml"
+
+        if alerts_file.exists():
+            try:
+                with open(alerts_file, encoding="utf-8") as f:
+                    alerts_config = yaml.safe_load(f).get("Alerts", {})
+            except Exception:
+                alerts_config = {}
+        else:
+            alerts_config = {}
+
+        # 解析配置
+        latency_config = alerts_config.get("Latency", {})
+        redis_config = alerts_config.get("Redis", {})
+        system_config = alerts_config.get("System", {})
+        rate_limit_config = alerts_config.get("RateLimit", {})
+
+        cls.Alerts = AlertsConfig(
+            order_p95_threshold=float(
+                os.environ.get(
+                    "WEBCTP_ALERT_ORDER_P95_THRESHOLD",
+                    latency_config.get("OrderP95Threshold", 150.0),
+                )
+            ),
+            market_p95_threshold=float(
+                os.environ.get(
+                    "WEBCTP_ALERT_MARKET_P95_THRESHOLD",
+                    latency_config.get("MarketP95Threshold", 80.0),
+                )
+            ),
+            redis_hit_rate_threshold=float(
+                os.environ.get(
+                    "WEBCTP_ALERT_REDIS_HIT_RATE_THRESHOLD",
+                    redis_config.get("HitRateThreshold", 0.65),
+                )
+            ),
+            cpu_threshold=float(
+                os.environ.get(
+                    "WEBCTP_ALERT_CPU_THRESHOLD",
+                    system_config.get("CPUThreshold", 70.0),
+                )
+            ),
+            memory_threshold=float(
+                os.environ.get(
+                    "WEBCTP_ALERT_MEMORY_THRESHOLD",
+                    system_config.get("MemoryThreshold", 80.0),
+                )
+            ),
+            min_interval=int(
+                os.environ.get(
+                    "WEBCTP_ALERT_MIN_INTERVAL",
+                    rate_limit_config.get("MinInterval", 300),
+                )
+            ),
+        )
 
     @classmethod
     def get_con_file_path(cls, name: str) -> str:
