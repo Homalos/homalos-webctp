@@ -1,6 +1,6 @@
 
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 from src.apps.td_app import td_websocket
 from src.apps.md_app import md_websocket
 from src.utils.config import GlobalConfig
