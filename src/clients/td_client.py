@@ -12,7 +12,7 @@
 import time
 from typing import Callable, Any
 
-from .client_helper import build_order_to_dict, build_order_insert_to_dict, ReconnectionController
+from .client_helper import build_order_to_dict, build_order_insert_to_dict, ReconnectionController, extract_login_response_fields
 from ..ctp import thosttraderapi as tdapi
 
 from ..constants import CallError
@@ -35,6 +35,9 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         self._connected: bool = False
         # Reconnection control
         self._reconnection_ctrl = ReconnectionController(max_attempts=5, interval=10.0, client_type="Td")
+        # Settlement confirmation state
+        self._pending_login_response: dict | None = None
+        self._settlement_confirmed: bool = False
         logger.info(f"Td front_address: {self._front_address}, broker_id: {self._broker_id}, "
                     f"auth_code: {self._auth_code}, app_id: {self._app_id}, user_id: {self._user_id}")
 
@@ -260,12 +263,19 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             None: 该回调函数不返回任何值，结果通过异步事件处理
         """
         if rsp_info_field is None or rsp_info_field.ErrorID == 0:
-            logger.info("loging success, start to confirm settlement info")
+            logger.info("login success, start to confirm settlement info")
+            # 立即提取并保存登录响应数据的副本，避免CTP对象生命周期问题
+            self._pending_login_response = {
+                "rsp_info": {
+                    "ErrorID": rsp_info_field.ErrorID if rsp_info_field else 0,
+                    "ErrorMsg": rsp_info_field.ErrorMsg if rsp_info_field else ""
+                },
+                "rsp_user_login": extract_login_response_fields(rsp_user_login_field)
+            }
             self.settlement_confirm()
-            self.process_connect_result(Constant.OnRspUserLogin, rsp_info_field, rsp_user_login_field)
         else:
-            self.process_connect_result(Constant.OnRspUserLogin, rsp_info_field)
             logger.info("login failed, please try again")
+            self.process_connect_result(Constant.OnRspUserLogin, rsp_info_field)
 
     def settlement_confirm(self):
         """
@@ -281,6 +291,49 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         req.BrokerID = self._broker_id
         req.InvestorID = self._user_id
         self._api.ReqSettlementInfoConfirm(req, 0)
+
+    def OnRspSettlementInfoConfirm(
+            self,
+            settlement_info_confirm_field: tdapi.CThostFtdcSettlementInfoConfirmField,
+            rsp_info_field: tdapi.CThostFtdcRspInfoField,
+            request_id: int,
+            is_last: bool
+    ):
+        """
+        结算单确认响应回调
+
+        当客户端发送结算单确认请求后，服务器返回确认结果时触发此回调
+        
+        此回调在登录成功后被调用，只有在结算单确认成功后，才会将登录响应发送给客户端。
+        这确保了客户端收到登录成功响应时，可以立即开始交易操作。
+        """
+        if rsp_info_field is None or rsp_info_field.ErrorID == 0:
+            logger.info("settlement info confirm success")
+            self._settlement_confirmed = True
+            
+            # 发送之前保存的登录响应给客户端
+            if self._pending_login_response:
+                # 使用保存的数据副本构建响应
+                response = CTPObjectHelper.build_response_dict(
+                    Constant.OnRspUserLogin,
+                    None,  # 不使用 rsp_info_field，使用保存的数据
+                    0,
+                    True
+                )
+                response[Constant.RspInfo] = self._pending_login_response["rsp_info"]
+                response[Constant.RspUserLogin] = self._pending_login_response["rsp_user_login"]
+                self.rsp_callback(response)
+                self._pending_login_response = None
+                logger.info("login response sent to client after settlement confirmation")
+        else:
+            logger.error(f"settlement info confirm failed, ErrorID: {rsp_info_field.ErrorID}, ErrorMsg: {rsp_info_field.ErrorMsg}")
+            
+            # 结算单确认失败，通知客户端登录失败
+            if self._pending_login_response:
+                # 构造登录失败响应
+                self.process_connect_result(Constant.OnRspUserLogin, rsp_info_field)
+                self._pending_login_response = None
+                logger.error("login failed due to settlement confirmation failure")
 
     def OnRspQrySettlementInfoConfirm(
             self,
@@ -301,11 +354,22 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             is_last: 是否为最后一次响应，True表示这是该请求的最后一次响应
 
         Returns:
-            None
+            None: 通过回调函数返回查询结果
         """
-        logger.info("confirm settlement info success")
-        if rsp_info_field is not None:
-            logger.info(f"settlement confirm rsp info, ErrorID: {rsp_info_field.ErrorID}, ErrorMsg: {rsp_info_field.ErrorMsg}")
+        response = CTPObjectHelper.build_response_dict(Constant.OnRspQrySettlementInfoConfirm, rsp_info_field, request_id, is_last)
+        result = {}
+        if settlement_info_confirm_field:
+            result = {
+                "BrokerID": settlement_info_confirm_field.BrokerID,
+                "InvestorID": settlement_info_confirm_field.InvestorID,
+                "ConfirmDate": settlement_info_confirm_field.ConfirmDate,
+                "ConfirmTime": settlement_info_confirm_field.ConfirmTime,
+                "SettlementID": settlement_info_confirm_field.SettlementID,
+                "AccountID": settlement_info_confirm_field.AccountID,
+                "CurrencyID": settlement_info_confirm_field.CurrencyID
+            }
+        response[Constant.SettlementInfoConfirm] = result
+        self.rsp_callback(response)
 
     def process_connect_result(
             self,
@@ -327,21 +391,7 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         """
         response = CTPObjectHelper.build_response_dict(message_type, rsp_info_field, 0, True)
         if rsp_user_login_field:
-            response[Constant.RspUserLogin] = {
-                "TradingDay": rsp_user_login_field.TradingDay,
-                "LoginTime": rsp_user_login_field.LoginTime,
-                "BrokerID": rsp_user_login_field.BrokerID,
-                "UserID": rsp_user_login_field.UserID,
-                "SystemName": rsp_user_login_field.SystemName,
-                "FrontID": rsp_user_login_field.FrontID,
-                "SessionID": rsp_user_login_field.SessionID,
-                "MaxOrderRef": rsp_user_login_field.MaxOrderRef,
-                "SHFETime": rsp_user_login_field.SHFETime,
-                "DCETime": rsp_user_login_field.DCETime,
-                "CZCETime": rsp_user_login_field.CZCETime,
-                "FFEXTime": rsp_user_login_field.FFEXTime,
-                "INETime": rsp_user_login_field.INETime
-            }
+            response[Constant.RspUserLogin] = extract_login_response_fields(rsp_user_login_field)
 
         self.rsp_callback(response)
 
