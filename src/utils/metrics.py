@@ -80,6 +80,10 @@ class MetricsCollector:
         # 瞬时值：{metric_name: value}
         self._gauges: Dict[str, float] = {}
         
+        # 上次报告时的计数器快照（用于计算吞吐量）
+        self._last_counter_snapshot: Dict[str, int] = {}
+        self._last_report_time: Optional[float] = None
+        
         # 报告任务
         self._report_task: Optional[asyncio.Task] = None
         self._report_interval: int = self.config.report_interval
@@ -243,6 +247,7 @@ class MetricsCollector:
     async def _report(self) -> None:
         """生成并输出指标报告（私有方法）"""
         summary = self.get_summary()
+        current_time = time.time()
         
         # 构建报告消息
         report_lines = ["=== 性能指标报告 ==="]
@@ -258,15 +263,58 @@ class MetricsCollector:
                 if 0.5 in percentiles:
                     report_lines.append(f"    P50: {percentiles[0.5]:.2f} ms")
                 if 0.95 in percentiles:
-                    report_lines.append(f"    P95: {percentiles[0.95]:.2f} ms")
+                    p95_value = percentiles[0.95]
+                    report_lines.append(f"    P95: {p95_value:.2f} ms")
+                    
+                    # 延迟告警检查：P95 超过阈值
+                    if p95_value > self.config.latency_warning_threshold_ms:
+                        logger.warning(
+                            f"⚠️ 延迟告警: {metric_name} P95 延迟 ({p95_value:.2f} ms) "
+                            f"超过阈值 ({self.config.latency_warning_threshold_ms:.2f} ms)",
+                            tag="metrics_alert"
+                        )
+                
                 if 0.99 in percentiles:
                     report_lines.append(f"    P99: {percentiles[0.99]:.2f} ms")
         
-        # 计数器
+        # 计数器和吞吐量
         if summary["counters"]:
             report_lines.append("\n【计数器】")
             for metric_name, value in summary["counters"].items():
                 report_lines.append(f"  {metric_name}: {value}")
+            
+            # 计算 Redis 命中率
+            cache_hit = summary["counters"].get("cache_hit", 0)
+            cache_miss = summary["counters"].get("cache_miss", 0)
+            total_cache_requests = cache_hit + cache_miss
+            if total_cache_requests > 0:
+                hit_rate = (cache_hit / total_cache_requests) * 100
+                report_lines.append(f"\n【Redis 命中率】")
+                report_lines.append(f"  命中: {cache_hit}, 未命中: {cache_miss}")
+                report_lines.append(f"  命中率: {hit_rate:.2f}%")
+                
+                # Redis 命中率告警检查：命中率低于阈值
+                if hit_rate < self.config.cache_hit_rate_warning_threshold:
+                    logger.warning(
+                        f"⚠️ Redis 命中率告警: 当前命中率 ({hit_rate:.2f}%) "
+                        f"低于阈值 ({self.config.cache_hit_rate_warning_threshold:.2f}%)",
+                        tag="metrics_alert"
+                    )
+            
+            # 计算吞吐量（如果有上次快照）
+            if self._last_counter_snapshot and self._last_report_time:
+                time_delta = current_time - self._last_report_time
+                if time_delta > 0:
+                    report_lines.append("\n【吞吐量】")
+                    for metric_name, current_value in summary["counters"].items():
+                        last_value = self._last_counter_snapshot.get(metric_name, 0)
+                        delta = current_value - last_value
+                        throughput_per_sec = delta / time_delta
+                        throughput_per_min = throughput_per_sec * 60
+                        report_lines.append(
+                            f"  {metric_name}: {throughput_per_sec:.2f} /秒, "
+                            f"{throughput_per_min:.2f} /分钟"
+                        )
         
         # 瞬时值
         if summary["gauges"]:
@@ -274,11 +322,54 @@ class MetricsCollector:
             for metric_name, value in summary["gauges"].items():
                 report_lines.append(f"  {metric_name}: {value:.2f}")
         
+        # 收集系统资源指标
+        system_metrics = self._collect_system_metrics()
+        if system_metrics:
+            report_lines.append("\n【系统资源】")
+            
+            # CPU 使用率
+            if "cpu_percent" in system_metrics:
+                cpu_percent = system_metrics['cpu_percent']
+                report_lines.append(f"  CPU 使用率: {cpu_percent:.1f}%")
+                
+                # CPU 使用率告警检查
+                if cpu_percent > self.config.cpu_warning_threshold:
+                    logger.warning(
+                        f"⚠️ CPU 使用率告警: 当前 CPU 使用率 ({cpu_percent:.1f}%) "
+                        f"超过阈值 ({self.config.cpu_warning_threshold:.1f}%)",
+                        tag="metrics_alert"
+                    )
+            
+            # 内存使用率
+            if "memory_percent" in system_metrics:
+                memory_percent = system_metrics['memory_percent']
+                report_lines.append(f"  内存使用率: {memory_percent:.1f}%")
+                
+                # 内存使用率告警检查
+                if memory_percent > self.config.memory_warning_threshold:
+                    logger.warning(
+                        f"⚠️ 内存使用率告警: 当前内存使用率 ({memory_percent:.1f}%) "
+                        f"超过阈值 ({self.config.memory_warning_threshold:.1f}%)",
+                        tag="metrics_alert"
+                    )
+            
+            if "memory_used_mb" in system_metrics:
+                report_lines.append(f"  内存使用量: {system_metrics['memory_used_mb']:.1f} MB")
+            if "network_sent_mb" in system_metrics and "network_recv_mb" in system_metrics:
+                report_lines.append(
+                    f"  网络 I/O: 发送 {system_metrics['network_sent_mb']:.2f} MB, "
+                    f"接收 {system_metrics['network_recv_mb']:.2f} MB"
+                )
+        
         report_lines.append("=" * 30)
         
         # 输出到日志
         report_message = "\n".join(report_lines)
         logger.info(report_message, tag="metrics")
+        
+        # 更新快照
+        self._last_counter_snapshot = dict(self._counters)
+        self._last_report_time = current_time
     
     async def start_reporting(self, interval_seconds: Optional[int] = None) -> None:
         """启动定期指标报告
@@ -318,6 +409,48 @@ class MetricsCollector:
                     logger.error(f"生成指标报告时出错: {e}", tag="metrics")
         
         self._report_task = asyncio.create_task(report_loop())
+    
+    def _collect_system_metrics(self) -> Dict[str, float]:
+        """
+        收集系统资源使用情况
+        
+        Returns:
+            Dict[str, float]: 系统资源指标字典，包含：
+            - cpu_percent: CPU 使用率（百分比）
+            - memory_percent: 内存使用率（百分比）
+            - memory_used_mb: 内存使用量（MB）
+            - network_sent_mb: 网络发送量（MB）
+            - network_recv_mb: 网络接收量（MB）
+        """
+        metrics = {}
+        
+        try:
+            import psutil
+            
+            # CPU 使用率
+            cpu_percent = psutil.cpu_percent(interval=0.1)
+            metrics["cpu_percent"] = cpu_percent
+            
+            # 内存使用情况
+            memory = psutil.virtual_memory()
+            metrics["memory_percent"] = memory.percent
+            metrics["memory_used_mb"] = memory.used / (1024 * 1024)
+            
+            # 网络 I/O（累计值）
+            net_io = psutil.net_io_counters()
+            metrics["network_sent_mb"] = net_io.bytes_sent / (1024 * 1024)
+            metrics["network_recv_mb"] = net_io.bytes_recv / (1024 * 1024)
+            
+        except ImportError:
+            logger.warning(
+                "psutil 库未安装，无法收集系统资源指标。"
+                "请运行: uv add psutil",
+                tag="metrics"
+            )
+        except Exception as e:
+            logger.warning(f"收集系统资源指标失败: {e}", tag="metrics")
+        
+        return metrics
     
     async def stop_reporting(self) -> None:
         """停止定期指标报告"""
