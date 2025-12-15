@@ -1,0 +1,30 @@
+# homalos-webctp 告警配置
+# 版本: v0.2.0
+# 更新日期: 2025-12-15
+
+# 告警配置
+Alerts:
+  # 延迟告警（毫秒）
+  Latency:
+    OrderP95Threshold: 150      # 订单延迟 P95 阈值（毫秒）
+    MarketP95Threshold: 80      # 行情延迟 P95 阈值（毫秒）
+    
+  # Redis 告警
+  Redis:
+    HitRateThreshold: 0.65      # 命中率阈值（65%，适中）
+    
+  # 系统资源告警
+  System:
+    CPUThreshold: 70.0          # CPU 使用率阈值（70%，13核心系统）
+    MemoryThreshold: 80.0       # 内存使用率阈值（80%，32GB系统）
+    
+  # 告警频率控制
+  RateLimit:
+    MinInterval: 300            # 同类告警最小间隔（秒，5分钟）
+
+# 说明：
+# 1. 延迟阈值基于性能测试结果和业务需求
+# 2. Redis 命中率 65% 为适中水平，低于此值触发告警
+# 3. CPU 阈值 70% 适合 13 核心系统（约 9 核心使用）
+# 4. 内存阈值 80% 适合 32 GB 系统（约 25.6 GB 使用）
+# 5. 告警间隔 5 分钟避免告警风暴
