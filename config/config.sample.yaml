@@ -10,24 +10,33 @@ HeartbeatInterval: 30.0  # WebSocket heartbeat interval in seconds, default 30.0
 HeartbeatTimeout: 60.0   # WebSocket heartbeat timeout in seconds, default 60.0
 
 # Redis 缓存配置（可选，默认禁用）
+# 性能调优建议：
+# - 本地部署：SocketTimeout 建议 1-2 秒，快速降级
+# - 远程部署：SocketTimeout 建议 3-5 秒，避免误判
+# - 高频交易：MarketSnapshotTTL 建议 30 秒，减少过期数据
+# - 低频交易：MarketSnapshotTTL 可设置 60-120 秒，提高缓存命中率
 # Redis:
 #   Enabled: true
 #   Host: localhost
 #   Port: 6379
 #   Password: ""
 #   DB: 0
-#   MaxConnections: 50
-#   SocketTimeout: 5.0
-#   SocketConnectTimeout: 5.0
-#   MarketSnapshotTTL: 60  # 行情快照 TTL（秒）
-#   MarketTickTTL: 5       # 实时 tick TTL（秒）
-#   OrderTTL: 86400        # 订单 TTL（秒，24小时）
+#   MaxConnections: 50              # 连接池大小，根据并发客户端数调整
+#   SocketTimeout: 2.0              # Redis 操作超时（秒），本地部署推荐 2.0
+#   SocketConnectTimeout: 2.0       # Redis 连接超时（秒），本地部署推荐 2.0
+#   MarketSnapshotTTL: 30           # 行情快照 TTL（秒），推荐 30 秒
+#   MarketTickTTL: 5                # 实时 tick TTL（秒），推荐 5 秒
+#   OrderTTL: 86400                 # 订单 TTL（秒，24小时）
 
 # 性能监控配置（可选，默认启用）
+# 性能调优建议：
+# - 开发/测试环境：SampleRate 设置 1.0（100% 采样），便于调试
+# - 生产环境：SampleRate 设置 0.3-0.5（30-50% 采样），降低监控开销
+# - 高负载场景：SampleRate 可降低到 0.1-0.2（10-20% 采样）
 # Metrics:
 #   Enabled: true
 #   ReportInterval: 60  # 报告间隔（秒）
-#   SampleRate: 1.0     # 采样率（0.0-1.0）
+#   SampleRate: 1.0     # 采样率（0.0-1.0），开发环境推荐 1.0，生产环境推荐 0.5
 #   # 告警阈值配置
 #   LatencyWarningThresholdMs: 100.0        # 延迟告警阈值（毫秒）
 #   CacheHitRateWarningThreshold: 50.0      # Redis 命中率告警阈值（百分比）
