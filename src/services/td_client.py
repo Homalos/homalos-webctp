@@ -21,6 +21,7 @@ from ..constants import CallError
 from ..constants import TdConstant as Constant
 from ..model import REQUEST_PAYLOAD
 from ..utils.serialization import get_msgpack_serializer
+from ..utils.metrics import MetricsCollector
 from loguru import logger
 
 
@@ -35,6 +36,7 @@ class TdClient(BaseClient):
         self._cache_manager: Optional[CacheManager] = None
         self._serializer = get_msgpack_serializer()
         self._user_id: Optional[str] = None
+        self._metrics_collector: Optional[MetricsCollector] = None
 
     def set_cache_manager(self, cache_manager: CacheManager) -> None:
         """
@@ -45,6 +47,16 @@ class TdClient(BaseClient):
         """
         self._cache_manager = cache_manager
         logger.info("TdClient: CacheManager 已注入")
+
+    def set_metrics_collector(self, metrics_collector: MetricsCollector) -> None:
+        """
+        设置性能指标收集器实例
+
+        Args:
+            metrics_collector: MetricsCollector 实例，用于收集性能指标
+        """
+        self._metrics_collector = metrics_collector
+        logger.info("TdClient: MetricsCollector 已注入")
 
     def on_rsp_or_rtn(self, data: dict[str, Any]) -> None:
         """
@@ -150,8 +162,23 @@ class TdClient(BaseClient):
                 await self.start(user_id, password)
             else:
                 if message_type in self._call_map:
+                    # 记录订单操作的开始时间（用于延迟统计）
+                    start_time = None
+                    if self._metrics_collector and message_type in [
+                        Constant.ReqOrderInsert,
+                        Constant.ReqOrderAction
+                    ]:
+                        start_time = time.time()
+                    
+                    # 执行 CTP API 调用
                     await anyio.to_thread.run_sync(
                         self._call_map[message_type], request)
+                    
+                    # 记录订单延迟指标
+                    if start_time and self._metrics_collector:
+                        latency_ms = (time.time() - start_time) * 1000
+                        self._metrics_collector.record_latency("td_order_latency", latency_ms)
+                        
                 elif not self._call_map:
                     response = {
                         Constant.MessageType: message_type,
