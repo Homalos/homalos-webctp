@@ -8,7 +8,9 @@ from fastapi import WebSocket
 
 # Helper to create a mock WebSocket
 def create_mock_websocket():
+    from starlette.websockets import WebSocketState
     ws = AsyncMock(spec=WebSocket)
+    ws.client_state = WebSocketState.CONNECTED
     return ws
 
 @pytest.fixture

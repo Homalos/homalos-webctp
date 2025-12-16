@@ -14,7 +14,7 @@ import pytest
 import pytest_asyncio
 import asyncio
 from unittest.mock import AsyncMock, patch
-from hypothesis import given, strategies as st, settings
+from hypothesis import given, strategies as st, settings, HealthCheck
 import fakeredis.aioredis
 
 from src.services.cache_manager import CacheManager
@@ -560,7 +560,7 @@ class TestCacheManagerHealthCheck:
 # ============================================================================
 
 
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.too_slow])
 @given(
     st.lists(
         st.tuples(
