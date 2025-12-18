@@ -113,6 +113,24 @@ class AlertsConfig:
     min_interval: int = 300  # 同类告警最小间隔（秒）
 
 
+@dataclass
+class SyncApiConfig:
+    """同步策略 API 配置"""
+
+    # 连接超时配置
+    connect_timeout: float = 30.0  # CTP 连接超时时间（秒）
+    
+    # 策略管理配置
+    max_strategies: int = 10  # 最大并发策略数量
+    
+    # 操作超时配置
+    quote_timeout: float = 5.0  # 行情查询默认超时（秒）
+    position_timeout: float = 5.0  # 持仓查询默认超时（秒）
+    order_timeout: float = 10.0  # 订单提交默认超时（秒）
+    quote_update_timeout: float = 30.0  # 行情更新等待默认超时（秒）
+    stop_timeout: float = 5.0  # 停止服务默认超时（秒）
+
+
 class GlobalConfig(object):
     TdFrontAddress: str
     MdFrontAddress: str
@@ -132,6 +150,7 @@ class GlobalConfig(object):
     Metrics: MetricsConfig
     Strategy: StrategyConfig
     Alerts: AlertsConfig
+    SyncApi: SyncApiConfig
 
     @classmethod
     def load_config(cls, config_file_path: str):
@@ -284,6 +303,53 @@ class GlobalConfig(object):
 
             # 加载告警配置（可选，从 alerts.yaml 或主配置文件）
             cls._load_alerts_config(config_file_path)
+
+            # 加载同步策略 API 配置（可选）
+            sync_api_config = config.get("SyncApi", {})
+            cls.SyncApi = SyncApiConfig(
+                connect_timeout=float(
+                    os.environ.get(
+                        "WEBCTP_SYNC_API_CONNECT_TIMEOUT",
+                        sync_api_config.get("ConnectTimeout", 30.0),
+                    )
+                ),
+                max_strategies=int(
+                    os.environ.get(
+                        "WEBCTP_SYNC_API_MAX_STRATEGIES",
+                        sync_api_config.get("MaxStrategies", 10),
+                    )
+                ),
+                quote_timeout=float(
+                    os.environ.get(
+                        "WEBCTP_SYNC_API_QUOTE_TIMEOUT",
+                        sync_api_config.get("QuoteTimeout", 5.0),
+                    )
+                ),
+                position_timeout=float(
+                    os.environ.get(
+                        "WEBCTP_SYNC_API_POSITION_TIMEOUT",
+                        sync_api_config.get("PositionTimeout", 5.0),
+                    )
+                ),
+                order_timeout=float(
+                    os.environ.get(
+                        "WEBCTP_SYNC_API_ORDER_TIMEOUT",
+                        sync_api_config.get("OrderTimeout", 10.0),
+                    )
+                ),
+                quote_update_timeout=float(
+                    os.environ.get(
+                        "WEBCTP_SYNC_API_QUOTE_UPDATE_TIMEOUT",
+                        sync_api_config.get("QuoteUpdateTimeout", 30.0),
+                    )
+                ),
+                stop_timeout=float(
+                    os.environ.get(
+                        "WEBCTP_SYNC_API_STOP_TIMEOUT",
+                        sync_api_config.get("StopTimeout", 5.0),
+                    )
+                ),
+            )
 
         if not cls.ConFilePath.endswith("/"):
             cls.ConFilePath = cls.ConFilePath + "/"
