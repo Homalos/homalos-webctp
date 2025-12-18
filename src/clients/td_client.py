@@ -408,8 +408,14 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Note:
             查询结果将通过 OnRspQryInstrument 回调方法返回
         """
-        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryInstrument, tdapi.CThostFtdcQryInstrumentField)
+        logger.info(f"[TdClient] 准备发送合约查询请求: {request}")
+        req, request_id = CTPObjectHelper.extract_request(request, Constant.ReqQryInstrument, tdapi.CThostFtdcQryInstrumentField)
+        logger.debug(f"[TdClient] 提取的请求参数 - InstrumentID: {req.InstrumentID if req else 'None'}, RequestID: {request_id}")
+        logger.info(f"[TdClient] 调用 CTP API: ReqQryInstrument")
         ret = self._api.ReqQryInstrument(req, request_id)
+        logger.info(f"[TdClient] CTP API 返回值: {ret} (0=成功, 非0=失败)")
+        if ret != 0:
+            logger.error(f"[TdClient] ReqQryInstrument 调用失败，返回码: {ret}")
         self.method_called(Constant.OnRspQryInstrument, ret)
 
     def OnRspQryInstrument(
@@ -433,6 +439,23 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             无返回值，通过回调函数将响应数据返回给调用方
         """
+        logger.info(f"[TdClient-回调] OnRspQryInstrument 被触发！")
+        logger.info(f"[TdClient-回调] 参数 - instrument_field存在: {instrument_field is not None}, RequestID: {request_id}, IsLast: {is_last}")
+        
+        if rsp_info:
+            error_id = rsp_info.ErrorID if hasattr(rsp_info, 'ErrorID') else 0
+            error_msg = rsp_info.ErrorMsg if hasattr(rsp_info, 'ErrorMsg') else ''
+            logger.info(f"[TdClient-回调] 响应信息 - ErrorID: {error_id}, ErrorMsg: {error_msg}")
+        else:
+            logger.warning(f"[TdClient-回调] rsp_info 为 None")
+        
+        if instrument_field:
+            instrument_id = instrument_field.InstrumentID if hasattr(instrument_field, 'InstrumentID') else 'Unknown'
+            volume_multiple = instrument_field.VolumeMultiple if hasattr(instrument_field, 'VolumeMultiple') else 'Unknown'
+            logger.info(f"[TdClient-回调] 合约数据 - InstrumentID: {instrument_id}, VolumeMultiple: {volume_multiple}")
+        else:
+            logger.warning(f"[TdClient-回调] instrument_field 为 None")
+        
         response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInstrument, rsp_info, request_id, is_last)
         rsp_instrument = {}
         if instrument_field:
