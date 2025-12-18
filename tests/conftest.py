@@ -19,6 +19,10 @@ GlobalConfig.HeartbeatInterval = 30.0
 GlobalConfig.HeartbeatTimeout = 60.0
 GlobalConfig.Alerts = AlertsConfig()
 
+# Test credentials for SyncStrategyApi
+TEST_USER_ID = "test_user"
+TEST_PASSWORD = "test_pass"
+
 @pytest.fixture
 def anyio_backend():
     return 'asyncio'
