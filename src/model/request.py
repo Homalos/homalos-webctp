@@ -1980,7 +1980,6 @@ class WebCTPReqQryProduct(WebCTPRequest):
 
 class QryInstrumentField(BaseModel):
     """查询合约"""
-
     reserve1: str = Field("", title="保留的无效字段")
     ExchangeID: str = Field("", title="交易所代码")
     reserve2: str = Field("", title="保留的无效字段")
@@ -1990,8 +1989,11 @@ class QryInstrumentField(BaseModel):
     ProductID: str = Field("", title="产品代码")
 
 
+# class WebCTPReqQryInstrument(WebCTPRequest):
+#     QryInstrument: QryInstrumentField = Field(title="查询合约")
+
 class WebCTPReqQryInstrument(WebCTPRequest):
-    QryInstrument: QryInstrumentField = Field(title="查询合约")
+    ReqQryInstrument: QryInstrumentField = Field(title="查询合约")
 
 
 class QryDepthMarketDataField(BaseModel):
@@ -5608,10 +5610,6 @@ class ReqOpenAccountField(BaseModel):
     LongCustomerName: str = Field("", title="长客户姓名")
 
 
-class WebCTPReqOpenAccount(WebCTPRequest):
-    ReqOpenAccount: ReqOpenAccountField = Field(title="转帐开户请求")
-
-
 class ReqCancelAccountField(BaseModel):
     """转帐销户请求"""
 
@@ -5663,7 +5661,7 @@ class ReqCancelAccountField(BaseModel):
 
 
 class WebCTPReqCancelAccount(WebCTPRequest):
-    ReqCancelAccount: ReqCancelAccountField = Field(title="转帐销户请求")
+    ReqCancelAccount: ReqCancelAccountField = Field(title="银期销户信息")
 
 
 class ReqChangeAccountField(BaseModel):
@@ -5713,7 +5711,7 @@ class ReqChangeAccountField(BaseModel):
 
 
 class WebCTPReqChangeAccount(WebCTPRequest):
-    ReqChangeAccount: ReqChangeAccountField = Field(title="变更银行账户请求")
+    ReqChangeAccount: ReqChangeAccountField = Field(title="银期变更银行账号信息")
 
 
 class ReqTransferField(BaseModel):
@@ -6409,10 +6407,6 @@ class OpenAccountField(BaseModel):
     LongCustomerName: str = Field("", title="长客户姓名")
 
 
-class WebCTPReqOpenAccount(WebCTPRequest):
-    OpenAccount: OpenAccountField = Field(title="银期开户信息")
-
-
 class CancelAccountField(BaseModel):
     """银期销户信息"""
 
@@ -6465,10 +6459,6 @@ class CancelAccountField(BaseModel):
     LongCustomerName: str = Field("", title="长客户姓名")
 
 
-class WebCTPReqCancelAccount(WebCTPRequest):
-    CancelAccount: CancelAccountField = Field(title="银期销户信息")
-
-
 class ChangeAccountField(BaseModel):
     """银期变更银行账号信息"""
 
@@ -6515,10 +6505,6 @@ class ChangeAccountField(BaseModel):
     ErrorID: int = Field(0, title="错误代码")
     ErrorMsg: str = Field("", title="错误信息")
     LongCustomerName: str = Field("", title="长客户姓名")
-
-
-class WebCTPReqChangeAccount(WebCTPRequest):
-    ChangeAccount: ChangeAccountField = Field(title="银期变更银行账号信息")
 
 
 class SecAgentACIDMapField(BaseModel):
@@ -9156,16 +9142,4 @@ class SyncDeltaRULEInterParameterField(BaseModel):
 class WebCTPReqSyncDeltaRULEInterParameter(WebCTPRequest):
     SyncDeltaRULEInterParameter: SyncDeltaRULEInterParameterField = Field(
         title="风险结算追平RULE跨品种抵扣参数")
-
-
-class QryInstrumentField(BaseModel):
-    """查询合约"""
-    ExchangeID: str = Field("", title="交易所代码")
-    InstrumentID: str = Field("", title="合约代码")
-    ExchangeInstID: str = Field("", title="合约在交易所的代码")
-    ProductID: str = Field("", title="产品代码")
-
-
-class WebCTPReqQryInstrument(WebCTPRequest):
-    ReqQryInstrument: QryInstrumentField = Field(title="查询合约")
 
