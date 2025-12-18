@@ -48,4 +48,15 @@ HeartbeatTimeout: 60.0   # WebSocket heartbeat timeout in seconds, default 60.0
 #   MaxStrategies: 10              # 最大策略数量
 #   DefaultMaxMemoryMB: 512        # 默认单策略最大内存（MB）
 #   DefaultMaxCPUPercent: 50.0     # 默认单策略最大CPU使用率（%）
+
+# 同步策略 API 配置（可选）
+# 用于配置 SyncStrategyApi 的超时参数和策略限制
+# SyncApi:
+#   ConnectTimeout: 30.0           # CTP 连接超时时间（秒）
+#   MaxStrategies: 10              # 最大并发策略数量
+#   QuoteTimeout: 5.0              # 行情查询默认超时（秒）
+#   PositionTimeout: 5.0           # 持仓查询默认超时（秒）
+#   OrderTimeout: 10.0             # 订单提交默认超时（秒）
+#   QuoteUpdateTimeout: 30.0       # 行情更新等待默认超时（秒）
+#   StopTimeout: 5.0               # 停止服务默认超时（秒）
   
