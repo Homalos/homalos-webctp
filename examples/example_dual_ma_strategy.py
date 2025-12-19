@@ -55,7 +55,7 @@ def dual_moving_average_strategy(api: SyncStrategyApi, symbol: str, fast_period:
     try:
         while True:
             # 获取最新行情
-            quote = api.get_quote(symbol, timeout=10.0)
+            quote = api.get_quote(symbol)
             
             if quote.LastPrice != quote.LastPrice:  # 检查是否为 NaN
                 logger.warning(f"行情价格无效: {symbol}")
