@@ -7,10 +7,9 @@
 @Author     : Kiro AI Assistant
 @Email      : -
 @Software   : PyCharm
-@Description: 同步策略 API - 提供 PeopleQuant 风格的同步阻塞式策略编写接口
+@Description: 同步策略 API - 同步阻塞式策略编写接口
 """
 
-import asyncio
 import queue
 import threading
 from dataclasses import dataclass
