@@ -798,12 +798,18 @@ class SyncStrategyApi:
         self._instrument_cache_lock = threading.RLock()
         self._instrument_query_events: Dict[str, threading.Event] = {}
         
+        # 订单响应状态跟踪
+        self._order_responses: Dict[str, dict] = {}
+        self._order_response_events: Dict[str, threading.Event] = {}
+        self._order_response_lock = threading.RLock()
+        
         # 策略管理
         self._running_strategies: Dict[str, threading.Thread] = {}
         self._strategy_lock = threading.RLock()
         
-        # 保存配置路径
+        # 保存配置路径和用户信息
         self._config_path = config_path
+        self._user_id = user_id
         
         # 使用配置的超时值（如果未指定）
         if timeout is None:
@@ -1089,6 +1095,33 @@ class SyncStrategyApi:
         except Exception as e:
             logger.warning(f"异步持仓查询失败: {instrument_id}, 错误: {e}")
     
+    def _handle_order_response(self, response: dict) -> None:
+        """
+        处理订单响应，缓存响应并通知等待线程
+        
+        Args:
+            response: 订单响应字典
+        """
+        # 生成响应ID（使用时间戳）
+        import time
+        response_id = str(int(time.time() * 1000000))  # 微秒级时间戳
+        
+        msg_type = response.get('MsgType', '')
+        logger.debug(f"[订单响应] 收到订单响应，消息类型: {msg_type}, ID: {response_id}")
+        
+        # 缓存响应
+        with self._order_response_lock:
+            # 由于我们无法从响应中获取请求ID，使用最新的响应
+            # 假设订单是按顺序处理的
+            if self._order_response_events:
+                # 获取第一个等待的事件（FIFO）
+                order_id = list(self._order_response_events.keys())[0]
+                self._order_responses[order_id] = response
+                event = self._order_response_events.get(order_id)
+                if event:
+                    event.set()
+                    logger.debug(f"[订单响应] 通知订单完成: {order_id}")
+    
     def _on_trade_data(self, response: dict) -> None:
         """
         处理交易数据回调（在事件循环线程中调用）
@@ -1106,6 +1139,15 @@ class SyncStrategyApi:
         
         # ===== 关键日志：记录所有TD回调消息类型 =====
         logger.debug(f"[TD回调] 收到消息类型: {msg_type}")
+        
+        # 处理订单响应
+        # CTP 订单响应机制：
+        # - 录入错误：OnRspOrderInsert 或 OnErrRtnOrderInsert
+        # - 录入成功：OnRtnOrder（订单回报）和 OnRtnTrade（成交回报）
+        if 'RtnOrder' in msg_type or 'ErrRtnOrderInsert' in msg_type or 'RspOrderInsert' in msg_type:
+            logger.debug(f"[TD回调] 处理订单响应，消息类型: {msg_type}")
+            self._handle_order_response(response)
+            return
         
         # 处理成交回报：当有成交时，自动触发持仓查询以更新缓存
         # 注意：msg_type 可能是 'RtnTrade' 或 'OnRtnTrade'
@@ -1556,12 +1598,15 @@ class SyncStrategyApi:
                 logger.warning(f"缓存中也没有行情数据，返回空行情对象: {instrument_id}")
                 return Quote(InstrumentID=instrument_id)
     
-    def _map_action_to_ctp(self, action: str) -> tuple:
+    def _map_action_to_ctp(self, action: str, close_today: bool = False) -> tuple:
         """
         映射 action 参数到 CTP 的 Direction 和 CombOffsetFlag
         
         Args:
             action: 交易动作，支持 "kaiduo", "kaikong", "pingduo", "pingkong"
+            close_today: 平仓时是否平今仓（仅对平仓操作有效）
+                - True: 平今仓（CombOffsetFlag='3'）
+                - False: 平昨仓（CombOffsetFlag='1'）
             
         Returns:
             (Direction, CombOffsetFlag) 元组
@@ -1569,20 +1614,67 @@ class SyncStrategyApi:
         Raises:
             ValueError: 不支持的 action 参数
         """
-        action_map = {
-            'kaiduo': ('0', '0'),    # 买入开多：Direction=买(0), CombOffsetFlag=开仓(0)
-            'kaikong': ('1', '0'),   # 卖出开空：Direction=卖(1), CombOffsetFlag=开仓(0)
-            'pingduo': ('1', '1'),   # 卖出平多：Direction=卖(1), CombOffsetFlag=平仓(1)
-            'pingkong': ('0', '1')   # 买入平空：Direction=买(0), CombOffsetFlag=平仓(1)
-        }
-        
-        if action not in action_map:
+        # 基础映射
+        if action == 'kaiduo':
+            return ('0', '0')  # 买入开多：Direction=买(0), CombOffsetFlag=开仓(0)
+        elif action == 'kaikong':
+            return ('1', '0')  # 卖出开空：Direction=卖(1), CombOffsetFlag=开仓(0)
+        elif action == 'pingduo':
+            # 卖出平多：Direction=卖(1), CombOffsetFlag根据close_today决定
+            offset_flag = '3' if close_today else '1'
+            return ('1', offset_flag)
+        elif action == 'pingkong':
+            # 买入平空：Direction=买(0), CombOffsetFlag根据close_today决定
+            offset_flag = '3' if close_today else '1'
+            return ('0', offset_flag)
+        else:
             raise ValueError(
                 f"不支持的 action 参数: {action}，"
                 f"支持的值: kaiduo, kaikong, pingduo, pingkong"
             )
+    
+    def _get_exchange_id(self, instrument_id: str) -> str:
+        """
+        根据合约代码推断交易所ID
         
-        return action_map[action]
+        Args:
+            instrument_id: 合约代码
+            
+        Returns:
+            交易所ID字符串
+        """
+        # 提取合约品种代码（去除数字）
+        import re
+        product_code = re.match(r'([a-zA-Z]+)', instrument_id)
+        if not product_code:
+            return ""
+        
+        product = product_code.group(1).upper()
+        
+        # 上期所（SHFE）品种
+        shfe_products = ['CU', 'AL', 'ZN', 'PB', 'NI', 'SN', 'AU', 'AG', 'RB', 'WR', 'HC', 'FU', 'BU', 'RU', 'SP', 'SS', 'BC', 'LU']
+        # 大商所（DCE）品种
+        dce_products = ['A', 'B', 'M', 'Y', 'P', 'C', 'CS', 'JD', 'L', 'V', 'PP', 'J', 'JM', 'I', 'EG', 'EB', 'PG', 'RR', 'FB', 'BB', 'LH']
+        # 郑商所（CZCE）品种
+        czce_products = ['WH', 'PM', 'CF', 'SR', 'TA', 'OI', 'RI', 'MA', 'FG', 'RS', 'RM', 'ZC', 'JR', 'LR', 'SF', 'SM', 'CY', 'AP', 'CJ', 'UR', 'SA', 'PF', 'PK']
+        # 中金所（CFFEX）品种
+        cffex_products = ['IF', 'IC', 'IH', 'TS', 'TF', 'T', 'IM']
+        # 能源中心（INE）品种
+        ine_products = ['SC', 'NR', 'LU', 'BC']
+        
+        if product in shfe_products:
+            return 'SHFE'
+        elif product in dce_products:
+            return 'DCE'
+        elif product in czce_products:
+            return 'CZCE'
+        elif product in cffex_products:
+            return 'CFFEX'
+        elif product in ine_products:
+            return 'INE'
+        else:
+            # 默认返回空字符串，让 CTP 自动识别
+            return ""
     
     def open_close(
         self,
@@ -1598,13 +1690,19 @@ class SyncStrategyApi:
         
         提交订单到 CTP 系统。支持开多、开空、平多、平空四种操作。
         
+        智能平仓特性：
+        - 对于上期所（SHFE）、能源中心（INE）、中金所（CFFEX）的合约，
+          自动区分平今仓和平昨仓，优先平昨仓再平今仓
+        - 如果需要，自动拆分为多笔订单（先平昨后平今）
+        - 对于大商所（DCE）和郑商所（CZCE），不区分平今平昨
+        
         Args:
             instrument_id: 合约代码
             action: 交易动作，支持以下值：
                 - "kaiduo": 开多（买入开仓）
                 - "kaikong": 开空（卖出开仓）
-                - "pingduo": 平多（卖出平仓）
-                - "pingkong": 平空（买入平仓）
+                - "pingduo": 平多（卖出平仓，自动处理今昨仓）
+                - "pingkong": 平空（买入平仓，自动处理今昨仓）
             volume: 下单数量（手）
             price: 限价价格
             block: 是否阻塞等待订单响应，默认 True
@@ -1620,10 +1718,11 @@ class SyncStrategyApi:
             - action: str - 交易动作
             - volume: int - 下单数量
             - price: float - 下单价格
+            - note: str - 额外说明（可选，如订单拆分信息）
             
         Raises:
             RuntimeError: 事件循环未启动或其他系统错误
-            ValueError: 参数错误
+            ValueError: 参数错误或持仓不足
             TimeoutError: 等待订单响应超时（仅在 block=True 时）
             
         Example:
@@ -1635,6 +1734,9 @@ class SyncStrategyApi:
             >>>     print(f"订单提交成功，订单号: {result['order_ref']}")
             >>> else:
             >>>     print(f"订单提交失败: {result['error_msg']}")
+            >>> 
+            >>> # 平多仓（自动处理今昨仓）
+            >>> result = api.open_close("rb2505", "pingduo", 3, 3520.0)
         """
         # 使用配置的超时值（如果未指定）
         if timeout is None:
@@ -1658,100 +1760,141 @@ class SyncStrategyApi:
             raise ValueError(f"下单价格必须大于 0，当前值: {price}")
         
         try:
-            # 映射 action 到 CTP 参数
-            direction, comb_offset_flag = self._map_action_to_ctp(action)
+            # ===== 智能平仓逻辑 =====
+            # 对于平仓操作，需要根据交易所和持仓情况智能选择平今/平昨
+            is_close_action = action in ['pingduo', 'pingkong']
             
-            # 构造订单请求
-            from ..constants.constant import TdConstant as Constant
-            
-            request = {
-                'msg_type': Constant.ReqOrderInsert,
-                Constant.InputOrder: {
-                    'InstrumentID': instrument_id,
-                    'Direction': direction,
-                    'CombOffsetFlag': comb_offset_flag,
-                    'VolumeTotalOriginal': volume,
-                    'LimitPrice': price,
-                    'OrderPriceType': '2',        # 限价单
-                    'TimeCondition': '3',         # 当日有效
-                    'VolumeCondition': '1',       # 任意数量
-                    'ContingentCondition': '1',   # 立即
-                    'ForceCloseReason': '0',      # 非强平
-                    'CombHedgeFlag': '1'          # 投机
-                }
-            }
-            
-            logger.debug(f"订单请求: {request}")
-            
-            # 获取 TdClient
-            td_client = self._event_loop_thread.td_client
-            if not td_client:
-                raise RuntimeError("TdClient 未初始化")
-            
-            # 使用 anyio.from_thread.run() 调用异步方法
-            if block:
-                # 阻塞等待订单响应
-                logger.debug(f"等待订单响应（超时: {timeout}秒）...")
-                try:
-                    response = anyio.from_thread.run(td_client.call, request, token=self._event_loop_thread._anyio_token)
+            if is_close_action:
+                # 获取交易所ID
+                exchange_id = self._get_exchange_id(instrument_id)
+                
+                # 判断交易所是否需要区分平今平昨
+                # 上期所（SHFE）、能源中心（INE）、中金所（CFFEX）需要区分
+                need_distinguish = exchange_id in ['SHFE', 'INE', 'CFFEX']
+                
+                if need_distinguish:
+                    # 查询当前持仓
+                    position = self.get_position(instrument_id, timeout=self._config.position_timeout)
                     
-                    # 解析响应
-                    logger.debug(f"订单响应: {response}")
+                    # 根据平仓方向确定今昨仓数量
+                    if action == 'pingduo':
+                        # 平多仓
+                        today_pos = position.pos_long_today
+                        his_pos = position.pos_long_his
+                        total_pos = position.pos_long
+                    else:  # pingkong
+                        # 平空仓
+                        today_pos = position.pos_short_today
+                        his_pos = position.pos_short_his
+                        total_pos = position.pos_short
                     
-                    # 检查响应信息
-                    rsp_info = response.get('RspInfo', {})
-                    error_id = rsp_info.get('ErrorID', 0)
+                    # 检查持仓是否足够
+                    if volume > total_pos:
+                        raise ValueError(
+                            f"平仓数量({volume})超过持仓数量({total_pos})，"
+                            f"今仓: {today_pos}, 昨仓: {his_pos}"
+                        )
                     
-                    if error_id == 0:
-                        # 订单提交成功
-                        input_order = response.get(Constant.InputOrder, {})
-                        order_ref = input_order.get('OrderRef', '')
+                    # 智能拆分订单：优先平昨仓，再平今仓
+                    orders_to_submit = []
+                    remaining_volume = volume
+                    
+                    # 先平昨仓
+                    if his_pos > 0 and remaining_volume > 0:
+                        close_his_volume = min(his_pos, remaining_volume)
+                        orders_to_submit.append({
+                            'volume': close_his_volume,
+                            'close_today': False,  # 平昨仓
+                            'description': f'平昨仓 {close_his_volume} 手'
+                        })
+                        remaining_volume -= close_his_volume
+                    
+                    # 再平今仓
+                    if today_pos > 0 and remaining_volume > 0:
+                        close_today_volume = min(today_pos, remaining_volume)
+                        orders_to_submit.append({
+                            'volume': close_today_volume,
+                            'close_today': True,  # 平今仓
+                            'description': f'平今仓 {close_today_volume} 手'
+                        })
+                        remaining_volume -= close_today_volume
+                    
+                    # 如果需要拆分订单，递归调用
+                    if len(orders_to_submit) > 1:
+                        logger.info(
+                            f"平仓订单需要拆分: 总量 {volume} 手 -> "
+                            f"{', '.join([o['description'] for o in orders_to_submit])}"
+                        )
                         
-                        logger.info(f"订单提交成功: {instrument_id}, 订单号: {order_ref}")
+                        # 提交多笔订单
+                        results = []
+                        for order_info in orders_to_submit:
+                            # 递归调用，但使用内部标志避免再次拆分
+                            sub_result = self._submit_single_order(
+                                instrument_id=instrument_id,
+                                action=action,
+                                volume=order_info['volume'],
+                                price=price,
+                                close_today=order_info['close_today'],
+                                block=block,
+                                timeout=timeout
+                            )
+                            results.append(sub_result)
+                            
+                            # 如果任何一笔失败，返回失败结果
+                            if not sub_result['success']:
+                                logger.error(f"{order_info['description']} 失败: {sub_result['error_msg']}")
+                                return sub_result
                         
+                        # 所有订单都成功，返回汇总结果
+                        logger.info(f"平仓订单全部成功: {volume} 手")
                         return {
                             'success': True,
-                            'order_ref': order_ref,
+                            'order_ref': ', '.join([r.get('order_ref', '') for r in results]),
                             'instrument_id': instrument_id,
                             'action': action,
                             'volume': volume,
-                            'price': price
+                            'price': price,
+                            'note': f'拆分为 {len(orders_to_submit)} 笔订单'
                         }
-                    else:
-                        # 订单提交失败
-                        error_msg = rsp_info.get('ErrorMsg', '未知错误')
-                        logger.error(f"订单提交失败: [{error_id}] {error_msg}")
-                        
-                        return {
-                            'success': False,
-                            'error_id': error_id,
-                            'error_msg': error_msg,
-                            'instrument_id': instrument_id,
-                            'action': action,
-                            'volume': volume,
-                            'price': price
-                        }
-                        
-                except TimeoutError:
-                    logger.error(f"等待订单响应超时（{timeout}秒）")
-                    raise TimeoutError(f"等待订单响应超时（{timeout}秒）")
                     
+                    # 不需要拆分，确定使用平今还是平昨
+                    close_today = orders_to_submit[0]['close_today'] if orders_to_submit else False
+                    logger.debug(f"平仓操作: {orders_to_submit[0]['description'] if orders_to_submit else '无持仓'}")
+                    
+                    # 使用确定的平仓标志提交订单
+                    return self._submit_single_order(
+                        instrument_id=instrument_id,
+                        action=action,
+                        volume=volume,
+                        price=price,
+                        close_today=close_today,
+                        block=block,
+                        timeout=timeout
+                    )
+                else:
+                    # 不需要区分平今平昨的交易所（DCE、CZCE），直接提交
+                    logger.debug(f"交易所 {exchange_id} 不区分平今平昨，直接提交平仓订单")
+                    return self._submit_single_order(
+                        instrument_id=instrument_id,
+                        action=action,
+                        volume=volume,
+                        price=price,
+                        close_today=False,  # 使用平仓标志 '1'
+                        block=block,
+                        timeout=timeout
+                    )
             else:
-                # 不阻塞，立即返回
-                logger.debug("订单已提交，不等待响应")
-                
-                # 使用 anyio.from_thread.run() 提交订单但不等待响应
-                anyio.from_thread.run(td_client.call, request, token=self._event_loop_thread._anyio_token)
-                
-                return {
-                    'success': True,
-                    'order_ref': '',  # 非阻塞模式下无法获取订单号
-                    'instrument_id': instrument_id,
-                    'action': action,
-                    'volume': volume,
-                    'price': price,
-                    'note': '订单已提交，未等待响应'
-                }
+                # 开仓操作，直接提交
+                return self._submit_single_order(
+                    instrument_id=instrument_id,
+                    action=action,
+                    volume=volume,
+                    price=price,
+                    close_today=False,  # 开仓不需要此参数
+                    block=block,
+                    timeout=timeout
+                )
                 
         except TimeoutError:
             # 超时错误应该重新抛出，让调用者处理
@@ -1781,6 +1924,176 @@ class SyncStrategyApi:
                 'action': action,
                 'volume': volume,
                 'price': price
+            }
+    
+    def _submit_single_order(
+        self,
+        instrument_id: str,
+        action: str,
+        volume: int,
+        price: float,
+        close_today: bool,
+        block: bool,
+        timeout: float
+    ) -> dict:
+        """
+        提交单笔订单（内部方法）
+        
+        Args:
+            instrument_id: 合约代码
+            action: 交易动作
+            volume: 下单数量
+            price: 限价价格
+            close_today: 平仓时是否平今仓
+            block: 是否阻塞等待响应
+            timeout: 超时时间
+            
+        Returns:
+            订单结果字典
+        """
+        from ..constants.constant import CommonConstant, TdConstant as Constant
+        from ..utils.config import GlobalConfig
+        
+        # 映射 action 到 CTP 参数
+        direction, comb_offset_flag = self._map_action_to_ctp(action, close_today=close_today)
+        
+        # 获取交易所ID
+        exchange_id = self._get_exchange_id(instrument_id)
+        
+        # 构造订单请求
+        request = {
+            CommonConstant.MessageType: Constant.ReqOrderInsert,
+            CommonConstant.RequestID: 0,
+            Constant.InputOrder: {
+                'BrokerID': GlobalConfig.BrokerID,
+                'InvestorID': self._user_id,
+                'InstrumentID': instrument_id,
+                'ExchangeID': exchange_id,
+                'OrderPriceType': '2',        # 限价单
+                'Direction': direction,
+                'CombOffsetFlag': comb_offset_flag,
+                'CombHedgeFlag': '1',         # 投机
+                'LimitPrice': price,
+                'VolumeTotalOriginal': volume,
+                'TimeCondition': '3',         # 当日有效
+                'VolumeCondition': '1',       # 任意数量
+                'ContingentCondition': '1',   # 立即
+                'ForceCloseReason': '0',      # 非强平
+                'IsAutoSuspend': 0,
+                'IsSwapOrder': 0
+            }
+        }
+        
+        logger.debug(f"订单请求: {request}")
+        
+        # 获取 TdClient
+        td_client = self._event_loop_thread.td_client
+        if not td_client:
+            raise RuntimeError("TdClient 未初始化")
+        
+        # 使用 anyio.from_thread.run() 调用异步方法
+        if block:
+            # 阻塞等待订单响应
+            logger.debug(f"等待订单响应（超时: {timeout}秒）...")
+            
+            # 生成订单ID（使用时间戳）
+            import time
+            order_id = str(int(time.time() * 1000000))  # 微秒级时间戳
+            
+            try:
+                # 创建等待事件
+                with self._order_response_lock:
+                    order_event = threading.Event()
+                    self._order_response_events[order_id] = order_event
+                
+                # 提交订单请求（不等待返回值）
+                anyio.from_thread.run(td_client.call, request, token=self._event_loop_thread._anyio_token)
+                
+                # 等待订单响应（通过事件通知）
+                if not order_event.wait(timeout=timeout):
+                    raise TimeoutError(f"等待订单响应超时（{timeout}秒）")
+                
+                # 从缓存中获取响应
+                with self._order_response_lock:
+                    response = self._order_responses.get(order_id)
+                
+                if not response:
+                    raise RuntimeError("订单响应丢失")
+                
+                # 解析响应
+                logger.debug(f"订单响应: {response}")
+                
+                # 检查响应信息
+                rsp_info = response.get('RspInfo', {})
+                if rsp_info is None:
+                    rsp_info = {}
+                error_id = rsp_info.get('ErrorID', 0)
+                
+                if error_id == 0:
+                    # 订单提交成功
+                    input_order = response.get(Constant.InputOrder, {})
+                    if input_order is None:
+                        input_order = {}
+                    
+                    # 尝试从 Order 字段获取 OrderRef（RtnOrder 响应）
+                    order_data = response.get(Constant.Order, {})
+                    if order_data is None:
+                        order_data = {}
+                    
+                    order_ref = input_order.get('OrderRef', '') or order_data.get('OrderRef', '')
+                    
+                    logger.info(f"订单提交成功: {instrument_id}, 订单号: {order_ref}")
+                    
+                    return {
+                        'success': True,
+                        'order_ref': order_ref,
+                        'instrument_id': instrument_id,
+                        'action': action,
+                        'volume': volume,
+                        'price': price
+                    }
+                else:
+                    # 订单提交失败
+                    error_msg = rsp_info.get('ErrorMsg', '未知错误')
+                    logger.error(f"订单提交失败: [{error_id}] {error_msg}")
+                    
+                    return {
+                        'success': False,
+                        'error_id': error_id,
+                        'error_msg': error_msg,
+                        'instrument_id': instrument_id,
+                        'action': action,
+                        'volume': volume,
+                        'price': price
+                    }
+                    
+            except TimeoutError:
+                logger.error(f"等待订单响应超时（{timeout}秒）")
+                raise TimeoutError(f"等待订单响应超时（{timeout}秒）")
+            
+            finally:
+                # 清理事件和缓存
+                with self._order_response_lock:
+                    if order_id in self._order_response_events:
+                        del self._order_response_events[order_id]
+                    if order_id in self._order_responses:
+                        del self._order_responses[order_id]
+                
+        else:
+            # 不阻塞，立即返回
+            logger.debug("订单已提交，不等待响应")
+            
+            # 使用 anyio.from_thread.run() 提交订单但不等待响应
+            anyio.from_thread.run(td_client.call, request, token=self._event_loop_thread._anyio_token)
+            
+            return {
+                'success': True,
+                'order_ref': '',  # 非阻塞模式下无法获取订单号
+                'instrument_id': instrument_id,
+                'action': action,
+                'volume': volume,
+                'price': price,
+                'note': '订单已提交，未等待响应'
             }
 
     def run_strategy(
@@ -1982,6 +2295,12 @@ class SyncStrategyApi:
             with self._position_query_lock:
                 self._position_query_events.clear()
                 logger.debug("持仓查询事件已清空")
+            
+            # 清空订单响应事件和缓存
+            with self._order_response_lock:
+                self._order_response_events.clear()
+                self._order_responses.clear()
+                logger.debug("订单响应事件和缓存已清空")
             
             # 清空合约信息缓存
             with self._instrument_cache_lock:
