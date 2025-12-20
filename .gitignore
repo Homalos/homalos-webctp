@@ -15,9 +15,13 @@ files.txt
 .ruff_cache
 .pytest_cache
 .kiro
+.kiro/
 .hypothesis
 .vscode
 config/config_md.yaml
 config/config_td.yaml
 task
 PeopleQuant
+plan.md
+PeopleQuant核心架构研究.md
+讨论.md
