@@ -10,410 +10,31 @@
 @Description: 同步策略 API - 同步阻塞式策略编写接口
 """
 
-import queue
+# ===== 标准库导入 =====
 import threading
-from typing import Any, Dict, Optional, Callable
+from typing import Dict, Optional, Callable
 
+# ===== 第三方库导入 =====
 import anyio
 import anyio.from_thread
 import anyio.lowlevel
 from loguru import logger
 
-# 导入数据模型
+# ===== 内部模块导入 =====
+# 数据模型：Quote 和 Position 数据类
 from .internal.data_models import Quote, Position
-# 导入缓存管理器
+
+# 缓存管理：行情缓存和持仓缓存
 from .internal.cache_manager import _QuoteCache, _PositionCache
 
+# 事件管理：统一的线程同步事件管理
+from .internal.event_manager import _EventManager
 
-class _EventLoopThread:
-    """
-    后台事件循环线程（内部类）
-    
-    在独立线程中运行 asyncio 事件循环，负责管理异步的 MdClient 和 TdClient。
-    提供同步/异步边界的桥接功能。
-    """
-    
-    def __init__(self):
-        """初始化事件循环线程"""
-        self._anyio_token: Optional[Any] = None  # anyio 跨线程调用 token
-        self._thread: Optional[threading.Thread] = None
-        self._md_client: Optional[Any] = None  # MdClient 实例
-        self._td_client: Optional[Any] = None  # TdClient 实例
-        self._running: bool = False
-        self._clients_ready: bool = False  # 客户端是否已就绪
-        self._ready_event: threading.Event = threading.Event()
-        self._init_error: Optional[Exception] = None  # 初始化错误
-        self._service_available: bool = True  # 服务可用性标记
-        # 登录状态跟踪
-        self._login_event: threading.Event = threading.Event()
-        self._login_error: Optional[Exception] = None
-        self._md_logged_in: bool = False
-        self._td_logged_in: bool = False
-        
-    def start(
-        self, 
-        user_id: str, 
-        password: str, 
-        config_path: Optional[str] = None,
-        md_callback: Optional[Callable] = None,
-        td_callback: Optional[Callable] = None
-    ) -> None:
-        """
-        启动事件循环线程并初始化 CTP 客户端
-        
-        Args:
-            user_id: CTP 用户 ID
-            password: CTP 密码
-            config_path: 配置文件路径（可选）
-            md_callback: 行情数据回调函数（可选）
-            td_callback: 交易数据回调函数（可选）
-            
-        Raises:
-            RuntimeError: 如果线程已经在运行
-        """
-        if self._running:
-            raise RuntimeError("事件循环线程已经在运行")
-        
-        logger.info("启动后台事件循环线程...")
-        
-        # 保存回调函数
-        self._md_callback = md_callback
-        self._td_callback = td_callback
-        
-        # 创建并启动事件循环线程
-        self._thread = threading.Thread(
-            target=self._run_event_loop,
-            args=(user_id, password, config_path),
-            daemon=True,
-            name="EventLoopThread"
-        )
-        self._running = True
-        self._thread.start()
-        
-        logger.info("后台事件循环线程已启动")
-    
-    def _run_event_loop(self, user_id: str, password: str, config_path: Optional[str]) -> None:
-        """
-        在独立线程中运行事件循环（内部方法）
-        
-        使用 anyio 运行事件循环，以支持 task group。
-        
-        Args:
-            user_id: CTP 用户 ID
-            password: CTP 密码
-            config_path: 配置文件路径
-        """
-        try:
-            logger.debug("使用 anyio 创建事件循环，开始初始化 CTP 客户端...")
-            
-            # 使用 anyio.run() 运行异步代码
-            # 这会创建一个新的事件循环并运行直到完成
-            anyio.run(
-                self._initialize_clients_with_taskgroup,
-                user_id,
-                password,
-                config_path,
-                backend="asyncio"  # 使用 asyncio 后端
-            )
-            
-            logger.info("事件循环正常退出")
-            
-        except Exception as e:
-            logger.error(f"事件循环线程异常: {e}", exc_info=True)
-            self._init_error = e  # 保存错误
-            self._service_available = False  # 标记服务不可用
-            self._ready_event.set()  # 设置事件，让 wait_ready 可以检查错误
-            logger.error("事件循环异常，服务已标记为不可用")
-        finally:
-            logger.info("事件循环线程已退出")
-    
-    def _on_login_response(self, response: dict) -> None:
-        """
-        处理登录响应（在事件循环线程中调用）
-        
-        监听 MdClient 和 TdClient 的登录响应，当两个客户端都登录成功后
-        设置 _login_event 事件，通知 wait_ready() 方法可以继续。
-        
-        Args:
-            response: 登录响应字典，包含 MsgType、RspInfo 和 _ClientType 等字段
-        """
-        # 注意：字段名是 "MsgType" 而不是 "msg_type"
-        msg_type = response.get('MsgType', '')
-        
-        logger.debug(f"收到响应，MsgType: {msg_type}")
-        
-        # 检查是否是登录响应（修复：使用 'RspUserLogin' 而不是 'OnRspUserLogin'）
-        if 'RspUserLogin' not in msg_type:
-            return
-        
-        logger.info(f"检测到登录响应: {msg_type}")
-        
-        # 检查响应信息
-        rsp_info = response.get('RspInfo', {})
-        if rsp_info is None:
-            rsp_info = {}
-        error_id = rsp_info.get('ErrorID', 0)
-        
-        if error_id != 0:
-            # 登录失败
-            error_msg = rsp_info.get('ErrorMsg', '未知错误')
-            self._login_error = RuntimeError(f"CTP 登录失败: [{error_id}] {error_msg}")
-            logger.error(f"登录失败: {error_msg}")
-            self._login_event.set()
-        else:
-            # 登录成功
-            # 使用 _ClientType 字段判断是哪个客户端登录成功
-            client_type = response.get('_ClientType', '')
-            if client_type == 'Md':
-                self._md_logged_in = True
-                logger.info(f"MdClient 登录成功，已登录状态: Md={self._md_logged_in}, Td={self._td_logged_in}")
-            elif client_type == 'Td':
-                self._td_logged_in = True
-                logger.info(f"TdClient 登录成功，已登录状态: Md={self._md_logged_in}, Td={self._td_logged_in}")
-            
-            # 两个客户端都登录成功后设置事件
-            if self._md_logged_in and self._td_logged_in:
-                logger.info("所有 CTP 客户端登录完成，设置登录事件")
-                self._login_event.set()
-    
-    async def _initialize_clients_with_taskgroup(
-        self, 
-        user_id: str, 
-        password: str, 
-        config_path: Optional[str]
-    ) -> None:
-        """
-        在 task group 上下文中初始化并运行 MdClient 和 TdClient（异步方法）
-        
-        这个方法会一直运行，直到收到停止信号。
-        
-        Args:
-            user_id: CTP 用户 ID
-            password: CTP 密码
-            config_path: 配置文件路径
-        """
-        try:
-            # 导入服务层的客户端类
-            from ..services.md_client import MdClient
-            from ..services.td_client import TdClient
-            
-            # 获取 anyio token 用于跨线程调用
-            self._anyio_token = anyio.lowlevel.current_token()
-            logger.debug("已获取 anyio token")
-            
-            # 配置已在 SyncStrategyApi.__init__() 中加载，此处不需要重复加载
-            
-            # 创建 MdClient 实例
-            logger.debug("创建 MdClient 实例...")
-            self._md_client = MdClient()
-            
-            # 创建 TdClient 实例
-            logger.debug("创建 TdClient 实例...")
-            self._td_client = TdClient()
-            
-            # 创建包装回调函数，同时处理登录响应和其他响应
-            async def md_callback_wrapper(response: dict) -> None:
-                """MdClient 回调包装器"""
-                # 添加客户端类型标识
-                response['_ClientType'] = 'Md'
-                # 处理登录响应
-                self._on_login_response(response)
-                # 如果有外部回调，调用它
-                if self._md_callback:
-                    logger.debug(f"调用 MD 回调，消息类型: {response.get('MsgType', 'unknown')}")
-                    # 使用 anyio.to_thread.run_sync 调用同步回调
-                    await anyio.to_thread.run_sync(self._md_callback, response)
-            
-            async def td_callback_wrapper(response: dict) -> None:
-                """TdClient 回调包装器"""
-                # 添加客户端类型标识
-                response['_ClientType'] = 'Td'
-                # 处理登录响应
-                self._on_login_response(response)
-                # 如果有外部回调，调用它
-                if self._td_callback:
-                    logger.debug(f"调用 TD 回调，消息类型: {response.get('MsgType', 'unknown')}")
-                    # 使用 anyio.to_thread.run_sync 调用同步回调
-                    await anyio.to_thread.run_sync(self._td_callback, response)
-            
-            # 设置回调函数
-            self._md_client.rsp_callback = md_callback_wrapper
-            self._td_client.rsp_callback = td_callback_wrapper
-            
-            # 创建停止事件
-            self._client_stop_event = anyio.Event()
-            
-            # 在 task group 上下文中运行客户端
-            async with anyio.create_task_group() as tg:
-                # 设置 task group
-                self._md_client.task_group = tg
-                self._td_client.task_group = tg
-                
-                # 启动 MdClient（自动登录）
-                logger.debug(f"启动 MdClient，用户: {user_id}")
-                await self._md_client.start(user_id, password)
-                logger.debug("MdClient.start() 调用完成")
-                
-                # 启动 TdClient（自动登录）
-                logger.debug(f"启动 TdClient，用户: {user_id}")
-                await self._td_client.start(user_id, password)
-                logger.debug("TdClient.start() 调用完成")
-                
-                # 重新设置回调函数（因为 start() 方法会覆盖回调）
-                self._md_client.rsp_callback = md_callback_wrapper
-                self._td_client.rsp_callback = td_callback_wrapper
-                
-                logger.info("MdClient 和 TdClient 初始化成功，等待登录完成...")
-                
-                # 标记客户端已就绪
-                self._clients_ready = True
-                logger.debug("客户端已标记为就绪")
-                
-                # 标记为就绪
-                self._ready_event.set()
-                
-                # 保持 task group 运行，直到收到停止信号
-                await self._client_stop_event.wait()
-            
-            logger.info("客户端 task group 已退出")
-            
-        except Exception as e:
-            logger.error(f"初始化 CTP 客户端失败: {e}", exc_info=True)
-            self._init_error = e
-            self._service_available = False
-            self._ready_event.set()
-            raise
-    
-    def stop(self, timeout: float = 5.0) -> None:
-        """
-        停止事件循环线程
-        
-        Args:
-            timeout: 等待线程停止的超时时间（秒）
-        """
-        if not self._running:
-            logger.warning("事件循环线程未运行")
-            return
-        
-        logger.info("停止后台事件循环线程...")
-        
-        try:
-            # 设置停止事件，这会导致 task group 退出
-            if hasattr(self, '_client_stop_event') and self._client_stop_event:
-                # 使用 anyio 的跨线程调用机制设置停止事件
-                try:
-                    if self._anyio_token:
-                        anyio.from_thread.run_sync(self._client_stop_event.set, token=self._anyio_token)
-                        logger.debug("已设置停止事件")
-                    else:
-                        logger.warning("anyio token 未设置，无法停止事件循环")
-                except Exception as e:
-                    logger.warning(f"设置停止事件失败: {e}")
-            
-            # 等待线程结束
-            if self._thread and self._thread.is_alive():
-                self._thread.join(timeout=timeout)
-                if self._thread.is_alive():
-                    logger.warning(f"事件循环线程在 {timeout} 秒后仍未停止")
-            
-            # 清理状态
-            self._running = False
-            self._clients_ready = False
-            self._anyio_token = None
-            logger.info("后台事件循环线程已停止")
-            
-        except Exception as e:
-            logger.error(f"停止事件循环线程时出错: {e}", exc_info=True)
-    
-    def wait_ready(self, timeout: float = 30.0) -> None:
-        """
-        等待事件循环和客户端就绪（包括登录完成）
-        
-        该方法分两步等待：
-        1. 等待客户端初始化完成（创建 MdClient 和 TdClient）
-        2. 等待 CTP 登录完成（简单等待一段时间）
-        
-        Args:
-            timeout: 超时时间（秒），会平均分配给两个等待步骤
-            
-        Raises:
-            TimeoutError: 等待超时时抛出
-            RuntimeError: 初始化或登录失败时抛出
-        """
-        # 第一步：等待客户端初始化完成
-        if not self._ready_event.wait(timeout=timeout / 2):
-            raise TimeoutError(f"等待 CTP 客户端初始化超时（{timeout / 2}秒）")
-        
-        # 检查是否有初始化错误
-        if self._init_error is not None:
-            raise RuntimeError(f"CTP 客户端初始化失败: {self._init_error}")
-        
-        logger.debug("CTP 客户端初始化完成，等待登录...")
-        
-        # 第二步：等待登录完成（使用事件机制）
-        remaining_timeout = timeout / 2
-        logger.debug(f"等待登录完成，超时: {remaining_timeout}s")
-        
-        if not self._login_event.wait(timeout=remaining_timeout):
-            # 超时，检查部分登录状态
-            status_msg = f"Md={'成功' if self._md_logged_in else '未完成'}, Td={'成功' if self._td_logged_in else '未完成'}"
-            logger.error(f"等待 CTP 登录超时（{remaining_timeout}秒），当前状态: {status_msg}")
-            raise TimeoutError(f"等待 CTP 登录超时（{remaining_timeout}秒），当前状态: {status_msg}")
-        
-        # 检查登录错误
-        if self._login_error is not None:
-            logger.error(f"CTP 登录失败: {self._login_error}")
-            raise self._login_error
-        
-        # 确认两个客户端都登录成功
-        if not (self._md_logged_in and self._td_logged_in):
-            status_msg = f"Md={'成功' if self._md_logged_in else '失败'}, Td={'成功' if self._td_logged_in else '失败'}"
-            logger.error(f"CTP 登录不完整: {status_msg}")
-            raise RuntimeError(f"CTP 登录不完整: {status_msg}")
-        
-        logger.info(f"CTP 连接已就绪，登录成功: Md={self._md_logged_in}, Td={self._td_logged_in}")
-    
-    def set_md_callback(self, callback: Callable[[dict], None]) -> None:
-        """
-        设置行情数据回调函数
-        
-        Args:
-            callback: 行情数据回调函数，接收行情数据字典
-        """
-        if self._md_client:
-            self._md_client.rsp_callback = callback
-            logger.debug("已设置行情数据回调函数")
-    
-    def set_td_callback(self, callback: Callable[[dict], None]) -> None:
-        """
-        设置交易数据回调函数
-        
-        Args:
-            callback: 交易数据回调函数，接收交易数据字典
-        """
-        if self._td_client:
-            self._td_client.rsp_callback = callback
-            logger.debug("已设置交易数据回调函数")
-    
-    @property
-    def md_client(self) -> Optional[Any]:
-        """获取 MdClient 实例"""
-        return self._md_client
-    
-    @property
-    def td_client(self) -> Optional[Any]:
-        """获取 TdClient 实例"""
-        return self._td_client
-    
-    @property
-    def is_service_available(self) -> bool:
-        """
-        检查服务是否可用
-        
-        Returns:
-            bool: True 表示服务可用，False 表示服务不可用
-        """
-        return self._service_available
+# 事件循环：后台异步事件循环线程
+from .internal.event_loop_thread import _EventLoopThread
+
+# 插件系统：策略插件接口和管理器
+from .internal.plugin import PluginManager, StrategyPlugin
 
 
 class SyncStrategyApi:
@@ -525,23 +146,24 @@ class SyncStrategyApi:
         self._quote_cache = _QuoteCache()
         self._position_cache = _PositionCache()
         
+        # 初始化事件管理器
+        self._event_manager = _EventManager()
+        
+        # 初始化插件管理器
+        self._plugin_manager = PluginManager()
+        
         # 订阅状态跟踪
         self._subscribed_instruments: set = set()
         self._subscription_lock = threading.RLock()
         
-        # 持仓查询状态跟踪
-        self._position_query_events: Dict[str, threading.Event] = {}
-        self._position_query_lock = threading.RLock()
-        
         # 合约信息缓存
         self._instrument_cache: Dict[str, dict] = {}
         self._instrument_cache_lock = threading.RLock()
-        self._instrument_query_events: Dict[str, threading.Event] = {}
         
         # 订单响应状态跟踪
         self._order_responses: Dict[str, dict] = {}
-        self._order_response_events: Dict[str, threading.Event] = {}
         self._order_response_lock = threading.RLock()
+        self._pending_order_ids: list = []  # 等待中的订单ID队列（FIFO）
         
         # 策略管理
         self._running_strategies: Dict[str, threading.Thread] = {}
@@ -621,10 +243,8 @@ class SyncStrategyApi:
         
         try:
             # 创建查询完成事件
-            with self._instrument_cache_lock:
-                query_event = threading.Event()
-                self._instrument_query_events[instrument_id] = query_event
-                logger.debug(f"[合约查询] 已创建查询事件: {instrument_id}")
+            self._event_manager.create_event(f"instrument_query_{instrument_id}")
+            logger.debug(f"[合约查询] 已创建查询事件: {instrument_id}")
             
             # 构造合约查询请求
             from ..constants.constant import CommonConstant, TdConstant as Constant
@@ -644,11 +264,11 @@ class SyncStrategyApi:
             if not td_client:
                 raise RuntimeError("TdClient 未初始化")
             
-            logger.debug(f"[合约查询] TdClient 已就绪，准备提交请求")
+            logger.debug("[合约查询] TdClient 已就绪，准备提交请求")
             
             try:
-                logger.info(f"[合约查询] 正在提交请求到 TdClient...")
-                anyio.from_thread.run(td_client.call, request, token=self._event_loop_thread._anyio_token)
+                logger.info("[合约查询] 正在提交请求到 TdClient...")
+                anyio.from_thread.run(td_client.call, request)
                 logger.info(f"[合约查询] 请求已成功提交到 TdClient: {instrument_id}")
             except TimeoutError:
                 logger.error(f"[合约查询] 提交请求超时（{timeout / 2}秒）: {instrument_id}")
@@ -660,9 +280,9 @@ class SyncStrategyApi:
             # 等待合约信息返回（通过事件通知）
             # CTP 查询可能有延迟，使用完整的超时时间
             logger.info(f"[合约查询] 开始等待响应，超时: {timeout}秒")
-            if not query_event.wait(timeout=timeout):
+            if not self._event_manager.wait_event(f"instrument_query_{instrument_id}", timeout=timeout):
                 logger.error(f"[合约查询] 等待响应超时（{timeout}秒）: {instrument_id}")
-                logger.warning(f"[合约查询] 可能的原因：1) SimNow环境不支持合约查询 2) 网络延迟 3) CTP服务器未响应")
+                logger.warning("[合约查询] 可能的原因：1) SimNow环境不支持合约查询 2) 网络延迟 3) CTP服务器未响应")
                 raise TimeoutError(f"等待合约查询响应超时（{timeout}秒）")
             
             logger.info(f"[合约查询] 收到响应通知: {instrument_id}")
@@ -683,10 +303,8 @@ class SyncStrategyApi:
             raise
         finally:
             # 清理查询事件
-            with self._instrument_cache_lock:
-                if instrument_id in self._instrument_query_events:
-                    del self._instrument_query_events[instrument_id]
-                    logger.debug(f"[合约查询] 已清理查询事件: {instrument_id}")
+            self._event_manager.clear_event(f"instrument_query_{instrument_id}")
+            logger.debug(f"[合约查询] 已清理查询事件: {instrument_id}")
     
     def _get_volume_multiple(self, instrument_id: str) -> int:
         """
@@ -704,7 +322,7 @@ class SyncStrategyApi:
         # 检查缓存
         with self._instrument_cache_lock:
             if instrument_id in self._instrument_cache:
-                instrument_info = self._instrument_cache[instrument_id]
+                instrument_info: dict = self._instrument_cache[instrument_id]
                 multiplier = instrument_info.get('VolumeMultiple', 1)
                 logger.debug(f"从缓存获取合约乘数: {instrument_id}, 乘数: {multiplier}")
                 return multiplier
@@ -715,7 +333,7 @@ class SyncStrategyApi:
         
         try:
             instrument_info = self._query_instrument(instrument_id, timeout=3.0)
-            if instrument_info:
+            if instrument_info is not None:
                 multiplier = instrument_info.get('VolumeMultiple', 1)
                 logger.info(f"查询到合约乘数: {instrument_id}, 乘数: {multiplier}")
                 return multiplier
@@ -780,7 +398,16 @@ class SyncStrategyApi:
             return
         
         # 更新行情缓存（会自动通知等待线程）
-        self._quote_cache.update(instrument_id, market_data)
+        self._quote_cache.update_from_market_data(instrument_id, market_data)
+        
+        # 调用插件钩子
+        quote = self._quote_cache.get(instrument_id)
+        if quote:
+            processed_quote = self._plugin_manager.call_on_quote(quote)
+            # 如果插件过滤了行情，不做进一步处理
+            if processed_quote is None:
+                logger.debug(f"行情被插件过滤: {instrument_id}")
+                return
         
         logger.debug(f"收到行情推送: {instrument_id}, 价格: {market_data.get('LastPrice')}")
     
@@ -842,25 +469,25 @@ class SyncStrategyApi:
         Args:
             response: 订单响应字典
         """
-        # 生成响应ID（使用时间戳）
-        import time
-        response_id = str(int(time.time() * 1000000))  # 微秒级时间戳
-        
         msg_type = response.get('MsgType', '')
-        logger.debug(f"[订单响应] 收到订单响应，消息类型: {msg_type}, ID: {response_id}")
+        logger.debug(f"[订单响应] 收到订单响应，消息类型: {msg_type}")
         
-        # 缓存响应
+        # 缓存响应并通知等待线程
         with self._order_response_lock:
-            # 由于我们无法从响应中获取请求ID，使用最新的响应
-            # 假设订单是按顺序处理的
-            if self._order_response_events:
-                # 获取第一个等待的事件（FIFO）
-                order_id = list(self._order_response_events.keys())[0]
+            # 由于我们无法从响应中获取请求ID，使用FIFO策略
+            # 假设订单是按顺序处理的，通知第一个等待的订单
+            if self._pending_order_ids:
+                # 获取第一个等待的订单ID
+                order_id = self._pending_order_ids.pop(0)
+                
+                # 缓存响应
                 self._order_responses[order_id] = response
-                event = self._order_response_events.get(order_id)
-                if event:
-                    event.set()
-                    logger.debug(f"[订单响应] 通知订单完成: {order_id}")
+                
+                # 通知等待订单响应的线程
+                self._event_manager.set_event(f"order_response_{order_id}")
+                logger.debug(f"[订单响应] 已通知订单完成: {order_id}")
+            else:
+                logger.warning("[订单响应] 收到订单响应但没有等待的订单")
     
     def _on_trade_data(self, response: dict) -> None:
         """
@@ -874,6 +501,15 @@ class SyncStrategyApi:
         Args:
             response: 交易响应字典，包含 MsgType 和相关数据字段
         """
+        # 调用插件钩子
+        processed_response = self._plugin_manager.call_on_trade(response)
+        # 如果插件过滤了交易数据，不做进一步处理
+        if processed_response is None:
+            logger.debug("交易数据被插件过滤")
+            return
+        # 使用处理后的响应继续处理
+        response = processed_response
+        
         # 注意：字段名是 "MsgType" 而不是 "msg_type"
         msg_type = response.get('MsgType', '')
         
@@ -892,7 +528,7 @@ class SyncStrategyApi:
         # 处理成交回报：当有成交时，自动触发持仓查询以更新缓存
         # 注意：msg_type 可能是 'RtnTrade' 或 'OnRtnTrade'
         if 'RtnTrade' in msg_type:
-            logger.debug(f"[TD回调] 处理成交回报")
+            logger.debug("[TD回调] 处理成交回报")
             self._handle_trade_report(response)
             return
         
@@ -905,7 +541,7 @@ class SyncStrategyApi:
             error_id = rsp_info.get('ErrorID', 0) if rsp_info else 0
             error_msg = rsp_info.get('ErrorMsg', '') if rsp_info else ''
             
-            logger.info(f"[TD回调-合约查询] 收到合约查询响应")
+            logger.info("[TD回调-合约查询] 收到合约查询响应")
             logger.info(f"[TD回调-合约查询] 响应详情 - instrument_data存在: {instrument_data is not None}, IsLast: {is_last}, ErrorID: {error_id}, ErrorMsg: {error_msg}")
             
             if error_id != 0:
@@ -927,19 +563,15 @@ class SyncStrategyApi:
             
             # 只有在 IsLast=True 时才通知等待线程
             if is_last:
-                logger.info(f"[TD回调-合约查询] 查询结束（IsLast=True），开始通知等待线程")
-                with self._instrument_cache_lock:
-                    # 遍历所有等待中的查询
-                    for requested_instrument_id, event in list(self._instrument_query_events.items()):
-                        # 检查请求的合约是否在缓存中
-                        if requested_instrument_id in self._instrument_cache:
-                            logger.info(f"[TD回调-合约查询] 找到请求的合约: {requested_instrument_id}，通知查询完成")
-                            event.set()
-                        else:
-                            logger.warning(f"[TD回调-合约查询] 未找到请求的合约: {requested_instrument_id}，通知查询失败")
-                            event.set()  # 仍然需要通知，避免超时
+                logger.info("[TD回调-合约查询] 查询结束（IsLast=True），开始通知等待线程")
+                # 通知等待该合约查询的线程
+                if instrument_data and instrument_id:
+                    logger.info(f"[TD回调-合约查询] 找到请求的合约: {instrument_id}，通知查询完成")
+                    self._event_manager.set_event(f"instrument_query_{instrument_id}")
+                else:
+                    logger.warning("[TD回调-合约查询] 查询结束但未找到合约数据，通知查询失败")
             else:
-                logger.debug(f"[TD回调-合约查询] 收到中间响应（IsLast=False），继续等待")
+                logger.debug("[TD回调-合约查询] 收到中间响应（IsLast=False），继续等待")
             
             return
         
@@ -956,13 +588,9 @@ class SyncStrategyApi:
             # 可能是查询结束标志（IsLast=True 但没有数据，即空持仓）
             if is_last:
                 # 查询已完成，通知所有等待中的持仓查询
-                # 注意：由于响应中没有 instrument_id，我们通知所有等待的查询
-                with self._position_query_lock:
-                    if self._position_query_events:
-                        logger.debug(f"收到空持仓响应（IsLast=True），通知 {len(self._position_query_events)} 个等待中的查询")
-                        for instrument_id, event in list(self._position_query_events.items()):
-                            event.set()
-                            logger.debug(f"通知持仓查询完成（空持仓）: {instrument_id}")
+                # 注意：由于响应中没有 instrument_id，我们需要通知所有可能等待的查询
+                # 这里我们简单地记录日志，实际通知会在有数据的情况下进行
+                logger.debug("收到空持仓响应（IsLast=True）")
             return
         
         instrument_id = position_data.get('InstrumentID')
@@ -1015,15 +643,12 @@ class SyncStrategyApi:
             return
         
         # 更新持仓缓存
-        self._position_cache.update(instrument_id, position_dict)
+        self._position_cache.update_from_position_data(instrument_id, position_dict)
         
         logger.debug(f"收到持仓数据: {instrument_id}, 方向: {posi_direction}, 持仓: {position}")
         
         # 通知等待该合约持仓查询的线程
-        with self._position_query_lock:
-            if instrument_id in self._position_query_events:
-                self._position_query_events[instrument_id].set()
-                logger.debug(f"通知持仓查询完成: {instrument_id}")
+        self._event_manager.set_event(f"position_query_{instrument_id}")
     
     def _query_position(self, instrument_id: str, timeout: float = 5.0) -> None:
         """
@@ -1046,9 +671,7 @@ class SyncStrategyApi:
         
         try:
             # 创建查询完成事件
-            with self._position_query_lock:
-                query_event = threading.Event()
-                self._position_query_events[instrument_id] = query_event
+            self._event_manager.create_event(f"position_query_{instrument_id}")
             
             # 构造持仓查询请求
             from ..constants.constant import CommonConstant, TdConstant as Constant
@@ -1067,13 +690,13 @@ class SyncStrategyApi:
             
             try:
                 # 使用 anyio 的跨线程调用，带超时
-                anyio.from_thread.run(td_client.call, request, token=self._event_loop_thread._anyio_token)
+                anyio.from_thread.run(td_client.call, request)
             except TimeoutError:
                 raise TimeoutError(f"提交持仓查询请求超时（{timeout}秒）")
             
             # 等待持仓数据返回（通过事件通知）
             # 注意：如果持仓查询期间触发了合约查询，可能需要更长的等待时间
-            if not query_event.wait(timeout=timeout):
+            if not self._event_manager.wait_event(f"position_query_{instrument_id}", timeout=timeout):
                 raise TimeoutError(f"等待持仓查询响应超时（{timeout}秒）")
             
             logger.debug(f"合约 {instrument_id} 持仓查询成功")
@@ -1083,9 +706,7 @@ class SyncStrategyApi:
             raise
         finally:
             # 清理查询事件
-            with self._position_query_lock:
-                if instrument_id in self._position_query_events:
-                    del self._position_query_events[instrument_id]
+            self._event_manager.clear_event(f"position_query_{instrument_id}")
     
     def _subscribe_quote(self, instrument_id: str, timeout: float = 5.0) -> None:
         """
@@ -1129,7 +750,7 @@ class SyncStrategyApi:
                     return
                 
                 try:
-                    anyio.from_thread.run(md_client.call, request, token=self._event_loop_thread._anyio_token)
+                    anyio.from_thread.run(md_client.call, request)
                 except TimeoutError:
                     logger.warning(f"订阅合约 {instrument_id} 超时（{timeout}秒）")
                     return
@@ -1194,7 +815,9 @@ class SyncStrategyApi:
         # 等待首次行情数据
         logger.debug(f"等待首次行情数据: {instrument_id}")
         try:
-            quote = self._quote_cache.wait_update(instrument_id, timeout=timeout)
+            # 确保 timeout 不为 None
+            actual_timeout = timeout if timeout is not None else 30.0
+            quote = self._quote_cache.wait_update(instrument_id, timeout=actual_timeout)
             logger.info(f"获取到首次行情: {instrument_id}, 价格: {quote.LastPrice}")
             return quote
         except TimeoutError:
@@ -1301,7 +924,7 @@ class SyncStrategyApi:
             >>> print(f"收到新行情: {quote.LastPrice}")
         """
         if instrument_id == "":
-            raise Exception(f"wait_quote_update 中请求合约代码不能为空字符串")
+            raise Exception("wait_quote_update 中请求合约代码不能为空字符串")
 
         # 检查服务是否可用
         if self._event_loop_thread and not self._event_loop_thread.is_service_available:
@@ -1320,7 +943,9 @@ class SyncStrategyApi:
         # 阻塞等待行情更新
         logger.debug(f"开始等待合约 {instrument_id} 的行情更新...")
         try:
-            quote = self._quote_cache.wait_update(instrument_id, timeout=timeout)
+            # 如果 timeout 为 None，使用一个较大的默认值
+            actual_timeout = timeout if timeout is not None else 3600.0  # 1小时
+            quote = self._quote_cache.wait_update(instrument_id, timeout=actual_timeout)
             logger.info(f"收到合约 {instrument_id} 行情更新, 价格: {quote.LastPrice}")
             return quote
             
@@ -1339,82 +964,14 @@ class SyncStrategyApi:
                 return Quote(InstrumentID=instrument_id)
     
     def _map_action_to_ctp(self, action: str, close_today: bool = False) -> tuple:
-        """
-        映射 action 参数到 CTP 的 Direction 和 CombOffsetFlag
-        
-        Args:
-            action: 交易动作，支持 "kaiduo", "kaikong", "pingduo", "pingkong"
-            close_today: 平仓时是否平今仓（仅对平仓操作有效）
-                - True: 平今仓（CombOffsetFlag='3'）
-                - False: 平昨仓（CombOffsetFlag='1'）
-            
-        Returns:
-            (Direction, CombOffsetFlag) 元组
-            
-        Raises:
-            ValueError: 不支持的 action 参数
-        """
-        # 基础映射
-        if action == 'kaiduo':
-            return ('0', '0')  # 买入开多：Direction=买(0), CombOffsetFlag=开仓(0)
-        elif action == 'kaikong':
-            return ('1', '0')  # 卖出开空：Direction=卖(1), CombOffsetFlag=开仓(0)
-        elif action == 'pingduo':
-            # 卖出平多：Direction=卖(1), CombOffsetFlag根据close_today决定
-            offset_flag = '3' if close_today else '1'
-            return ('1', offset_flag)
-        elif action == 'pingkong':
-            # 买入平空：Direction=买(0), CombOffsetFlag根据close_today决定
-            offset_flag = '3' if close_today else '1'
-            return ('0', offset_flag)
-        else:
-            raise ValueError(
-                f"不支持的 action 参数: {action}，"
-                f"支持的值: kaiduo, kaikong, pingduo, pingkong"
-            )
+        """映射 action 参数到 CTP 的 Direction 和 CombOffsetFlag"""
+        from .internal.order_helper import _OrderHelper
+        return _OrderHelper.map_action_to_ctp(action, close_today)
     
     def _get_exchange_id(self, instrument_id: str) -> str:
-        """
-        根据合约代码推断交易所ID
-        
-        Args:
-            instrument_id: 合约代码
-            
-        Returns:
-            交易所ID字符串
-        """
-        # 提取合约品种代码（去除数字）
-        import re
-        product_code = re.match(r'([a-zA-Z]+)', instrument_id)
-        if not product_code:
-            return ""
-        
-        product = product_code.group(1).upper()
-        
-        # 上期所（SHFE）品种
-        shfe_products = ['CU', 'AL', 'ZN', 'PB', 'NI', 'SN', 'AU', 'AG', 'RB', 'WR', 'HC', 'FU', 'BU', 'RU', 'SP', 'SS', 'BC', 'LU']
-        # 大商所（DCE）品种
-        dce_products = ['A', 'B', 'M', 'Y', 'P', 'C', 'CS', 'JD', 'L', 'V', 'PP', 'J', 'JM', 'I', 'EG', 'EB', 'PG', 'RR', 'FB', 'BB', 'LH']
-        # 郑商所（CZCE）品种
-        czce_products = ['WH', 'PM', 'CF', 'SR', 'TA', 'OI', 'RI', 'MA', 'FG', 'RS', 'RM', 'ZC', 'JR', 'LR', 'SF', 'SM', 'CY', 'AP', 'CJ', 'UR', 'SA', 'PF', 'PK']
-        # 中金所（CFFEX）品种
-        cffex_products = ['IF', 'IC', 'IH', 'TS', 'TF', 'T', 'IM']
-        # 能源中心（INE）品种
-        ine_products = ['SC', 'NR', 'LU', 'BC']
-        
-        if product in shfe_products:
-            return 'SHFE'
-        elif product in dce_products:
-            return 'DCE'
-        elif product in czce_products:
-            return 'CZCE'
-        elif product in cffex_products:
-            return 'CFFEX'
-        elif product in ine_products:
-            return 'INE'
-        else:
-            # 默认返回空字符串，让 CTP 自动识别
-            return ""
+        """根据合约代码推断交易所ID"""
+        from .internal.order_helper import _OrderHelper
+        return _OrderHelper.get_exchange_id(instrument_id)
     
     def open_close(
         self,
@@ -1536,7 +1093,7 @@ class SyncStrategyApi:
                         )
                     
                     # 智能拆分订单：优先平昨仓，再平今仓
-                    orders_to_submit = []
+                    orders_to_submit: list[dict] = []
                     remaining_volume = volume
                     
                     # 先平昨仓
@@ -1563,7 +1120,7 @@ class SyncStrategyApi:
                     if len(orders_to_submit) > 1:
                         logger.info(
                             f"平仓订单需要拆分: 总量 {volume} 手 -> "
-                            f"{', '.join([o['description'] for o in orders_to_submit])}"
+                            f"{', '.join([str(o['description']) for o in orders_to_submit])}"
                         )
                         
                         # 提交多笔订单
@@ -1573,9 +1130,9 @@ class SyncStrategyApi:
                             sub_result = self._submit_single_order(
                                 instrument_id=instrument_id,
                                 action=action,
-                                volume=order_info['volume'],
+                                volume=int(order_info['volume']),
                                 price=price,
-                                close_today=order_info['close_today'],
+                                close_today=bool(order_info['close_today']),
                                 block=block,
                                 timeout=timeout
                             )
@@ -1599,7 +1156,7 @@ class SyncStrategyApi:
                         }
                     
                     # 不需要拆分，确定使用平今还是平昨
-                    close_today = orders_to_submit[0]['close_today'] if orders_to_submit else False
+                    close_today = bool(orders_to_submit[0]['close_today']) if orders_to_submit else False
                     logger.debug(f"平仓操作: {orders_to_submit[0]['description'] if orders_to_submit else '无持仓'}")
                     
                     # 使用确定的平仓标志提交订单
@@ -1742,15 +1299,17 @@ class SyncStrategyApi:
             
             try:
                 # 创建等待事件
+                self._event_manager.create_event(f"order_response_{order_id}")
+                
+                # 将订单ID添加到等待队列
                 with self._order_response_lock:
-                    order_event = threading.Event()
-                    self._order_response_events[order_id] = order_event
+                    self._pending_order_ids.append(order_id)
                 
                 # 提交订单请求（不等待返回值）
-                anyio.from_thread.run(td_client.call, request, token=self._event_loop_thread._anyio_token)
+                anyio.from_thread.run(td_client.call, request)
                 
                 # 等待订单响应（通过事件通知）
-                if not order_event.wait(timeout=timeout):
+                if not self._event_manager.wait_event(f"order_response_{order_id}", timeout=timeout):
                     raise TimeoutError(f"等待订单响应超时（{timeout}秒）")
                 
                 # 从缓存中获取响应
@@ -1813,9 +1372,8 @@ class SyncStrategyApi:
             
             finally:
                 # 清理事件和缓存
+                self._event_manager.clear_event(f"order_response_{order_id}")
                 with self._order_response_lock:
-                    if order_id in self._order_response_events:
-                        del self._order_response_events[order_id]
                     if order_id in self._order_responses:
                         del self._order_responses[order_id]
                 
@@ -1824,7 +1382,7 @@ class SyncStrategyApi:
             logger.debug("订单已提交，不等待响应")
             
             # 使用 anyio.from_thread.run() 提交订单但不等待响应
-            anyio.from_thread.run(td_client.call, request, token=self._event_loop_thread._anyio_token)
+            anyio.from_thread.run(td_client.call, request)
             
             return {
                 'success': True,
@@ -1948,6 +1506,51 @@ class SyncStrategyApi:
             # 返回副本，避免外部修改
             return dict(self._running_strategies)
     
+    def register_plugin(self, plugin: StrategyPlugin) -> None:
+        """
+        注册策略插件
+        
+        插件可以在特定事件发生时执行自定义逻辑,例如:
+        - 行情数据预处理
+        - 交易信号生成
+        - 风险控制
+        - 日志记录和监控
+        
+        Args:
+            plugin: 插件实例,必须继承自 StrategyPlugin
+            
+        Example:
+            >>> class MyPlugin(StrategyPlugin):
+            >>>     def on_init(self, api):
+            >>>         self.api = api
+            >>>         print("插件初始化")
+            >>>     
+            >>>     def on_quote(self, quote):
+            >>>         print(f"收到行情: {quote.InstrumentID}")
+            >>>         return quote
+            >>> 
+            >>> api = SyncStrategyApi("user_id", "password")
+            >>> api.register_plugin(MyPlugin())
+        """
+        self._plugin_manager.register(plugin, self)
+        logger.info(f"插件已注册: {plugin.__class__.__name__}")
+    
+    def unregister_plugin(self, plugin: StrategyPlugin) -> None:
+        """
+        注销策略插件
+        
+        Args:
+            plugin: 要注销的插件实例
+            
+        Example:
+            >>> plugin = MyPlugin()
+            >>> api.register_plugin(plugin)
+            >>> # ... 使用插件 ...
+            >>> api.unregister_plugin(plugin)
+        """
+        self._plugin_manager.unregister(plugin)
+        logger.info(f"插件已注销: {plugin.__class__.__name__}")
+    
     def stop(self, timeout: Optional[float] = None) -> None:
         """
         停止所有策略和服务
@@ -2012,40 +1615,41 @@ class SyncStrategyApi:
             else:
                 logger.debug("事件循环线程未初始化，跳过停止")
             
-            # 步骤 3: 清理内部数据结构
+            # 步骤 3: 停止所有插件
+            logger.info("停止所有插件...")
+            try:
+                self._plugin_manager.stop_all()
+            except Exception as e:
+                logger.error(f"停止插件时出错: {e}", exc_info=True)
+            
+            # 步骤 4: 清理内部数据结构
             logger.info("清理内部数据结构...")
             
             # 清空行情缓存
-            with self._quote_cache._lock:
-                self._quote_cache._quotes.clear()
-                self._quote_cache._quote_queues.clear()
-                logger.debug("行情缓存已清空")
+            self._quote_cache.clear()
+            logger.debug("行情缓存已清空")
             
             # 清空持仓缓存
-            with self._position_cache._lock:
-                self._position_cache._positions.clear()
-                logger.debug("持仓缓存已清空")
+            self._position_cache.clear()
+            logger.debug("持仓缓存已清空")
             
             # 清空订阅状态
             with self._subscription_lock:
                 self._subscribed_instruments.clear()
                 logger.debug("订阅状态已清空")
             
-            # 清空持仓查询事件
-            with self._position_query_lock:
-                self._position_query_events.clear()
-                logger.debug("持仓查询事件已清空")
+            # 清空事件管理器
+            self._event_manager.clear_all()
+            logger.debug("事件管理器已清空")
             
-            # 清空订单响应事件和缓存
+            # 清空订单响应缓存
             with self._order_response_lock:
-                self._order_response_events.clear()
                 self._order_responses.clear()
                 logger.debug("订单响应缓存已清空")
             
             # 清空合约信息缓存
             with self._instrument_cache_lock:
                 self._instrument_cache.clear()
-                self._instrument_query_events.clear()
                 logger.debug("合约信息缓存已清空")
             
             # 清空策略注册表
@@ -2061,4 +1665,4 @@ class SyncStrategyApi:
 
 
 # 导出公共接口
-__all__ = ['SyncStrategyApi', 'Quote', 'Position']
+__all__ = ['SyncStrategyApi', 'Quote', 'Position', 'StrategyPlugin']
