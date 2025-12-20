@@ -8,6 +8,120 @@
 @Email      : -
 @Software   : PyCharm
 @Description: 缓存管理器 - 提供线程安全的缓存管理功能
+
+模块概述
+========
+
+本模块提供通用的缓存管理功能，包括基类 _CacheManager 和两个具体实现：
+_QuoteCache（行情缓存）和 _PositionCache（持仓缓存）。
+
+设计模式
+========
+
+本模块使用了以下设计模式：
+
+1. **模板方法模式**
+   - _CacheManager 定义了缓存管理的通用方法
+   - 子类可以重写或扩展这些方法
+
+2. **泛型编程**
+   - 使用 Generic[T] 支持不同类型的缓存值
+   - 提供类型安全的缓存操作
+
+3. **线程安全**
+   - 使用 threading.RLock 保护共享数据
+   - 所有公共方法都是线程安全的
+
+缓存管理器层次结构
+==================
+
+_CacheManager[T] (基类)
+    ├── _QuoteCache (行情缓存)
+    │   └── 添加行情更新通知机制
+    └── _PositionCache (持仓缓存)
+        └── 提供持仓数据缓存
+
+使用示例
+========
+
+使用 _QuoteCache::
+
+    cache = _QuoteCache()
+    
+    # 更新行情
+    market_data = {'LastPrice': 3500.0, 'Volume': 1000}
+    cache.update_from_market_data('rb2605', market_data)
+    
+    # 获取行情（非阻塞）
+    quote = cache.get('rb2605')
+    if quote:
+        print(f"最新价: {quote.LastPrice}")
+    
+    # 等待行情更新（阻塞）
+    try:
+        quote = cache.wait_update('rb2605', timeout=5.0)
+        print(f"收到新行情: {quote.LastPrice}")
+    except TimeoutError:
+        print("等待超时")
+
+使用 _PositionCache::
+
+    cache = _PositionCache()
+    
+    # 更新持仓
+    position_data = {
+        'pos_long': 10,
+        'pos_long_today': 5,
+        'open_price_long': 3500.0
+    }
+    cache.update_from_position_data('rb2605', position_data)
+    
+    # 获取持仓
+    position = cache.get('rb2605')
+    print(f"多头持仓: {position.pos_long}")
+
+最佳实践
+========
+
+1. **缓存更新策略**
+   - 行情缓存：每次收到行情推送时更新
+   - 持仓缓存：成交回报后查询更新
+
+2. **线程安全**
+   - 所有缓存操作都是线程安全的
+   - 不需要在外部加锁
+
+3. **内存管理**
+   - 定期清理不再使用的缓存
+   - 使用 clear() 方法清空所有缓存
+
+4. **性能优化**
+   - get() 方法返回副本，避免并发修改
+   - 锁持有时间最小化，提高并发性能
+
+性能考虑
+========
+
+1. **锁竞争**
+   - 使用 RLock 支持可重入
+   - 在锁外创建对象副本，减少锁持有时间
+
+2. **通知机制**
+   - _QuoteCache 使用队列广播机制
+   - 每个等待线程有独立的队列，避免竞争
+
+3. **缓存大小**
+   - 当前实现没有大小限制
+   - 如果需要，可以添加 LRU 淘汰策略
+
+线程安全保证
+============
+
+所有公共方法都使用 RLock 保护：
+- get(): 读取缓存时加锁
+- update(): 更新缓存时加锁
+- clear(): 清空缓存时加锁
+- wait_update(): 等待时不持有锁，避免阻塞其他线程
 """
 
 import queue
