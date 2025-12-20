@@ -10,8 +10,11 @@
 @Description: 缓存管理器 - 提供线程安全的缓存管理功能
 """
 
+import queue
 import threading
 from typing import Dict, Generic, List, Optional, TypeVar
+
+from .data_models import Quote, Position
 
 T = TypeVar('T')
 
@@ -149,11 +152,6 @@ class _CacheManager(Generic[T]):
             return len(self._cache)
 
 
-
-import queue
-from .data_models import Quote
-
-
 class _QuoteCache(_CacheManager[Quote]):
     """
     行情缓存管理器
@@ -171,9 +169,9 @@ class _QuoteCache(_CacheManager[Quote]):
         super().__init__()
         self._quote_queues: Dict[str, list] = {}
     
-    def update(self, instrument_id: str, market_data: dict) -> None:
+    def update_from_market_data(self, instrument_id: str, market_data: dict) -> None:
         """
-        更新行情缓存并通知所有等待该合约行情的线程
+        从行情数据更新缓存并通知所有等待该合约行情的线程
         
         Args:
             instrument_id: 合约代码
@@ -182,7 +180,7 @@ class _QuoteCache(_CacheManager[Quote]):
         Example:
             >>> cache = _QuoteCache()
             >>> market_data = {'LastPrice': 3500.0, 'Volume': 1000}
-            >>> cache.update('rb2605', market_data)
+            >>> cache.update_from_market_data('rb2605', market_data)
         """
         with self._lock:
             # 创建 Quote 对象
@@ -225,32 +223,47 @@ class _QuoteCache(_CacheManager[Quote]):
             >>> quote.LastPrice
             3500.0
         """
+        # 优化：先在锁内获取引用，然后在锁外创建副本，减少锁持有时间
         with self._lock:
             quote = self._cache.get(instrument_id)
-            # 返回副本以避免并发修改
-            if quote is not None:
-                return Quote(
-                    InstrumentID=quote.InstrumentID,
-                    LastPrice=quote.LastPrice,
-                    BidPrice1=quote.BidPrice1,
-                    BidVolume1=quote.BidVolume1,
-                    AskPrice1=quote.AskPrice1,
-                    AskVolume1=quote.AskVolume1,
-                    Volume=quote.Volume,
-                    OpenInterest=quote.OpenInterest,
-                    UpdateTime=quote.UpdateTime,
-                    UpdateMillisec=quote.UpdateMillisec,
-                    ctp_datetime=quote.ctp_datetime
-                )
-            return None
+            if quote is None:
+                return None
+            
+            # 在锁内快速提取所有字段值
+            instrument_id_val = quote.InstrumentID
+            last_price = quote.LastPrice
+            bid_price1 = quote.BidPrice1
+            bid_volume1 = quote.BidVolume1
+            ask_price1 = quote.AskPrice1
+            ask_volume1 = quote.AskVolume1
+            volume = quote.Volume
+            open_interest = quote.OpenInterest
+            update_time = quote.UpdateTime
+            update_millisec = quote.UpdateMillisec
+            ctp_datetime = quote.ctp_datetime
+        
+        # 在锁外创建副本对象，减少锁持有时间
+        return Quote(
+            InstrumentID=instrument_id_val,
+            LastPrice=last_price,
+            BidPrice1=bid_price1,
+            BidVolume1=bid_volume1,
+            AskPrice1=ask_price1,
+            AskVolume1=ask_volume1,
+            Volume=volume,
+            OpenInterest=open_interest,
+            UpdateTime=update_time,
+            UpdateMillisec=update_millisec,
+            ctp_datetime=ctp_datetime
+        )
     
-    def wait_update(self, instrument_id: str, timeout: float) -> Quote:
+    def wait_update(self, instrument_id: str, timeout: Optional[float]) -> Quote:
         """
         阻塞等待行情更新
         
         Args:
             instrument_id: 合约代码
-            timeout: 超时时间（秒）
+            timeout: 超时时间（秒），None 表示无限等待
             
         Returns:
             更新后的 Quote 对象
@@ -264,7 +277,7 @@ class _QuoteCache(_CacheManager[Quote]):
             >>> quote = cache.wait_update('rb2605', timeout=5.0)
         """
         # 为当前等待线程创建独立的队列
-        notify_queue = queue.Queue(maxsize=1)
+        notify_queue: queue.Queue[Quote] = queue.Queue(maxsize=1)
         
         with self._lock:
             # 为该合约创建队列列表（如果不存在）
@@ -326,8 +339,6 @@ class _QuoteCache(_CacheManager[Quote]):
                     pass
 
 
-from .data_models import Position
-
 
 class _PositionCache(_CacheManager[Position]):
     """
@@ -343,9 +354,9 @@ class _PositionCache(_CacheManager[Position]):
         """初始化持仓缓存管理器"""
         super().__init__()
     
-    def update(self, instrument_id: str, position_data: dict) -> None:
+    def update_from_position_data(self, instrument_id: str, position_data: dict) -> None:
         """
-        更新持仓缓存
+        从持仓数据更新缓存
         
         Args:
             instrument_id: 合约代码
@@ -358,7 +369,7 @@ class _PositionCache(_CacheManager[Position]):
             ...     'pos_long_today': 5,
             ...     'open_price_long': 3500.0
             ... }
-            >>> cache.update('rb2605', position_data)
+            >>> cache.update_from_position_data('rb2605', position_data)
         """
         with self._lock:
             # 创建 Position 对象
@@ -400,6 +411,7 @@ class _PositionCache(_CacheManager[Position]):
             >>> empty_pos.pos_long
             0
         """
+        # 优化：先在锁内获取引用，然后在锁外创建副本，减少锁持有时间
         with self._lock:
             position = self._cache.get(instrument_id)
             
@@ -407,14 +419,24 @@ class _PositionCache(_CacheManager[Position]):
             if position is None:
                 return Position()
             
-            # 返回副本以避免并发修改
-            return Position(
-                pos_long=position.pos_long,
-                pos_long_today=position.pos_long_today,
-                pos_long_his=position.pos_long_his,
-                open_price_long=position.open_price_long,
-                pos_short=position.pos_short,
-                pos_short_today=position.pos_short_today,
-                pos_short_his=position.pos_short_his,
-                open_price_short=position.open_price_short
-            )
+            # 在锁内快速提取所有字段值
+            pos_long = position.pos_long
+            pos_long_today = position.pos_long_today
+            pos_long_his = position.pos_long_his
+            open_price_long = position.open_price_long
+            pos_short = position.pos_short
+            pos_short_today = position.pos_short_today
+            pos_short_his = position.pos_short_his
+            open_price_short = position.open_price_short
+        
+        # 在锁外创建副本对象，减少锁持有时间
+        return Position(
+            pos_long=pos_long,
+            pos_long_today=pos_long_today,
+            pos_long_his=pos_long_his,
+            open_price_long=open_price_long,
+            pos_short=pos_short,
+            pos_short_today=pos_short_today,
+            pos_short_his=pos_short_his,
+            open_price_short=open_price_short
+        )
