@@ -64,7 +64,7 @@ def benchmark_quote_cache():
     import sys
     from pathlib import Path
     sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-    from src.strategy.sync_api import _QuoteCache, Quote
+    from src.strategy.internal.cache_manager import _QuoteCache
     
     cache = _QuoteCache()
     
@@ -76,7 +76,7 @@ def benchmark_quote_cache():
             'AskPrice1': 3501.0,
             'Volume': 1000,
         }
-        cache.update('rb2605', market_data)
+        cache.update_from_market_data('rb2605', market_data)
     
     times = measure_execution_time(update_quote, iterations=1000)
     print_statistics("行情缓存更新", times)
@@ -94,7 +94,7 @@ def benchmark_position_cache():
     import sys
     from pathlib import Path
     sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-    from src.strategy.sync_api import _PositionCache
+    from src.strategy.internal.cache_manager import _PositionCache
     
     cache = _PositionCache()
     
@@ -106,7 +106,7 @@ def benchmark_position_cache():
             'pos_long_his': 0,
             'open_price_long': 3500.0,
         }
-        cache.update('rb2605', position_data)
+        cache.update_from_position_data('rb2605', position_data)
     
     times = measure_execution_time(update_position, iterations=1000)
     print_statistics("持仓缓存更新", times)
@@ -124,7 +124,7 @@ def benchmark_data_models():
     import sys
     from pathlib import Path
     sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-    from src.strategy.sync_api import Quote, Position
+    from src.strategy.internal.data_models import Quote, Position
     
     # 测试 Quote 创建
     def create_quote():
