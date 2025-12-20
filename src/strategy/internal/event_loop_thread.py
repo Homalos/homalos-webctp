@@ -8,6 +8,262 @@
 @Email      : -
 @Software   : PyCharm
 @Description: 事件循环线程模块 - 管理后台异步事件循环
+
+模块概述
+========
+
+本模块提供后台事件循环线程（_EventLoopThread），负责在独立线程中运行 asyncio 事件循环，
+管理异步的 MdClient 和 TdClient，并提供同步/异步边界的桥接功能。
+
+事件循环的作用
+==============
+
+CTP API 本质上是异步的（基于回调），而 SyncStrategyApi 提供的是同步接口。
+_EventLoopThread 充当了两者之间的桥梁：
+
+1. **异步到同步的转换**
+   - 在后台线程运行异步事件循环
+   - 使用 anyio.from_thread.run() 从同步代码调用异步方法
+   - 通过事件通知机制返回异步结果
+
+2. **客户端生命周期管理**
+   - 自动创建和初始化 MdClient 和 TdClient
+   - 管理 CTP 登录流程
+   - 监控服务可用性
+
+3. **回调处理**
+   - 接收 CTP 回调（行情、交易数据）
+   - 转发给 SyncStrategyApi 的回调处理器
+   - 支持插件钩子调用
+
+工作原理
+========
+
+事件循环线程的工作流程：
+
+1. **启动阶段**
+   - 创建独立线程
+   - 在线程中启动 anyio 事件循环
+   - 创建 MdClient 和 TdClient 实例
+
+2. **初始化阶段**
+   - 自动执行 CTP 登录
+   - 等待登录完成
+   - 设置就绪标志
+
+3. **运行阶段**
+   - 持续运行事件循环
+   - 处理 CTP 回调
+   - 响应同步调用请求
+
+4. **停止阶段**
+   - 设置停止事件
+   - 等待 task group 退出
+   - 清理资源
+
+使用示例
+========
+
+基本用法::
+
+    # 创建事件循环线程
+    event_loop = _EventLoopThread()
+    
+    # 启动事件循环（自动登录）
+    event_loop.start(
+        user_id="your_user_id",
+        password="your_password",
+        config_path="config.yaml",
+        md_callback=on_market_data,
+        td_callback=on_trade_data
+    )
+    
+    # 等待就绪（包括登录完成）
+    event_loop.wait_ready(timeout=30.0)
+    
+    # 使用客户端
+    md_client = event_loop.md_client
+    td_client = event_loop.td_client
+    
+    # 停止事件循环
+    event_loop.stop(timeout=5.0)
+
+跨线程调用异步方法::
+
+    # 在同步代码中调用异步方法
+    import anyio.from_thread
+    
+    # 订阅行情
+    request = {'MessageType': 'SubscribeMarketData', 'InstrumentID': ['rb2605']}
+    anyio.from_thread.run(md_client.call, request)
+    
+    # 查询持仓
+    request = {'MessageType': 'ReqQryInvestorPosition', 'InstrumentID': 'rb2605'}
+    anyio.from_thread.run(td_client.call, request)
+
+回调处理::
+
+    def on_market_data(response: dict):
+        \"\"\"处理行情数据回调\"\"\"
+        msg_type = response.get('MsgType', '')
+        if 'RtnDepthMarketData' in msg_type:
+            market_data = response.get('DepthMarketData', {})
+            instrument_id = market_data.get('InstrumentID')
+            last_price = market_data.get('LastPrice')
+            print(f"收到行情: {instrument_id} @ {last_price}")
+    
+    def on_trade_data(response: dict):
+        \"\"\"处理交易数据回调\"\"\"
+        msg_type = response.get('MsgType', '')
+        if 'RtnOrder' in msg_type:
+            order = response.get('Order', {})
+            print(f"订单回报: {order}")
+
+登录状态监控::
+
+    # 检查服务是否可用
+    if event_loop.is_service_available:
+        print("服务可用")
+    else:
+        print("服务不可用")
+    
+    # 等待登录完成
+    try:
+        event_loop.wait_ready(timeout=30.0)
+        print("登录成功")
+    except TimeoutError:
+        print("登录超时")
+    except RuntimeError as e:
+        print(f"登录失败: {e}")
+
+最佳实践
+========
+
+1. **超时设置**
+   - 登录超时：30秒（包括网络延迟）
+   - 停止超时：5秒（等待线程退出）
+
+2. **错误处理**
+   - 捕获 TimeoutError（登录超时）
+   - 捕获 RuntimeError（初始化失败）
+   - 检查 is_service_available 属性
+
+3. **资源清理**
+   - 始终调用 stop() 方法
+   - 使用 try-finally 确保清理
+
+4. **回调函数**
+   - 回调函数应该快速返回
+   - 不要在回调中执行耗时操作
+   - 使用异步任务处理复杂逻辑
+
+5. **线程安全**
+   - 使用 anyio.from_thread.run() 跨线程调用
+   - 不要直接访问客户端的内部状态
+
+技术细节
+========
+
+1. **anyio 集成**
+   - 使用 anyio.run() 创建事件循环
+   - 使用 anyio.create_task_group() 管理任务
+   - 使用 anyio.from_thread.run() 跨线程调用
+
+2. **登录流程**
+   - MdClient 和 TdClient 自动登录
+   - 监听登录响应（RspUserLogin）
+   - 两个客户端都登录成功后设置就绪事件
+
+3. **回调包装**
+   - 添加 _ClientType 标识（Md/Td）
+   - 处理登录响应
+   - 转发给外部回调函数
+
+4. **停止机制**
+   - 设置停止事件（anyio.Event）
+   - task group 检测到事件后退出
+   - 等待线程结束
+
+性能考虑
+========
+
+1. **线程开销**
+   - 单独的事件循环线程
+   - 避免阻塞主线程
+
+2. **跨线程调用**
+   - anyio.from_thread.run() 有一定开销
+   - 适合低频调用（查询、下单）
+   - 不适合高频调用（每秒数千次）
+
+3. **回调性能**
+   - 回调在事件循环线程执行
+   - 快速返回避免阻塞事件循环
+   - 使用队列传递数据到其他线程
+
+故障排查
+========
+
+1. **登录超时**
+   - 检查网络连接
+   - 检查用户名密码
+   - 检查 CTP 服务器地址
+
+2. **服务不可用**
+   - 检查 is_service_available 属性
+   - 查看日志中的错误信息
+   - 检查 _init_error 属性
+
+3. **回调未触发**
+   - 检查回调函数是否正确设置
+   - 检查 MsgType 字段匹配
+   - 查看日志中的回调调用记录
+
+4. **线程未停止**
+   - 增加停止超时时间
+   - 检查是否有阻塞操作
+   - 使用线程转储分析
+
+与传统方法的对比
+================
+
+传统方法（直接使用 asyncio）::
+
+    import asyncio
+    import threading
+    
+    class EventLoop:
+        def __init__(self):
+            self.loop = None
+            self.thread = None
+        
+        def start(self):
+            def run_loop():
+                self.loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(self.loop)
+                self.loop.run_forever()
+            
+            self.thread = threading.Thread(target=run_loop)
+            self.thread.start()
+        
+        def call_async(self, coro):
+            future = asyncio.run_coroutine_threadsafe(coro, self.loop)
+            return future.result()
+
+使用 _EventLoopThread（基于 anyio）::
+
+    event_loop = _EventLoopThread()
+    event_loop.start(user_id, password)
+    event_loop.wait_ready()
+    
+    # 跨线程调用
+    anyio.from_thread.run(client.call, request)
+
+优势：
+- anyio 提供更好的跨线程支持
+- 自动管理客户端生命周期
+- 内置登录流程和状态监控
+- 更好的错误处理和日志记录
 """
 
 import threading
