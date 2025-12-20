@@ -12,7 +12,6 @@
 
 import queue
 import threading
-from dataclasses import dataclass
 from typing import Any, Dict, Optional, Callable
 
 import anyio
@@ -20,61 +19,8 @@ import anyio.from_thread
 import anyio.lowlevel
 from loguru import logger
 
-
-@dataclass
-class Quote:
-    """
-    行情快照数据类
-    
-    支持属性访问和字典访问两种方式：
-    - 属性访问：quote.LastPrice
-    - 字典访问：quote["LastPrice"]
-    
-    无效价格使用 float('nan') 表示
-    """
-    InstrumentID: str = ""
-    LastPrice: float = float('nan')
-    BidPrice1: float = float('nan')
-    BidVolume1: int = 0
-    AskPrice1: float = float('nan')
-    AskVolume1: int = 0
-    Volume: int = 0
-    OpenInterest: float = 0
-    UpdateTime: str = ""
-    UpdateMillisec: int = 0
-    ctp_datetime: Any = None
-    
-    def __getitem__(self, key: str) -> Any:
-        """
-        支持字典式访问
-        
-        Args:
-            key: 字段名
-            
-        Returns:
-            字段值
-            
-        Raises:
-            AttributeError: 字段不存在时抛出
-        """
-        return getattr(self, key)
-
-
-@dataclass
-class Position:
-    """
-    持仓信息数据类
-    
-    包含多空持仓的详细信息，区分今仓和昨仓
-    """
-    pos_long: int = 0                      # 多头持仓总量
-    pos_long_today: int = 0                # 多头今仓
-    pos_long_his: int = 0                  # 多头昨仓
-    open_price_long: float = float('nan')  # 多头开仓均价
-    pos_short: int = 0                     # 空头持仓总量
-    pos_short_today: int = 0               # 空头今仓
-    pos_short_his: int = 0                 # 空头昨仓
-    open_price_short: float = float('nan') # 空头开仓均价
+# 导入数据模型
+from .internal.data_models import Quote, Position
 
 
 class _QuoteCache:
@@ -2299,7 +2245,7 @@ class SyncStrategyApi:
             with self._order_response_lock:
                 self._order_response_events.clear()
                 self._order_responses.clear()
-                logger.debug("订单响应事件和缓存已清空")
+                logger.debug("订单响应缓存已清空")
             
             # 清空合约信息缓存
             with self._instrument_cache_lock:
@@ -2312,8 +2258,12 @@ class SyncStrategyApi:
                 self._running_strategies.clear()
                 logger.debug("策略注册表已清空")
             
-            logger.info("SyncStrategyApi 已成功停止")
+            logger.info("SyncStrategyApi 已完全停止")
             
         except Exception as e:
-            logger.error(f"停止 SyncStrategyApi 时发生异常: {e}", exc_info=True)
+            logger.error(f"停止 SyncStrategyApi 时发生错误: {e}", exc_info=True)
             raise
+
+
+# 导出公共接口
+__all__ = ['SyncStrategyApi', 'Quote', 'Position']
