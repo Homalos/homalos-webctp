@@ -8,6 +8,122 @@
 @Email      : -
 @Software   : PyCharm
 @Description: 同步策略 API - 同步阻塞式策略编写接口
+
+模块概述
+========
+
+本模块提供 PeopleQuant 风格的同步阻塞式策略编写接口，封装了 CTP API 的复杂性，
+让策略开发者可以使用简单的同步调用方式编写量化交易策略。
+
+重构后的架构
+============
+
+本模块经过模块化重构，将原来的单一大文件（2300+ 行）拆分为多个职责清晰的模块：
+
+主模块（sync_api.py）
+---------------------
+- 提供 SyncStrategyApi 公共接口
+- 组合内部组件（缓存、事件循环、插件管理器）
+- 实现同步 API 方法（get_quote, open_close 等）
+- 协调各组件之间的交互
+
+内部模块（internal/）
+--------------------
+- data_models.py: Quote 和 Position 数据类
+- cache_manager.py: 通用缓存管理器和行情/持仓缓存
+- event_manager.py: 统一的线程同步事件管理
+- event_loop_thread.py: 后台异步事件循环线程
+- plugin.py: 可扩展的插件系统
+- order_helper.py: 订单处理辅助函数
+- instrument_helper.py: 合约信息处理辅助函数
+
+模块化的好处
+============
+
+1. **代码可维护性提升**
+   - 每个模块不超过 300 行，职责单一
+   - 清晰的模块边界，易于理解和修改
+
+2. **代码复用性提高**
+   - 通用缓存管理器消除了重复代码
+   - 统一的事件管理器简化了线程同步逻辑
+
+3. **可扩展性增强**
+   - 插件系统支持在不修改核心代码的情况下扩展功能
+   - 清晰的接口定义便于添加新功能
+
+4. **测试更容易**
+   - 每个模块可以独立测试
+   - 模块化的测试结构提高了测试覆盖率
+
+快速开始
+========
+
+基本用法::
+
+    from src.strategy.sync_api import SyncStrategyApi
+    
+    # 初始化 API（自动连接和登录）
+    api = SyncStrategyApi(
+        user_id="your_user_id",
+        password="your_password",
+        config_path="config.yaml"
+    )
+    
+    # 获取行情
+    quote = api.get_quote("rb2605")
+    print(f"最新价: {quote.LastPrice}")
+    
+    # 获取持仓
+    position = api.get_position("rb2605")
+    print(f"多头持仓: {position.pos_long}")
+    
+    # 开仓
+    result = api.open_close("rb2605", "kaiduo", 1, 3500.0)
+    if result["success"]:
+        print(f"订单成功: {result['order_ref']}")
+    
+    # 停止服务
+    api.stop()
+
+使用插件扩展功能::
+
+    from src.strategy.sync_api import SyncStrategyApi, StrategyPlugin
+    
+    class LoggingPlugin(StrategyPlugin):
+        def on_init(self, api):
+            print("插件初始化")
+        
+        def on_quote(self, quote):
+            print(f"收到行情: {quote.InstrumentID} @ {quote.LastPrice}")
+            return quote
+    
+    api = SyncStrategyApi("user_id", "password")
+    api.register_plugin(LoggingPlugin())
+
+运行策略::
+
+    def my_strategy():
+        while True:
+            quote = api.get_quote("rb2605")
+            # 策略逻辑...
+            time.sleep(1)
+    
+    # 在后台线程运行策略
+    thread = api.run_strategy(my_strategy)
+
+向后兼容性
+==========
+
+重构完全保持了向后兼容性，所有现有的策略代码无需修改即可运行。
+公共 API 接口（SyncStrategyApi、Quote、Position）保持不变。
+
+更多信息
+========
+
+- 插件开发指南: 参见 examples/plugins/README.md
+- 性能优化指南: 参见 docs/performance_tuning_guide_CN.md
+- 故障排除: 参见 docs/troubleshooting_CN.md
 """
 
 # ===== 标准库导入 =====
