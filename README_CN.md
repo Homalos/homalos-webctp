@@ -1036,4 +1036,4 @@ pytest tests/test_strategy_manager.py
 
 ---
 
-*最后更新日期：2025-12-15*
+*最后更新日期：2025-12-20*
