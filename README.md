@@ -256,6 +256,104 @@ start_td_server.bat
 start_md_server.bat
 ```
 
+## Performance Optimization Features
+
+### SyncStrategyApi Modular Refactoring
+
+**Refactoring Complete!** SyncStrategyApi has been successfully refactored with a modular architecture, significantly improving code quality and maintainability.
+
+#### Refactoring Achievements
+
+- ✅ **Modular Architecture**: Split 2300+ line monolithic file into multiple modules with clear responsibilities
+- ✅ **Code Reuse**: Generic cache manager and event manager eliminate code duplication
+- ✅ **Plugin System**: Extend functionality without modifying core code
+- ✅ **Backward Compatible**: API interface remains unchanged, existing code requires no modifications
+- ✅ **Comprehensive Testing**: Complete unit test and property test coverage
+- ✅ **Complete Documentation**: Detailed module documentation and plugin development guide
+
+#### Module Structure
+
+```
+src/strategy/
+├── sync_api.py (~400 lines)        # Main module, provides public interface
+└── internal/                        # Internal modules
+    ├── data_models.py              # Quote and Position data classes
+    ├── cache_manager.py            # Generic cache manager
+    ├── event_manager.py            # Unified event manager
+    ├── event_loop_thread.py        # Background event loop thread
+    ├── plugin.py                   # Plugin system
+    ├── order_helper.py             # Order processing helper functions
+    └── instrument_helper.py        # Instrument info processing helper functions
+```
+
+#### Plugin System
+
+The plugin system allows you to extend functionality without modifying core code:
+
+```python
+from src.strategy.sync_api import SyncStrategyApi, StrategyPlugin
+
+class MyPlugin(StrategyPlugin):
+    def on_init(self, api):
+        print("Plugin initialized")
+    
+    def on_quote(self, quote):
+        print(f"Received quote: {quote.InstrumentID} @ {quote.LastPrice}")
+        return quote
+
+api = SyncStrategyApi("user_id", "password")
+api.register_plugin(MyPlugin())
+```
+
+**Plugin Examples**:
+- `examples/plugins/logging_plugin.py` - Logging plugin
+- `examples/plugins/risk_control_plugin.py` - Risk control plugin
+
+**Plugin Development Guide**: See [examples/plugins/README.md](examples/plugins/README.md)
+
+#### Usage Example
+
+Basic usage (exactly the same as before refactoring):
+
+```python
+from src.strategy.sync_api import SyncStrategyApi
+
+# Initialize API (auto-connect and login)
+api = SyncStrategyApi(
+    user_id="your_user_id",
+    password="your_password",
+    config_path="config.yaml"
+)
+
+# Get quote
+quote = api.get_quote("rb2605")
+print(f"Last price: {quote.LastPrice}")
+
+# Get position
+position = api.get_position("rb2605")
+print(f"Long position: {position.pos_long}")
+
+# Open position
+result = api.open_close("rb2605", "kaiduo", 1, 3500.0)
+if result["success"]:
+    print(f"Order success: {result['order_ref']}")
+
+# Stop service
+api.stop()
+```
+
+#### Refactoring Benefits
+
+1. **Easier to Maintain**: Each module under 300 lines with single responsibility
+2. **Easier to Test**: Modular test structure with higher test coverage
+3. **Easier to Extend**: Plugin system supports feature extension without modifying core code
+4. **Easier to Understand**: Clear module boundaries and documentation
+
+For more details, see:
+- [Refactoring Design Document](.kiro/specs/sync-api-refactoring/design.md)
+- [Plugin Development Guide](examples/plugins/README.md)
+- [Performance Validation Report](tests/strategy/PERFORMANCE_VALIDATION_REPORT.md)
+
 ## Request Example
 
 > :pushpin: See [md_protocol.md](docs/md_protocol.md)、[td_protocol.md](docs/td_protocol.md)
