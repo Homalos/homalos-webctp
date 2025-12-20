@@ -384,7 +384,7 @@ class SyncStrategyApi:
             
             try:
                 logger.info("[合约查询] 正在提交请求到 TdClient...")
-                anyio.from_thread.run(td_client.call, request)
+                anyio.from_thread.run(td_client.call, request, token=self._event_loop_thread.anyio_token)
                 logger.info(f"[合约查询] 请求已成功提交到 TdClient: {instrument_id}")
             except TimeoutError:
                 logger.error(f"[合约查询] 提交请求超时（{timeout / 2}秒）: {instrument_id}")
@@ -806,7 +806,7 @@ class SyncStrategyApi:
             
             try:
                 # 使用 anyio 的跨线程调用，带超时
-                anyio.from_thread.run(td_client.call, request)
+                anyio.from_thread.run(td_client.call, request, token=self._event_loop_thread.anyio_token)
             except TimeoutError:
                 raise TimeoutError(f"提交持仓查询请求超时（{timeout}秒）")
             
@@ -866,7 +866,7 @@ class SyncStrategyApi:
                     return
                 
                 try:
-                    anyio.from_thread.run(md_client.call, request)
+                    anyio.from_thread.run(md_client.call, request, token=self._event_loop_thread.anyio_token)
                 except TimeoutError:
                     logger.warning(f"订阅合约 {instrument_id} 超时（{timeout}秒）")
                     return
@@ -1422,7 +1422,7 @@ class SyncStrategyApi:
                     self._pending_order_ids.append(order_id)
                 
                 # 提交订单请求（不等待返回值）
-                anyio.from_thread.run(td_client.call, request)
+                anyio.from_thread.run(td_client.call, request, token=self._event_loop_thread.anyio_token)
                 
                 # 等待订单响应（通过事件通知）
                 if not self._event_manager.wait_event(f"order_response_{order_id}", timeout=timeout):
@@ -1498,7 +1498,7 @@ class SyncStrategyApi:
             logger.debug("订单已提交，不等待响应")
             
             # 使用 anyio.from_thread.run() 提交订单但不等待响应
-            anyio.from_thread.run(td_client.call, request)
+            anyio.from_thread.run(td_client.call, request, token=self._event_loop_thread.anyio_token)
             
             return {
                 'success': True,

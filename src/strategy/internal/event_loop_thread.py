@@ -571,7 +571,7 @@ class _EventLoopThread:
                 # 使用 anyio 的跨线程调用机制设置停止事件
                 try:
                     if self._anyio_token:
-                        anyio.from_thread.run_sync(self._client_stop_event.set)
+                        anyio.from_thread.run_sync(self._client_stop_event.set, token=self._anyio_token)
                         logger.debug("已设置停止事件")
                     else:
                         logger.warning("anyio token 未设置，无法停止事件循环")
@@ -672,6 +672,16 @@ class _EventLoopThread:
     def td_client(self) -> Optional[Any]:
         """获取 TdClient 实例"""
         return self._td_client
+    
+    @property
+    def anyio_token(self) -> Optional[Any]:
+        """
+        获取 anyio token 用于跨线程调用
+        
+        Returns:
+            Optional[Any]: anyio token，如果未初始化则返回 None
+        """
+        return self._anyio_token
     
     @property
     def is_service_available(self) -> bool:
