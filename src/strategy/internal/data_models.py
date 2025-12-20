@@ -8,6 +8,103 @@
 @Email      : -
 @Software   : PyCharm
 @Description: SyncStrategyApi 数据模型定义
+
+模块概述
+========
+
+本模块定义了 SyncStrategyApi 使用的核心数据类，包括行情快照（Quote）和持仓信息（Position）。
+这些数据类使用 Python 的 @dataclass 装饰器，提供简洁的数据结构定义和自动生成的方法。
+
+数据类特性
+==========
+
+1. **自动生成方法**
+   - __init__: 自动生成初始化方法
+   - __repr__: 自动生成字符串表示
+   - __eq__: 自动生成相等性比较
+
+2. **类型注解**
+   - 所有字段都有明确的类型注解
+   - 支持 IDE 的类型检查和自动补全
+
+3. **默认值**
+   - 所有字段都有合理的默认值
+   - 无效价格使用 float('nan') 表示
+
+使用示例
+========
+
+创建 Quote 对象::
+
+    # 方式1：使用关键字参数
+    quote = Quote(
+        InstrumentID="rb2605",
+        LastPrice=3500.0,
+        BidPrice1=3499.0,
+        AskPrice1=3501.0
+    )
+    
+    # 方式2：使用默认值
+    quote = Quote(InstrumentID="rb2605")
+    print(quote.LastPrice)  # nan
+
+访问 Quote 字段::
+
+    # 属性访问
+    price = quote.LastPrice
+    
+    # 字典访问
+    price = quote["LastPrice"]
+    
+    # 检查价格是否有效
+    import math
+    if not math.isnan(quote.LastPrice):
+        print(f"有效价格: {quote.LastPrice}")
+
+创建 Position 对象::
+
+    position = Position(
+        pos_long=10,
+        pos_long_today=5,
+        pos_long_his=5,
+        open_price_long=3500.0
+    )
+    
+    # 计算净持仓
+    net_position = position.pos_long - position.pos_short
+    print(f"净持仓: {net_position}")
+
+最佳实践
+========
+
+1. **使用类型注解**
+   - 在函数签名中使用 Quote 和 Position 类型
+   - 利用 IDE 的类型检查功能
+
+2. **检查无效值**
+   - 使用 math.isnan() 检查价格是否有效
+   - 不要直接比较 float('nan')
+
+3. **不可变性**
+   - 数据类默认是可变的，如果需要不可变，使用 frozen=True
+   - 在多线程环境中，考虑使用副本而不是共享对象
+
+4. **序列化**
+   - 可以使用 dataclasses.asdict() 转换为字典
+   - 便于 JSON 序列化和日志记录
+
+示例代码::
+
+    from dataclasses import asdict
+    import json
+    
+    quote = Quote(InstrumentID="rb2605", LastPrice=3500.0)
+    
+    # 转换为字典
+    quote_dict = asdict(quote)
+    
+    # JSON 序列化
+    json_str = json.dumps(quote_dict, default=str)
 """
 
 from dataclasses import dataclass
