@@ -272,6 +272,102 @@ start_md_server.bat
 
 ## 性能优化功能
 
+### SyncStrategyApi 模块化重构
+
+**重构完成！** SyncStrategyApi 已完成模块化重构，代码质量和可维护性得到显著提升。
+
+#### 重构成果
+
+- ✅ **模块化架构**: 将 2300+ 行的单一文件拆分为多个职责清晰的模块
+- ✅ **代码复用**: 通用缓存管理器和事件管理器消除了重复代码
+- ✅ **插件系统**: 支持在不修改核心代码的情况下扩展功能
+- ✅ **向后兼容**: 完全保持 API 接口不变，现有代码无需修改
+- ✅ **测试完善**: 完整的单元测试和属性测试覆盖
+- ✅ **文档齐全**: 详细的模块文档和插件开发指南
+
+#### 模块结构
+
+```
+src/strategy/
+├── sync_api.py (~400 行)           # 主模块，提供公共接口
+└── internal/                        # 内部模块
+    ├── data_models.py              # Quote 和 Position 数据类
+    ├── cache_manager.py            # 通用缓存管理器
+    ├── event_manager.py            # 统一事件管理器
+    ├── event_loop_thread.py        # 后台事件循环线程
+    ├── plugin.py                   # 插件系统
+    ├── order_helper.py             # 订单处理辅助函数
+    └── instrument_helper.py        # 合约信息处理辅助函数
+```
+
+#### 插件系统
+
+插件系统允许你在不修改核心代码的情况下扩展功能：
+
+```python
+from src.strategy.sync_api import SyncStrategyApi, StrategyPlugin
+
+class MyPlugin(StrategyPlugin):
+    def on_init(self, api):
+        print("插件初始化")
+    
+    def on_quote(self, quote):
+        print(f"收到行情: {quote.InstrumentID} @ {quote.LastPrice}")
+        return quote
+
+api = SyncStrategyApi("user_id", "password")
+api.register_plugin(MyPlugin())
+```
+
+**插件示例**:
+- `examples/plugins/logging_plugin.py` - 日志记录插件
+- `examples/plugins/risk_control_plugin.py` - 风控插件
+
+**插件开发指南**: 参见 [examples/plugins/README.md](examples/plugins/README.md)
+
+#### 使用示例
+
+基本用法（与重构前完全相同）：
+
+```python
+from src.strategy.sync_api import SyncStrategyApi
+
+# 初始化 API（自动连接和登录）
+api = SyncStrategyApi(
+    user_id="your_user_id",
+    password="your_password",
+    config_path="config.yaml"
+)
+
+# 获取行情
+quote = api.get_quote("rb2605")
+print(f"最新价: {quote.LastPrice}")
+
+# 获取持仓
+position = api.get_position("rb2605")
+print(f"多头持仓: {position.pos_long}")
+
+# 开仓
+result = api.open_close("rb2605", "kaiduo", 1, 3500.0)
+if result["success"]:
+    print(f"订单成功: {result['order_ref']}")
+
+# 停止服务
+api.stop()
+```
+
+#### 重构优势
+
+1. **更易维护**: 每个模块不超过 300 行，职责单一
+2. **更易测试**: 模块化的测试结构，测试覆盖率更高
+3. **更易扩展**: 插件系统支持功能扩展，无需修改核心代码
+4. **更易理解**: 清晰的模块边界和文档说明
+
+详细信息请参考：
+- [重构设计文档](.kiro/specs/sync-api-refactoring/design.md)
+- [插件开发指南](examples/plugins/README.md)
+- [性能验证报告](tests/strategy/PERFORMANCE_VALIDATION_REPORT.md)
+
 ### Redis 缓存
 
 系统集成了 Redis 缓存层，可以显著提升查询性能并降低对 CTP API 的调用频率。
