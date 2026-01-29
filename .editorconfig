@@ -1,0 +1,115 @@
+# EditorConfig 配置文件
+# 统一不同编辑器和 IDE 的代码风格
+#
+# 支持的编辑器：
+#   - VSCode (需要安装 EditorConfig 插件)
+#   - PyCharm / IntelliJ IDEA (内置支持)
+#   - Sublime Text (需要安装 EditorConfig 插件)
+#   - Vim / Neovim (需要安装 editorconfig-vim 插件)
+#
+# 官方网站: https://editorconfig.org/
+
+# 表示这是根配置文件，停止向上查找
+root = true
+
+# 所有文件的默认配置
+[*]
+# 字符编码
+charset = utf-8
+
+# 换行符类型 (lf = Unix, crlf = Windows, cr = Mac)
+end_of_line = lf
+
+# 文件末尾插入新行
+insert_final_newline = true
+
+# 删除行尾空格
+trim_trailing_whitespace = true
+
+# Python 文件配置
+[*.py]
+# 缩进风格 (space 或 tab)
+indent_style = space
+
+# 缩进大小 (符合 PEP 8 规范)
+indent_size = 4
+
+# 最大行长度 (PEP 8 推荐 79，但现代项目通常使用 88 或 100)
+max_line_length = 100
+
+# YAML 配置文件
+[*.{yaml,yml}]
+indent_style = space
+indent_size = 2
+
+# JSON 文件
+[*.json]
+indent_style = space
+indent_size = 2
+
+# TOML 文件 (pyproject.toml 等)
+[*.toml]
+indent_style = space
+indent_size = 2
+
+# Markdown 文件
+[*.md]
+# Markdown 中的尾随空格有特殊含义（两个空格表示换行）
+trim_trailing_whitespace = false
+indent_style = space
+indent_size = 2
+
+# Shell 脚本
+[*.{sh,bash}]
+indent_style = space
+indent_size = 2
+end_of_line = lf
+
+# Batch 脚本 (Windows)
+[*.{bat,cmd}]
+indent_style = space
+indent_size = 2
+end_of_line = crlf  # Windows 批处理文件必须使用 CRLF
+
+# Makefile (必须使用 tab)
+[Makefile]
+indent_style = tab
+indent_size = 4
+
+# HTML/XML 文件
+[*.{html,xml}]
+indent_style = space
+indent_size = 2
+
+# CSS/SCSS 文件
+[*.{css,scss,sass}]
+indent_style = space
+indent_size = 2
+
+# JavaScript/TypeScript 文件
+[*.{js,ts,jsx,tsx}]
+indent_style = space
+indent_size = 2
+
+# 配置文件
+[*.{ini,cfg,conf}]
+indent_style = space
+indent_size = 2
+
+# SQL 文件
+[*.sql]
+indent_style = space
+indent_size = 2
+
+# 文档文件
+[*.{rst,txt}]
+indent_style = space
+indent_size = 4
+
+# Git 配置文件
+[.gitconfig]
+indent_style = tab
+
+# 忽略某些生成的文件
+[{package-lock.json,yarn.lock,uv.lock}]
+insert_final_newline = false
