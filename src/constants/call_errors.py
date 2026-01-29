@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 @ProjectName: homalos-webctp
 @FileName   : call_errors.py
@@ -12,8 +11,7 @@
 from typing import Any
 
 
-class CallError(object):
-
+class CallError:
     _errors: dict[int, Any] = {}
 
     def __init__(self, ret: int, error_id: int, error_message: str):
@@ -30,10 +28,7 @@ class CallError(object):
                 - ErrorID: 错误代码
                 - ErrorMsg: 错误描述信息
         """
-        return {
-            "ErrorID": self._error_id,
-            "ErrorMsg": self._error_message
-        }
+        return {"ErrorID": self._error_id, "ErrorMsg": self._error_message}
 
     @classmethod
     def register_error(cls, ret: int, error_id: int, error_message: str):

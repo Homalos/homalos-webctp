@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 @ProjectName: homalos-webctp
 @FileName   : cache_manager.py
@@ -47,16 +46,16 @@ _CacheManager[T] (基类)
 使用 _QuoteCache::
 
     cache = _QuoteCache()
-    
+
     # 更新行情
     market_data = {'LastPrice': 3500.0, 'Volume': 1000}
     cache.update_from_market_data('rb2605', market_data)
-    
+
     # 获取行情（非阻塞）
     quote = cache.get('rb2605')
     if quote:
         print(f"最新价: {quote.LastPrice}")
-    
+
     # 等待行情更新（阻塞）
     try:
         quote = cache.wait_update('rb2605', timeout=5.0)
@@ -67,7 +66,7 @@ _CacheManager[T] (基类)
 使用 _PositionCache::
 
     cache = _PositionCache()
-    
+
     # 更新持仓
     position_data = {
         'pos_long': 10,
@@ -75,7 +74,7 @@ _CacheManager[T] (基类)
         'open_price_long': 3500.0
     }
     cache.update_from_position_data('rb2605', position_data)
-    
+
     # 获取持仓
     position = cache.get('rb2605')
     print(f"多头持仓: {position.pos_long}")
@@ -126,47 +125,47 @@ _CacheManager[T] (基类)
 
 import queue
 import threading
-from typing import Dict, Generic, List, Optional, TypeVar
+from typing import Generic, TypeVar
 
-from .data_models import Quote, Position
+from .data_models import Position, Quote
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class _CacheManager(Generic[T]):
     """
     缓存管理器基类
-    
+
     提供线程安全的缓存管理功能，包括：
     - 数据存储和检索
     - 锁保护
     - 缓存清理
-    
+
     使用泛型支持不同类型的缓存值。
-    
+
     Type Parameters:
         T: 缓存值的类型
-    
+
     Attributes:
         _cache: 缓存字典，键为字符串，值为类型 T
         _lock: 可重入锁，保护缓存字典的并发访问
     """
-    
+
     def __init__(self):
         """初始化缓存管理器"""
-        self._cache: Dict[str, T] = {}
+        self._cache: dict[str, T] = {}
         self._lock = threading.RLock()
-    
-    def get(self, key: str) -> Optional[T]:
+
+    def get(self, key: str) -> T | None:
         """
         获取缓存数据（线程安全）
-        
+
         Args:
             key: 缓存键
-            
+
         Returns:
             缓存值，如果不存在则返回 None
-            
+
         Example:
             >>> cache = _CacheManager[str]()
             >>> cache.update("key1", "value1")
@@ -177,15 +176,15 @@ class _CacheManager(Generic[T]):
         """
         with self._lock:
             return self._cache.get(key)
-    
+
     def update(self, key: str, value: T) -> None:
         """
         更新缓存数据（线程安全）
-        
+
         Args:
             key: 缓存键
             value: 缓存值
-            
+
         Example:
             >>> cache = _CacheManager[int]()
             >>> cache.update("count", 42)
@@ -194,11 +193,11 @@ class _CacheManager(Generic[T]):
         """
         with self._lock:
             self._cache[key] = value
-    
+
     def clear(self) -> None:
         """
         清空所有缓存（线程安全）
-        
+
         Example:
             >>> cache = _CacheManager[str]()
             >>> cache.update("key1", "value1")
@@ -208,14 +207,14 @@ class _CacheManager(Generic[T]):
         """
         with self._lock:
             self._cache.clear()
-    
-    def keys(self) -> List[str]:
+
+    def keys(self) -> list[str]:
         """
         获取所有缓存键（线程安全）
-        
+
         Returns:
             缓存键列表
-            
+
         Example:
             >>> cache = _CacheManager[str]()
             >>> cache.update("key1", "value1")
@@ -225,17 +224,17 @@ class _CacheManager(Generic[T]):
         """
         with self._lock:
             return list(self._cache.keys())
-    
+
     def __contains__(self, key: str) -> bool:
         """
         检查键是否存在（线程安全）
-        
+
         Args:
             key: 缓存键
-            
+
         Returns:
             True 表示键存在，False 表示不存在
-            
+
         Example:
             >>> cache = _CacheManager[str]()
             >>> cache.update("key1", "value1")
@@ -246,14 +245,14 @@ class _CacheManager(Generic[T]):
         """
         with self._lock:
             return key in self._cache
-    
+
     def __len__(self) -> int:
         """
         获取缓存大小（线程安全）
-        
+
         Returns:
             缓存中的键值对数量
-            
+
         Example:
             >>> cache = _CacheManager[str]()
             >>> len(cache)
@@ -269,28 +268,28 @@ class _CacheManager(Generic[T]):
 class _QuoteCache(_CacheManager[Quote]):
     """
     行情缓存管理器
-    
+
     继承自 _CacheManager，添加行情特定的功能：
     - 行情更新通知队列
     - 阻塞等待行情更新
-    
+
     Attributes:
         _quote_queues: 行情通知队列字典，每个合约维护一个队列列表
     """
-    
+
     def __init__(self):
         """初始化行情缓存管理器"""
         super().__init__()
-        self._quote_queues: Dict[str, list] = {}
-    
+        self._quote_queues: dict[str, list] = {}
+
     def update_from_market_data(self, instrument_id: str, market_data: dict) -> None:
         """
         从行情数据更新缓存并通知所有等待该合约行情的线程
-        
+
         Args:
             instrument_id: 合约代码
             market_data: 行情数据字典，包含 CTP 行情字段
-            
+
         Example:
             >>> cache = _QuoteCache()
             >>> market_data = {'LastPrice': 3500.0, 'Volume': 1000}
@@ -300,36 +299,36 @@ class _QuoteCache(_CacheManager[Quote]):
             # 创建 Quote 对象
             quote = Quote(
                 InstrumentID=instrument_id,
-                LastPrice=market_data.get('LastPrice', float('nan')),
-                BidPrice1=market_data.get('BidPrice1', float('nan')),
-                BidVolume1=market_data.get('BidVolume1', 0),
-                AskPrice1=market_data.get('AskPrice1', float('nan')),
-                AskVolume1=market_data.get('AskVolume1', 0),
-                Volume=market_data.get('Volume', 0),
-                OpenInterest=market_data.get('OpenInterest', 0),
-                UpdateTime=market_data.get('UpdateTime', ''),
-                UpdateMillisec=market_data.get('UpdateMillisec', 0),
-                ctp_datetime=market_data.get('ctp_datetime')
+                LastPrice=market_data.get("LastPrice", float("nan")),
+                BidPrice1=market_data.get("BidPrice1", float("nan")),
+                BidVolume1=market_data.get("BidVolume1", 0),
+                AskPrice1=market_data.get("AskPrice1", float("nan")),
+                AskVolume1=market_data.get("AskVolume1", 0),
+                Volume=market_data.get("Volume", 0),
+                OpenInterest=market_data.get("OpenInterest", 0),
+                UpdateTime=market_data.get("UpdateTime", ""),
+                UpdateMillisec=market_data.get("UpdateMillisec", 0),
+                ctp_datetime=market_data.get("ctp_datetime"),
             )
-            
+
             # 调用父类方法更新缓存
             super().update(instrument_id, quote)
-            
+
             # 通知所有等待该合约行情的线程（广播机制）
             self._notify_waiters(instrument_id, quote)
-    
-    def get(self, instrument_id: str) -> Optional[Quote]:
+
+    def get(self, instrument_id: str) -> Quote | None:
         """
         获取行情快照（非阻塞）
-        
+
         重写父类方法以返回 Quote 对象的副本，避免并发修改。
-        
+
         Args:
             instrument_id: 合约代码
-            
+
         Returns:
             Quote 对象副本，如果不存在则返回 None
-            
+
         Example:
             >>> cache = _QuoteCache()
             >>> cache.update('rb2605', {'LastPrice': 3500.0})
@@ -342,7 +341,7 @@ class _QuoteCache(_CacheManager[Quote]):
             quote = self._cache.get(instrument_id)
             if quote is None:
                 return None
-            
+
             # 在锁内快速提取所有字段值
             instrument_id_val = quote.InstrumentID
             last_price = quote.LastPrice
@@ -355,7 +354,7 @@ class _QuoteCache(_CacheManager[Quote]):
             update_time = quote.UpdateTime
             update_millisec = quote.UpdateMillisec
             ctp_datetime = quote.ctp_datetime
-        
+
         # 在锁外创建副本对象，减少锁持有时间
         return Quote(
             InstrumentID=instrument_id_val,
@@ -368,23 +367,23 @@ class _QuoteCache(_CacheManager[Quote]):
             OpenInterest=open_interest,
             UpdateTime=update_time,
             UpdateMillisec=update_millisec,
-            ctp_datetime=ctp_datetime
+            ctp_datetime=ctp_datetime,
         )
-    
-    def wait_update(self, instrument_id: str, timeout: Optional[float]) -> Quote:
+
+    def wait_update(self, instrument_id: str, timeout: float | None) -> Quote:
         """
         阻塞等待行情更新
-        
+
         Args:
             instrument_id: 合约代码
             timeout: 超时时间（秒），None 表示无限等待
-            
+
         Returns:
             更新后的 Quote 对象
-            
+
         Raises:
             TimeoutError: 等待超时时抛出
-            
+
         Example:
             >>> cache = _QuoteCache()
             >>> # 在另一个线程中更新行情
@@ -392,15 +391,15 @@ class _QuoteCache(_CacheManager[Quote]):
         """
         # 为当前等待线程创建独立的队列
         notify_queue: queue.Queue[Quote] = queue.Queue(maxsize=1)
-        
+
         with self._lock:
             # 为该合约创建队列列表（如果不存在）
             if instrument_id not in self._quote_queues:
                 self._quote_queues[instrument_id] = []
-            
+
             # 将当前队列添加到列表中
             self._quote_queues[instrument_id].append(notify_queue)
-        
+
         # 在锁外等待，避免阻塞其他线程
         try:
             quote = notify_queue.get(timeout=timeout)
@@ -419,11 +418,11 @@ class _QuoteCache(_CacheManager[Quote]):
                     except ValueError:
                         # 队列已被移除，忽略
                         pass
-    
+
     def _notify_waiters(self, instrument_id: str, quote: Quote) -> None:
         """
         通知所有等待该合约行情的线程（内部方法）
-        
+
         Args:
             instrument_id: 合约代码
             quote: 行情对象
@@ -445,7 +444,7 @@ class _QuoteCache(_CacheManager[Quote]):
                         OpenInterest=quote.OpenInterest,
                         UpdateTime=quote.UpdateTime,
                         UpdateMillisec=quote.UpdateMillisec,
-                        ctp_datetime=quote.ctp_datetime
+                        ctp_datetime=quote.ctp_datetime,
                     )
                     q.put_nowait(quote_copy)
                 except queue.Full:
@@ -453,29 +452,30 @@ class _QuoteCache(_CacheManager[Quote]):
                     pass
 
 
-
 class _PositionCache(_CacheManager[Position]):
     """
     持仓缓存管理器
-    
+
     继承自 _CacheManager，提供持仓数据的缓存管理。
-    
+
     与 _QuoteCache 不同，持仓缓存不需要通知机制，
     因为持仓数据的更新频率较低，通常通过主动查询获取。
     """
-    
+
     def __init__(self):
         """初始化持仓缓存管理器"""
         super().__init__()
-    
-    def update_from_position_data(self, instrument_id: str, position_data: dict) -> None:
+
+    def update_from_position_data(
+        self, instrument_id: str, position_data: dict
+    ) -> None:
         """
         从持仓数据更新缓存
-        
+
         Args:
             instrument_id: 合约代码
             position_data: 持仓数据字典，包含多空持仓信息
-            
+
         Example:
             >>> cache = _PositionCache()
             >>> position_data = {
@@ -488,32 +488,32 @@ class _PositionCache(_CacheManager[Position]):
         with self._lock:
             # 创建 Position 对象
             position = Position(
-                pos_long=position_data.get('pos_long', 0),
-                pos_long_today=position_data.get('pos_long_today', 0),
-                pos_long_his=position_data.get('pos_long_his', 0),
-                open_price_long=position_data.get('open_price_long', float('nan')),
-                pos_short=position_data.get('pos_short', 0),
-                pos_short_today=position_data.get('pos_short_today', 0),
-                pos_short_his=position_data.get('pos_short_his', 0),
-                open_price_short=position_data.get('open_price_short', float('nan'))
+                pos_long=position_data.get("pos_long", 0),
+                pos_long_today=position_data.get("pos_long_today", 0),
+                pos_long_his=position_data.get("pos_long_his", 0),
+                open_price_long=position_data.get("open_price_long", float("nan")),
+                pos_short=position_data.get("pos_short", 0),
+                pos_short_today=position_data.get("pos_short_today", 0),
+                pos_short_his=position_data.get("pos_short_his", 0),
+                open_price_short=position_data.get("open_price_short", float("nan")),
             )
-            
+
             # 调用父类方法更新缓存
             super().update(instrument_id, position)
-    
+
     def get(self, instrument_id: str) -> Position:
         """
         获取持仓信息（非阻塞）
-        
+
         重写父类方法以返回 Position 对象的副本，避免并发修改。
         如果持仓不存在，返回空持仓对象。
-        
+
         Args:
             instrument_id: 合约代码
-            
+
         Returns:
             Position 对象副本，如果不存在则返回空持仓对象
-            
+
         Example:
             >>> cache = _PositionCache()
             >>> cache.update('rb2605', {'pos_long': 10})
@@ -528,11 +528,11 @@ class _PositionCache(_CacheManager[Position]):
         # 优化：先在锁内获取引用，然后在锁外创建副本，减少锁持有时间
         with self._lock:
             position = self._cache.get(instrument_id)
-            
+
             # 如果不存在，返回空持仓对象
             if position is None:
                 return Position()
-            
+
             # 在锁内快速提取所有字段值
             pos_long = position.pos_long
             pos_long_today = position.pos_long_today
@@ -542,7 +542,7 @@ class _PositionCache(_CacheManager[Position]):
             pos_short_today = position.pos_short_today
             pos_short_his = position.pos_short_his
             open_price_short = position.open_price_short
-        
+
         # 在锁外创建副本对象，减少锁持有时间
         return Position(
             pos_long=pos_long,
@@ -552,5 +552,5 @@ class _PositionCache(_CacheManager[Position]):
             pos_short=pos_short,
             pos_short_today=pos_short_today,
             pos_short_his=pos_short_his,
-            open_price_short=open_price_short
+            open_price_short=open_price_short,
         )

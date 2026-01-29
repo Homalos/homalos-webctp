@@ -1,5 +1,4 @@
-﻿#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python
 """
 @ProjectName: homalos-webctp
 @FileName   : client_helper.py
@@ -9,6 +8,7 @@
 @Software   : PyCharm
 @Description: 客户端工具函数，将md_client.py和td_client.py中的公共代码抽离出来，提高代码复用率
 """
+
 
 def build_order_insert_to_dict(input_order_field) -> dict:
     """
@@ -81,8 +81,9 @@ def build_order_insert_to_dict(input_order_field) -> dict:
         "ClientID": input_order_field.ClientID,
         "MacAddress": input_order_field.MacAddress,
         "InstrumentID": input_order_field.InstrumentID,
-        "IPAddress": input_order_field.IPAddress
+        "IPAddress": input_order_field.IPAddress,
     }
+
 
 def build_order_to_dict(order_field) -> dict:
     """
@@ -158,19 +159,19 @@ def build_order_to_dict(order_field) -> dict:
         "MacAddress": order_field.MacAddress,
         "InstrumentID": order_field.InstrumentID,
         "ExchangeInstID": order_field.ExchangeInstID,
-        "IPAddress": order_field.IPAddress
+        "IPAddress": order_field.IPAddress,
     }
 
 
 def extract_login_response_fields(rsp_user_login_field) -> dict:
     """提取登录响应字段为字典
-    
+
     将CTP用户登录响应结构体的所有字段提取为Python字典，
     避免CTP对象生命周期问题。
-    
+
     Args:
         rsp_user_login_field: CTP用户登录响应结构体
-        
+
     Returns:
         dict: 包含所有登录响应字段的字典
     """
@@ -187,17 +188,19 @@ def extract_login_response_fields(rsp_user_login_field) -> dict:
         "DCETime": rsp_user_login_field.DCETime,
         "CZCETime": rsp_user_login_field.CZCETime,
         "FFEXTime": rsp_user_login_field.FFEXTime,
-        "INETime": rsp_user_login_field.INETime
+        "INETime": rsp_user_login_field.INETime,
     }
 
 
 class ReconnectionController:
     """CTP 客户端重连控制器"""
-    
-    def __init__(self, max_attempts: int = 5, interval: float = 10.0, client_type: str = "CTP"):
+
+    def __init__(
+        self, max_attempts: int = 5, interval: float = 10.0, client_type: str = "CTP"
+    ):
         """
         初始化重连控制器
-        
+
         Args:
             max_attempts: 最大重连尝试次数
             interval: 重连间隔阈值（秒）
@@ -208,8 +211,10 @@ class ReconnectionController:
         self.last_connect_time: float = 0.0
         self.reconnect_interval: float = interval
         self.client_type: str = client_type
-    
-    def check_on_connected(self, callback, message_type: str, logger, current_time: float) -> bool:
+
+    def check_on_connected(
+        self, callback, message_type: str, logger, current_time: float
+    ) -> bool:
         """在 OnFrontConnected 中检查重连状态"""
         if current_time - self.last_connect_time < self.reconnect_interval:
             self.reconnect_count += 1
@@ -220,15 +225,24 @@ class ReconnectionController:
                 )
                 logger.error(error_msg)
                 if callback:
-                    callback({"MsgType": message_type, "RspInfo": {"ErrorID": -4097, "ErrorMsg": error_msg}})
+                    callback(
+                        {
+                            "MsgType": message_type,
+                            "RspInfo": {"ErrorID": -4097, "ErrorMsg": error_msg},
+                        }
+                    )
                 return False
-            logger.warning(f"Reconnection attempt {self.reconnect_count}/{self.max_reconnect_attempts}")
+            logger.warning(
+                f"Reconnection attempt {self.reconnect_count}/{self.max_reconnect_attempts}"
+            )
         else:
             self.reconnect_count = 0
         self.last_connect_time = current_time
         return True
-    
-    def track_on_disconnected(self, reason: int, callback, logger, current_time: float) -> None:
+
+    def track_on_disconnected(
+        self, reason: int, callback, logger, current_time: float
+    ) -> None:
         """在 OnFrontDisconnected 中跟踪断开次数"""
         if self.last_connect_time == 0:
             self.reconnect_count = 1
@@ -238,7 +252,9 @@ class ReconnectionController:
             logger.debug(f"Reconnection count increased to {self.reconnect_count}")
         else:
             self.reconnect_count = 1
-            logger.debug(f"Reconnection count reset to 1 (time gap: {current_time - self.last_connect_time:.1f}s)")
+            logger.debug(
+                f"Reconnection count reset to 1 (time gap: {current_time - self.last_connect_time:.1f}s)"
+            )
         self.last_connect_time = current_time
         if callback and self.reconnect_count >= self.max_reconnect_attempts:
             error_msg = (
@@ -246,4 +262,9 @@ class ReconnectionController:
                 "Possible reasons: non-trading hours, incorrect broker/front address, or network issues."
             )
             logger.error(error_msg)
-            callback({"MsgType": "OnFrontDisconnected", "RspInfo": {"ErrorID": reason, "ErrorMsg": error_msg}})
+            callback(
+                {
+                    "MsgType": "OnFrontDisconnected",
+                    "RspInfo": {"ErrorID": reason, "ErrorMsg": error_msg},
+                }
+            )
