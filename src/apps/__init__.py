@@ -1,6 +1,7 @@
 import fastapi
-from .td_app import app as _td_app
+
 from .md_app import app as _md_app
+from .td_app import app as _td_app
 
 td_app = fastapi.FastAPI()
 td_app.mount("/td", _td_app)
