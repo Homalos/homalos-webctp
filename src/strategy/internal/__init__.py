@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 @ProjectName: homalos-webctp
 @FileName   : __init__.py
@@ -108,7 +107,7 @@
 正确的使用方式::
 
     from src.strategy.sync_api import SyncStrategyApi, Quote, Position, StrategyPlugin
-    
+
     # 使用公共接口
     api = SyncStrategyApi("user_id", "password")
     quote = api.get_quote("rb2605")
@@ -133,29 +132,33 @@
 """
 
 # 导出数据模型
-from .data_models import Quote, Position
 # 导出缓存管理器（内部使用）
-from .cache_manager import _CacheManager, _QuoteCache, _PositionCache
-# 导出事件管理器（内部使用）
-from .event_manager import _EventManager
+from .cache_manager import _CacheManager, _PositionCache, _QuoteCache
+from .data_models import Position, Quote
+
 # 导出事件循环线程（内部使用）
 from .event_loop_thread import _EventLoopThread
-# 导出插件系统
-from .plugin import StrategyPlugin, PluginManager
-# 导出辅助模块（内部使用）
-from .order_helper import _OrderHelper
+
+# 导出事件管理器（内部使用）
+from .event_manager import _EventManager
 from .instrument_helper import _InstrumentHelper
 
+# 导出辅助模块（内部使用）
+from .order_helper import _OrderHelper
+
+# 导出插件系统
+from .plugin import PluginManager, StrategyPlugin
+
 __all__ = [
-    'Quote', 
-    'Position', 
-    '_CacheManager', 
-    '_QuoteCache', 
-    '_PositionCache',
-    '_EventManager',
-    '_EventLoopThread',
-    'StrategyPlugin',
-    'PluginManager',
-    '_OrderHelper',
-    '_InstrumentHelper',
+    "PluginManager",
+    "Position",
+    "Quote",
+    "StrategyPlugin",
+    "_CacheManager",
+    "_EventLoopThread",
+    "_EventManager",
+    "_InstrumentHelper",
+    "_OrderHelper",
+    "_PositionCache",
+    "_QuoteCache",
 ]

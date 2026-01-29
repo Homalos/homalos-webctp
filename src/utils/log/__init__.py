@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 @ProjectName: webctp
 @FileName   : __init__.py
@@ -12,4 +11,4 @@
 
 from .logger import Logger, logger
 
-__all__ = ['Logger', 'logger']
+__all__ = ["Logger", "logger"]
