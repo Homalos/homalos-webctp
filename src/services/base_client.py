@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 @ProjectName: homalos-webctp
 @FileName   : base_client.py
@@ -12,8 +11,9 @@
 import logging
 import uuid
 from abc import ABC, abstractmethod
-from queue import Queue, Empty
-from typing import Callable, Any, Awaitable
+from collections.abc import Awaitable, Callable
+from queue import Empty, Queue
+from typing import Any
 
 import anyio
 from anyio.abc import TaskGroup
@@ -45,7 +45,9 @@ class BaseClient(ABC):
         return self._rsp_callback
 
     @rsp_callback.setter
-    def rsp_callback(self, callback: Callable[[dict[str, Any]], Awaitable[None]] | None) -> None:
+    def rsp_callback(
+        self, callback: Callable[[dict[str, Any]], Awaitable[None]] | None
+    ) -> None:
         """
         设置响应回调函数
 
@@ -115,7 +117,8 @@ class BaseClient(ABC):
                 # Use UUID to generate unique task name for better tracking and security
                 task_name = f"{uuid.uuid4().hex[:8]}-{self._get_client_type()}-bg-task"
                 self._task_group.start_soon(self.run, name=task_name)
-            assert self._client is not None
+            if self._client is None:
+                raise RuntimeError("Client is not initialized")
             await anyio.to_thread.run_sync(self._client.connect)
 
     async def stop(self) -> None:

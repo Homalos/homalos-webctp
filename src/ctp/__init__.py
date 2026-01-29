@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 @ProjectName: webctp
 @FileName   : __init__.py.py
@@ -9,15 +8,22 @@
 @Software   : PyCharm
 @Description: description
 """
+
+
 # start delvewheel patch
 def _delvewheel_patch_1_11_1():
     import os
-    if os.path.isdir(libs_dir := os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, 'libs'))):
+
+    if os.path.isdir(
+        libs_dir := os.path.abspath(
+            os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, "libs")
+        )
+    ):
         os.add_dll_directory(libs_dir)
-        print(f'Adding {libs_dir} to DLL search path')
+        print(f"Adding {libs_dir} to DLL search path")
         os.add_dll_directory(libs_dir)
     else:
-        raise RuntimeError('Cannot find libs directory')
+        raise RuntimeError("Cannot find libs directory")
 
 
 _delvewheel_patch_1_11_1()
