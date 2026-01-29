@@ -1,7 +1,9 @@
 import sys
-import pytest
 from unittest.mock import MagicMock
-from src.utils.config import GlobalConfig, AlertsConfig
+
+import pytest
+
+from src.utils.config import AlertsConfig, GlobalConfig
 
 # Mock the CTP C++ extension modules BEFORE they are imported by application code
 # This avoids ImportError when the DLLs are missing or incompatible in the test environment
@@ -23,7 +25,7 @@ GlobalConfig.Alerts = AlertsConfig()
 TEST_USER_ID = "test_user"
 TEST_PASSWORD = "test_pass"
 
+
 @pytest.fixture
 def anyio_backend():
-    return 'asyncio'
-
+    return "asyncio"
