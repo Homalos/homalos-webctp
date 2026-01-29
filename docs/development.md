@@ -8,6 +8,7 @@
 ## Table of contents
 
 - [Project Overview](#project-overview)
+
 - [Architecture Design](#architecture-design)
 
 - [Development Environment Setup](#development-environment-setup)
@@ -375,11 +376,11 @@ Testing using the SimNow emulation environment:
 
 1. Register a SimNow account
 
-2. Configure the test environment
+1. Configure the test environment
 
-3. Run the service
+1. Run the service
 
-4. Test using a WebSocket client
+1. Test using a WebSocket client
 
 ### Testing Tools
 
@@ -441,13 +442,13 @@ Welcome to contribute code! Please follow these steps:
 
 1. Fork the project
 
-2. Create a feature branch
+1. Create a feature branch
 
-3. Commit changes
+1. Commit changes
 
-4. Push to the branch
+1. Push to the branch
 
-5. Create a Pull Request
+1. Create a Pull Request
 
 ### Code Review Checklist
 
