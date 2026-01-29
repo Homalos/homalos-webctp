@@ -1,0 +1,63 @@
+# TdFrontAddress: tcp://182.254.243.31:40001 # 7x24交易前置地址
+# MdFrontAddress: tcp://182.254.243.31:40011 # 7x24行情前置地址
+TdFrontAddress: tcp://182.254.243.31:30001 # 交易前置地址
+MdFrontAddress: tcp://182.254.243.31:30012 # 行情前置地址
+BrokerID: "9999"
+AuthCode: "0000000000000000"
+AppID: simnow_client_test
+Port: 8081         # the listening port, default 8080
+Host: 127.0.0.1      # the bind ip address, default 127.0.0.1
+LogLevel: INFO     # NOTSET, DEBUG, INFO, WARN, ERROR, CRITICAL
+HeartbeatInterval: 30.0  # WebSocket heartbeat interval in seconds, default 30.0
+HeartbeatTimeout: 60.0   # WebSocket heartbeat timeout in seconds, default 60.0
+
+# Redis 缓存配置（可选，默认禁用）
+# 性能调优建议：
+# - 本地部署：SocketTimeout 建议 1-2 秒，快速降级
+# - 远程部署：SocketTimeout 建议 3-5 秒，避免误判
+# - 高频交易：MarketSnapshotTTL 建议 30 秒，减少过期数据
+# - 低频交易：MarketSnapshotTTL 可设置 60-120 秒，提高缓存命中率
+Redis:
+  Enabled: true
+  Host: localhost
+  Port: 6379
+  Password: ""
+  DB: 0
+  MaxConnections: 50              # 连接池大小，根据并发客户端数调整
+  SocketTimeout: 2.0              # Redis 操作超时（秒），本地部署推荐 2.0
+  SocketConnectTimeout: 2.0       # Redis 连接超时（秒），本地部署推荐 2.0
+  MarketSnapshotTTL: 30           # 行情快照 TTL（秒），推荐 30 秒
+  MarketTickTTL: 5                # 实时 tick TTL（秒），推荐 5 秒
+  OrderTTL: 86400                 # 订单 TTL（秒，24小时）
+
+# 性能监控配置（可选，默认启用）
+# 性能调优建议：
+# - 开发/测试环境：SampleRate 设置 1.0（100% 采样），便于调试
+# - 生产环境：SampleRate 设置 0.3-0.5（30-50% 采样），降低监控开销
+# - 高负载场景：SampleRate 可降低到 0.1-0.2（10-20% 采样）
+Metrics:
+  Enabled: true
+  ReportInterval: 60  # 报告间隔（秒）
+  SampleRate: 1.0     # 采样率（0.0-1.0），开发环境推荐 1.0，生产环境推荐 0.5
+  # 告警阈值配置
+  LatencyWarningThresholdMs: 100.0        # 延迟告警阈值（毫秒）
+  CacheHitRateWarningThreshold: 50.0      # Redis 命中率告警阈值（百分比）
+  CpuWarningThreshold: 80.0               # CPU 使用率告警阈值（百分比）
+  MemoryWarningThreshold: 80.0            # 内存使用率告警阈值（百分比）
+
+# 策略管理配置（可选）
+Strategy:
+  MaxStrategies: 10              # 最大策略数量
+  DefaultMaxMemoryMB: 512        # 默认单策略最大内存（MB）
+  DefaultMaxCPUPercent: 50.0     # 默认单策略最大CPU使用率（%）
+
+# 同步策略 API 配置（可选）
+# 用于配置 SyncStrategyApi 的超时参数和策略限制
+SyncApi:
+  ConnectTimeout: 30.0           # CTP 连接超时时间（秒）
+  MaxStrategies: 10              # 最大并发策略数量
+  QuoteTimeout: 5.0              # 行情查询默认超时（秒）
+  PositionTimeout: 5.0           # 持仓查询默认超时（秒）
+  OrderTimeout: 10.0             # 订单提交默认超时（秒）
+  QuoteUpdateTimeout: 30.0       # 行情更新等待默认超时（秒）
+  StopTimeout: 5.0               # 停止服务默认超时（秒）
