@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 @ProjectName: homalos-webctp
 @FileName   : math_helper.py
@@ -12,8 +11,7 @@
 import sys
 
 
-class MathHelper(object):
-
+class MathHelper:
     @staticmethod
     def adjust_price(price: float) -> float:
         """
