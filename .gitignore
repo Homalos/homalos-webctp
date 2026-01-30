@@ -45,6 +45,7 @@ env/
 htmlcov/
 .tox/
 .hypothesis/
+.mypy_cache/
 
 # Ruff
 .ruff_cache/
