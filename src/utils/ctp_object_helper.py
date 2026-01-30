@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 @ProjectName: homalos-webctp
 @FileName   : ctp_object_helper.py
@@ -9,8 +8,9 @@
 @Software   : PyCharm
 @Description: CTP 对象辅助函数
 """
-class CTPObjectHelper(object):
 
+
+class CTPObjectHelper:
     exclude_attrs = ["thisown"]
 
     @staticmethod
@@ -32,7 +32,14 @@ class CTPObjectHelper(object):
         data = {}
         if obj:
             # filter python built-in attributes
-            attrs = list(filter(lambda x: not (x.startswith("__") or x in CTPObjectHelper.exclude_attrs), dir(typ)))
+            attrs = list(
+                filter(
+                    lambda x: not (
+                        x.startswith("__") or x in CTPObjectHelper.exclude_attrs
+                    ),
+                    dir(typ),
+                )
+            )
             for attr in attrs:
                 data[attr] = obj.__getattribute__(attr)
         return data
@@ -56,10 +63,10 @@ class CTPObjectHelper(object):
 
     @staticmethod
     def build_response_dict(
-            message_type: str,
-            rsp_info: object = None,
-            request_id: int = None,
-            is_last: bool = None
+        message_type: str,
+        rsp_info: object = None,
+        request_id: int = None,
+        is_last: bool = None,
     ) -> dict[str, any]:
         """
         构建标准的响应字典结构
@@ -90,12 +97,14 @@ class CTPObjectHelper(object):
         if rsp_info:
             response["RspInfo"] = {
                 "ErrorID": rsp_info.ErrorID,
-                "ErrorMsg": rsp_info.ErrorMsg
+                "ErrorMsg": rsp_info.ErrorMsg,
             }
         return response
 
     @staticmethod
-    def extract_request(request_dict: dict[str, any], request_field_name: str, request_type):
+    def extract_request(
+        request_dict: dict[str, any], request_field_name: str, request_type
+    ):
         """
         从请求字典中提取特定请求对象和请求ID
 

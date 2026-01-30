@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 @ProjectName: homalos-webctp
 @FileName   : constant.py
@@ -9,7 +8,9 @@
 @Software   : PyCharm
 @Description: 消息类型常量
 """
-class CommonConstant(object):
+
+
+class CommonConstant:
     MessageType = "MsgType"
     RspInfo = "RspInfo"
     RequestID = "RequestID"
@@ -19,14 +20,13 @@ class CommonConstant(object):
 
     ReqUserLogin = "ReqUserLogin"
     RspUserLogin = "RspUserLogin"
-    
+
     # Heartbeat
     Ping = "Ping"
     Pong = "Pong"
 
 
 class MdConstant(CommonConstant):
-
     # Request MessageType
     SubscribeMarketData = "SubscribeMarketData"
     UnSubscribeMarketData = "UnSubscribeMarketData"  # 注意：大写 S，与 CTP API 保持一致
@@ -44,7 +44,7 @@ class MdConstant(CommonConstant):
     # Response Field
     SpecificInstrument = "SpecificInstrument"
     DepthMarketData = "DepthMarketData"
-    
+
     # 策略管理相关消息类型
     RegisterStrategy = "RegisterStrategy"
     UnregisterStrategy = "UnregisterStrategy"
@@ -52,7 +52,7 @@ class MdConstant(CommonConstant):
     StopStrategy = "StopStrategy"
     QueryStrategyStatus = "QueryStrategyStatus"
     ListStrategies = "ListStrategies"
-    
+
     # 策略管理响应消息类型
     OnRspRegisterStrategy = "RspRegisterStrategy"
     OnRspUnregisterStrategy = "RspUnregisterStrategy"
@@ -60,13 +60,13 @@ class MdConstant(CommonConstant):
     OnRspStopStrategy = "RspStopStrategy"
     OnRspQueryStrategyStatus = "RspQueryStrategyStatus"
     OnRspListStrategies = "RspListStrategies"
-    
+
     # 策略管理请求字段
     StrategyID = "StrategyID"
     StrategyName = "StrategyName"
     StrategyConfig = "StrategyConfig"
     SubscribedInstruments = "SubscribedInstruments"
-    
+
     # 策略管理响应字段
     StrategyInfo = "StrategyInfo"
     StrategyList = "StrategyList"
@@ -74,7 +74,6 @@ class MdConstant(CommonConstant):
 
 
 class TdConstant(CommonConstant):
-
     # MessageType
     OnRspUserLogin = "RspUserLogin"
     OnRspAuthenticate = "RspAuthenticate"

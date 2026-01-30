@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 @ProjectName: homalos-webctp
 @FileName   : connection.py
@@ -10,10 +9,11 @@
 @Description: WebSocket 连接管理
 """
 import abc
-import anyio
 import json
 import logging
 from typing import Any
+
+import anyio
 from fastapi import WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
 
@@ -21,12 +21,11 @@ from ..constants.call_errors import CallError
 from ..constants.constant import CommonConstant as Constant
 from ..utils.config import GlobalConfig
 from .heartbeat import HeartbeatManager
-from .td_client import TdClient
 from .md_client import MdClient
+from .td_client import TdClient
 
 
 class BaseConnection(abc.ABC):
-
     def __init__(self, websocket: WebSocket) -> None:
         """
         初始化基础连接对象
@@ -105,15 +104,14 @@ class BaseConnection(abc.ABC):
             WebSocketDisconnect: 当WebSocket连接断开时
         """
         await self.connect()
-        
+
         # 启动心跳
         self._heartbeat = HeartbeatManager(
             interval=GlobalConfig.HeartbeatInterval,
-            timeout=GlobalConfig.HeartbeatTimeout
+            timeout=GlobalConfig.HeartbeatTimeout,
         )
         await self._heartbeat.start(
-            send_callback=self.send,
-            disconnect_callback=self.disconnect
+            send_callback=self.send, disconnect_callback=self.disconnect
         )
 
         async with anyio.create_task_group() as task_group:
@@ -122,19 +120,21 @@ class BaseConnection(abc.ABC):
                 while True:
                     try:
                         data = await self.recv()
-                        
+
                         # 处理 Pong 消息
                         if data.get(Constant.MessageType) == Constant.Pong:
                             self._heartbeat.on_pong_received()
                             continue
-                        
+
                         await self._client.call(data)
                     except json.decoder.JSONDecodeError as err:
-                        await self.send({
-                            Constant.MessageType: "",
-                            Constant.RspInfo: CallError.get_rsp_info(400),
-                            "Detail": str(err),
-                        })
+                        await self.send(
+                            {
+                                Constant.MessageType: "",
+                                Constant.RspInfo: CallError.get_rsp_info(400),
+                                "Detail": str(err),
+                            }
+                        )
             except WebSocketDisconnect:
                 logging.debug("websocket disconnect")
                 await self.disconnect()
