@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 @ProjectName: homalos-webctp
 @FileName   : md_client.py
@@ -9,22 +8,21 @@
 @Software   : PyCharm
 @Description: 行情服务 (继承 BaseClient)
 """
-from typing import Any, Optional, Dict
 import asyncio
 import time
+from typing import Any
 
 import anyio
 from loguru import logger
 
 from ..clients import CTPMdClient
-from ..constants import CallError
+from ..constants import CallError, MdConstant
 from ..constants import CommonConstant as Constant
-from ..constants import MdConstant
-from .base_client import BaseClient
-from .cache_manager import CacheManager
-from ..utils.serialization import get_msgpack_serializer, SerializationError
 from ..utils.config import GlobalConfig
 from ..utils.metrics import MetricsCollector
+from ..utils.serialization import SerializationError, get_msgpack_serializer
+from .base_client import BaseClient
+from .cache_manager import CacheManager
 
 
 class MdClient(BaseClient):
@@ -35,9 +33,9 @@ class MdClient(BaseClient):
     def __init__(self) -> None:
         super().__init__()
         self._client: CTPMdClient | None = None
-        self._cache_manager: Optional[CacheManager] = None
-        self._metrics_collector: Optional[MetricsCollector] = None
-        self._strategy_manager: Optional[Any] = None  # 避免循环导入
+        self._cache_manager: CacheManager | None = None
+        self._metrics_collector: MetricsCollector | None = None
+        self._strategy_manager: Any | None = None  # 避免循环导入
         self._serializer = get_msgpack_serializer()
 
     def set_cache_manager(self, cache_manager: CacheManager) -> None:
@@ -84,48 +82,48 @@ class MdClient(BaseClient):
             - 如果是未注册的消息类型，会返回对应的错误响应
         """
         message_type = request[Constant.MessageType]
-        
+
         # 处理登录请求
         if message_type == Constant.ReqUserLogin:
             user_id: str = request[Constant.ReqUserLogin]["UserID"]
             password: str = request[Constant.ReqUserLogin]["Password"]
             await self.start(user_id, password)
             return
-        
+
         # 处理策略管理请求（异步处理）
         if message_type == MdConstant.RegisterStrategy:
             await self.handle_register_strategy(request)
             return
-        elif message_type == MdConstant.UnregisterStrategy:
+        if message_type == MdConstant.UnregisterStrategy:
             await self.handle_unregister_strategy(request)
             return
-        elif message_type == MdConstant.StartStrategy:
+        if message_type == MdConstant.StartStrategy:
             await self.handle_start_strategy(request)
             return
-        elif message_type == MdConstant.StopStrategy:
+        if message_type == MdConstant.StopStrategy:
             await self.handle_stop_strategy(request)
             return
-        elif message_type == MdConstant.QueryStrategyStatus:
+        if message_type == MdConstant.QueryStrategyStatus:
             await self.handle_query_strategy_status(request)
             return
-        elif message_type == MdConstant.ListStrategies:
+        if message_type == MdConstant.ListStrategies:
             await self.handle_list_strategies(request)
             return
-        
+
         # 处理其他 CTP 相关请求（同步处理）
         if message_type in self._call_map:
             await anyio.to_thread.run_sync(self._call_map[message_type], request)
         elif not self._call_map:
             response = {
                 Constant.MessageType: message_type,
-                Constant.RspInfo: CallError.get_rsp_info(401)
+                Constant.RspInfo: CallError.get_rsp_info(401),
             }
             if self.rsp_callback:
                 await self.rsp_callback(response)
         else:
             response = {
                 Constant.MessageType: message_type,
-                Constant.RspInfo: CallError.get_rsp_info(404)
+                Constant.RspInfo: CallError.get_rsp_info(404),
             }
             if self.rsp_callback:
                 await self.rsp_callback(response)
@@ -158,8 +156,12 @@ class MdClient(BaseClient):
         将客户端的订阅和取消订阅方法注册到调用映射表中，
         用于处理对应的消息类型请求
         """
-        self._call_map[MdConstant.SubscribeMarketData] = self._client.subscribe_marketdata
-        self._call_map[MdConstant.UnSubscribeMarketData] = self._client.unsubscribe_marketdata
+        self._call_map[
+            MdConstant.SubscribeMarketData
+        ] = self._client.subscribe_marketdata
+        self._call_map[
+            MdConstant.UnSubscribeMarketData
+        ] = self._client.unsubscribe_marketdata
 
     def on_rsp_or_rtn(self, data: dict[str, Any]) -> None:
         """
@@ -179,18 +181,18 @@ class MdClient(BaseClient):
         """
         # 记录 CTP 回调开始时间
         callback_start_time = time.time()
-        
+
         # 检查是否为行情数据推送
         message_type = data.get(Constant.MessageType)
-        
+
         if message_type == MdConstant.OnRtnDepthMarketData:
             # 提取行情数据
             market_data = data.get(MdConstant.DepthMarketData)
-            
+
             if market_data:
                 # 记录分发开始时间
                 broadcast_start_time = time.time()
-                
+
                 # 1. Redis 快照缓存操作（不包含 Pub/Sub）
                 if self._cache_manager and self._cache_manager.is_available():
                     try:
@@ -203,25 +205,29 @@ class MdClient(BaseClient):
                     except Exception as e:
                         # Redis 操作失败不影响核心推送功能
                         logger.warning(f"Redis 快照缓存操作失败: {e}")
-                
+
                 # 2. 通过 StrategyManager 广播行情到所有订阅策略
                 # StrategyManager 内部会处理 Redis Pub/Sub 发布
                 if self._strategy_manager:
                     try:
                         # 异步广播行情数据（不阻塞主流程）
                         asyncio.create_task(
-                            self._broadcast_with_metrics(market_data, broadcast_start_time)
+                            self._broadcast_with_metrics(
+                                market_data, broadcast_start_time
+                            )
                         )
                     except Exception as e:
                         logger.warning(f"广播行情到策略管理器失败: {e}")
 
         # 保持原有逻辑：将数据放入队列
         self._queue.put_nowait(data)
-        
+
         # 记录 CTP 回调到队列的延迟
         if self._metrics_collector:
             callback_latency_ms = (time.time() - callback_start_time) * 1000
-            self._metrics_collector.record_latency("md_callback_to_queue_latency", callback_latency_ms)
+            self._metrics_collector.record_latency(
+                "md_callback_to_queue_latency", callback_latency_ms
+            )
 
     async def _broadcast_with_metrics(
         self, market_data: dict[str, Any], start_time: float
@@ -239,18 +245,17 @@ class MdClient(BaseClient):
         try:
             # 调用 StrategyManager 广播
             await self._strategy_manager.broadcast_market_data(market_data)
-            
+
             # 记录分发延迟
             if self._metrics_collector:
                 broadcast_latency_ms = (time.time() - start_time) * 1000
                 self._metrics_collector.record_latency(
-                    "market_broadcast_latency", 
-                    broadcast_latency_ms
+                    "market_broadcast_latency", broadcast_latency_ms
                 )
-                
+
                 # 记录分发计数
                 self._metrics_collector.record_counter("market_broadcast_count")
-                
+
         except Exception as e:
             logger.error(f"广播行情数据失败: {e}")
             # 记录失败计数
@@ -276,20 +281,16 @@ class MdClient(BaseClient):
 
             # 更新行情快照缓存（Hash 结构）
             snapshot_key = f"market:snapshot:{instrument_id}"
-            await self._cache_manager.hset(
-                snapshot_key, "data", serialized_data
-            )
-            
+            await self._cache_manager.hset(snapshot_key, "data", serialized_data)
+
             # 设置快照 TTL（从配置读取，默认 60 秒）
             snapshot_ttl = 60  # 默认值
-            if hasattr(GlobalConfig, 'Cache') and GlobalConfig.Cache:
+            if hasattr(GlobalConfig, "Cache") and GlobalConfig.Cache:
                 snapshot_ttl = GlobalConfig.Cache.market_snapshot_ttl
-            
+
             await self._cache_manager._redis.expire(snapshot_key, snapshot_ttl)
-            
-            logger.debug(
-                f"已更新行情快照缓存: {snapshot_key}, TTL={snapshot_ttl}秒"
-            )
+
+            logger.debug(f"已更新行情快照缓存: {snapshot_key}, TTL={snapshot_ttl}秒")
 
         except SerializationError as e:
             logger.error(f"行情数据序列化失败: {instrument_id}, 错误: {e}")
@@ -299,9 +300,7 @@ class MdClient(BaseClient):
             if self._cache_manager:
                 self._cache_manager._available = False
 
-    async def query_market_snapshot(
-        self, instrument_id: str
-    ) -> Optional[Dict[str, Any]]:
+    async def query_market_snapshot(self, instrument_id: str) -> dict[str, Any] | None:
         """
         查询行情快照（Cache-Aside 模式）
 
@@ -335,20 +334,19 @@ class MdClient(BaseClient):
             if serialized_data:
                 # 反序列化数据
                 market_data = self._serializer.deserialize(serialized_data)
-                
+
                 # 记录缓存命中
                 if self._metrics_collector:
                     self._metrics_collector.record_counter("cache_hit_market_snapshot")
-                
+
                 logger.debug(f"从缓存查询到行情快照: {instrument_id}")
                 return market_data
-            else:
-                # 缓存未命中
-                if self._metrics_collector:
-                    self._metrics_collector.record_counter("cache_miss_market_snapshot")
-                
-                logger.debug(f"缓存未命中，行情快照不存在: {instrument_id}")
-                return None
+            # 缓存未命中
+            if self._metrics_collector:
+                self._metrics_collector.record_counter("cache_miss_market_snapshot")
+
+            logger.debug(f"缓存未命中，行情快照不存在: {instrument_id}")
+            return None
 
         except SerializationError as e:
             logger.error(f"反序列化行情快照失败: {instrument_id}, 错误: {e}")
@@ -364,24 +362,20 @@ class MdClient(BaseClient):
                 self._cache_manager._available = False
             return None
 
-
     # ==================== 策略管理相关方法 ====================
 
     def _create_error_rsp_info(self, error_code: int, error_msg: str) -> dict[str, Any]:
         """
         创建自定义错误响应信息
-        
+
         Args:
             error_code: 错误代码
             error_msg: 错误消息
-            
+
         Returns:
             dict[str, Any]: 错误响应信息字典
         """
-        return {
-            "ErrorID": error_code,
-            "ErrorMsg": error_msg
-        }
+        return {"ErrorID": error_code, "ErrorMsg": error_msg}
 
     async def handle_register_strategy(self, request: dict[str, Any]) -> None:
         """
@@ -394,7 +388,9 @@ class MdClient(BaseClient):
             response = {
                 Constant.MessageType: MdConstant.OnRspRegisterStrategy,
                 MdConstant.Success: False,
-                Constant.RspInfo: self._create_error_rsp_info(500, "策略管理器未初始化")
+                Constant.RspInfo: self._create_error_rsp_info(
+                    500, "策略管理器未初始化"
+                ),
             }
             if self.rsp_callback:
                 await self.rsp_callback(response)
@@ -411,7 +407,7 @@ class MdClient(BaseClient):
                 response = {
                     Constant.MessageType: MdConstant.OnRspRegisterStrategy,
                     MdConstant.Success: False,
-                    Constant.RspInfo: CallError.get_rsp_info(400)
+                    Constant.RspInfo: CallError.get_rsp_info(400),
                 }
                 if self.rsp_callback:
                     await self.rsp_callback(response)
@@ -419,7 +415,7 @@ class MdClient(BaseClient):
 
             # 创建策略配置
             from ..services.strategy_manager import StrategyConfig
-            
+
             strategy_config = StrategyConfig(
                 strategy_id=strategy_id,
                 name=strategy_name,
@@ -427,7 +423,7 @@ class MdClient(BaseClient):
                 max_memory_mb=config_data.get("max_memory_mb", 512),
                 max_cpu_percent=config_data.get("max_cpu_percent", 50.0),
                 subscribed_instruments=subscribed_instruments,
-                error_threshold=config_data.get("error_threshold", 10)
+                error_threshold=config_data.get("error_threshold", 10),
             )
 
             # 创建一个简单的策略函数（实际应用中应该由客户端提供）
@@ -449,7 +445,9 @@ class MdClient(BaseClient):
                 Constant.MessageType: MdConstant.OnRspRegisterStrategy,
                 MdConstant.StrategyID: strategy_id,
                 MdConstant.Success: success,
-                Constant.RspInfo: CallError.get_rsp_info(0) if success else CallError.get_rsp_info(500)
+                Constant.RspInfo: CallError.get_rsp_info(0)
+                if success
+                else CallError.get_rsp_info(500),
             }
             if self.rsp_callback:
                 await self.rsp_callback(response)
@@ -459,7 +457,7 @@ class MdClient(BaseClient):
             response = {
                 Constant.MessageType: MdConstant.OnRspRegisterStrategy,
                 MdConstant.Success: False,
-                Constant.RspInfo: self._create_error_rsp_info(500, str(e))
+                Constant.RspInfo: self._create_error_rsp_info(500, str(e)),
             }
             if self.rsp_callback:
                 await self.rsp_callback(response)
@@ -475,7 +473,9 @@ class MdClient(BaseClient):
             response = {
                 Constant.MessageType: MdConstant.OnRspUnregisterStrategy,
                 MdConstant.Success: False,
-                Constant.RspInfo: self._create_error_rsp_info(500, "策略管理器未初始化")
+                Constant.RspInfo: self._create_error_rsp_info(
+                    500, "策略管理器未初始化"
+                ),
             }
             if self.rsp_callback:
                 await self.rsp_callback(response)
@@ -487,7 +487,7 @@ class MdClient(BaseClient):
                 response = {
                     Constant.MessageType: MdConstant.OnRspUnregisterStrategy,
                     MdConstant.Success: False,
-                    Constant.RspInfo: CallError.get_rsp_info(400)
+                    Constant.RspInfo: CallError.get_rsp_info(400),
                 }
                 if self.rsp_callback:
                     await self.rsp_callback(response)
@@ -501,7 +501,9 @@ class MdClient(BaseClient):
                 Constant.MessageType: MdConstant.OnRspUnregisterStrategy,
                 MdConstant.StrategyID: strategy_id,
                 MdConstant.Success: success,
-                Constant.RspInfo: CallError.get_rsp_info(0) if success else CallError.get_rsp_info(500)
+                Constant.RspInfo: CallError.get_rsp_info(0)
+                if success
+                else CallError.get_rsp_info(500),
             }
             if self.rsp_callback:
                 await self.rsp_callback(response)
@@ -511,7 +513,7 @@ class MdClient(BaseClient):
             response = {
                 Constant.MessageType: MdConstant.OnRspUnregisterStrategy,
                 MdConstant.Success: False,
-                Constant.RspInfo: self._create_error_rsp_info(500, str(e))
+                Constant.RspInfo: self._create_error_rsp_info(500, str(e)),
             }
             if self.rsp_callback:
                 await self.rsp_callback(response)
@@ -527,7 +529,9 @@ class MdClient(BaseClient):
             response = {
                 Constant.MessageType: MdConstant.OnRspStartStrategy,
                 MdConstant.Success: False,
-                Constant.RspInfo: self._create_error_rsp_info(500, "策略管理器未初始化")
+                Constant.RspInfo: self._create_error_rsp_info(
+                    500, "策略管理器未初始化"
+                ),
             }
             if self.rsp_callback:
                 await self.rsp_callback(response)
@@ -539,7 +543,7 @@ class MdClient(BaseClient):
                 response = {
                     Constant.MessageType: MdConstant.OnRspStartStrategy,
                     MdConstant.Success: False,
-                    Constant.RspInfo: CallError.get_rsp_info(400)
+                    Constant.RspInfo: CallError.get_rsp_info(400),
                 }
                 if self.rsp_callback:
                     await self.rsp_callback(response)
@@ -553,7 +557,9 @@ class MdClient(BaseClient):
                 Constant.MessageType: MdConstant.OnRspStartStrategy,
                 MdConstant.StrategyID: strategy_id,
                 MdConstant.Success: success,
-                Constant.RspInfo: CallError.get_rsp_info(0) if success else CallError.get_rsp_info(500)
+                Constant.RspInfo: CallError.get_rsp_info(0)
+                if success
+                else CallError.get_rsp_info(500),
             }
             if self.rsp_callback:
                 await self.rsp_callback(response)
@@ -563,7 +569,7 @@ class MdClient(BaseClient):
             response = {
                 Constant.MessageType: MdConstant.OnRspStartStrategy,
                 MdConstant.Success: False,
-                Constant.RspInfo: self._create_error_rsp_info(500, str(e))
+                Constant.RspInfo: self._create_error_rsp_info(500, str(e)),
             }
             if self.rsp_callback:
                 await self.rsp_callback(response)
@@ -579,7 +585,9 @@ class MdClient(BaseClient):
             response = {
                 Constant.MessageType: MdConstant.OnRspStopStrategy,
                 MdConstant.Success: False,
-                Constant.RspInfo: self._create_error_rsp_info(500, "策略管理器未初始化")
+                Constant.RspInfo: self._create_error_rsp_info(
+                    500, "策略管理器未初始化"
+                ),
             }
             if self.rsp_callback:
                 await self.rsp_callback(response)
@@ -591,7 +599,7 @@ class MdClient(BaseClient):
                 response = {
                     Constant.MessageType: MdConstant.OnRspStopStrategy,
                     MdConstant.Success: False,
-                    Constant.RspInfo: CallError.get_rsp_info(400)
+                    Constant.RspInfo: CallError.get_rsp_info(400),
                 }
                 if self.rsp_callback:
                     await self.rsp_callback(response)
@@ -605,7 +613,9 @@ class MdClient(BaseClient):
                 Constant.MessageType: MdConstant.OnRspStopStrategy,
                 MdConstant.StrategyID: strategy_id,
                 MdConstant.Success: success,
-                Constant.RspInfo: CallError.get_rsp_info(0) if success else CallError.get_rsp_info(500)
+                Constant.RspInfo: CallError.get_rsp_info(0)
+                if success
+                else CallError.get_rsp_info(500),
             }
             if self.rsp_callback:
                 await self.rsp_callback(response)
@@ -615,7 +625,7 @@ class MdClient(BaseClient):
             response = {
                 Constant.MessageType: MdConstant.OnRspStopStrategy,
                 MdConstant.Success: False,
-                Constant.RspInfo: self._create_error_rsp_info(500, str(e))
+                Constant.RspInfo: self._create_error_rsp_info(500, str(e)),
             }
             if self.rsp_callback:
                 await self.rsp_callback(response)
@@ -631,7 +641,9 @@ class MdClient(BaseClient):
             response = {
                 Constant.MessageType: MdConstant.OnRspQueryStrategyStatus,
                 MdConstant.Success: False,
-                Constant.RspInfo: self._create_error_rsp_info(500, "策略管理器未初始化")
+                Constant.RspInfo: self._create_error_rsp_info(
+                    500, "策略管理器未初始化"
+                ),
             }
             if self.rsp_callback:
                 await self.rsp_callback(response)
@@ -643,7 +655,7 @@ class MdClient(BaseClient):
                 response = {
                     Constant.MessageType: MdConstant.OnRspQueryStrategyStatus,
                     MdConstant.Success: False,
-                    Constant.RspInfo: CallError.get_rsp_info(400)
+                    Constant.RspInfo: CallError.get_rsp_info(400),
                 }
                 if self.rsp_callback:
                     await self.rsp_callback(response)
@@ -662,7 +674,7 @@ class MdClient(BaseClient):
                     "error_count": strategy_info.error_count,
                     "last_error": strategy_info.last_error,
                     "start_time": strategy_info.start_time,
-                    "stop_time": strategy_info.stop_time
+                    "stop_time": strategy_info.stop_time,
                 }
 
                 response = {
@@ -670,14 +682,14 @@ class MdClient(BaseClient):
                     MdConstant.StrategyID: strategy_id,
                     MdConstant.StrategyInfo: info_dict,
                     MdConstant.Success: True,
-                    Constant.RspInfo: CallError.get_rsp_info(0)
+                    Constant.RspInfo: CallError.get_rsp_info(0),
                 }
             else:
                 response = {
                     Constant.MessageType: MdConstant.OnRspQueryStrategyStatus,
                     MdConstant.StrategyID: strategy_id,
                     MdConstant.Success: False,
-                    Constant.RspInfo: CallError.get_rsp_info(404)
+                    Constant.RspInfo: CallError.get_rsp_info(404),
                 }
 
             if self.rsp_callback:
@@ -688,7 +700,7 @@ class MdClient(BaseClient):
             response = {
                 Constant.MessageType: MdConstant.OnRspQueryStrategyStatus,
                 MdConstant.Success: False,
-                Constant.RspInfo: self._create_error_rsp_info(500, str(e))
+                Constant.RspInfo: self._create_error_rsp_info(500, str(e)),
             }
             if self.rsp_callback:
                 await self.rsp_callback(response)
@@ -704,7 +716,9 @@ class MdClient(BaseClient):
             response = {
                 Constant.MessageType: MdConstant.OnRspListStrategies,
                 MdConstant.Success: False,
-                Constant.RspInfo: self._create_error_rsp_info(500, "策略管理器未初始化")
+                Constant.RspInfo: self._create_error_rsp_info(
+                    500, "策略管理器未初始化"
+                ),
             }
             if self.rsp_callback:
                 await self.rsp_callback(response)
@@ -725,7 +739,7 @@ class MdClient(BaseClient):
                     "error_count": strategy_info.error_count,
                     "last_error": strategy_info.last_error,
                     "start_time": strategy_info.start_time,
-                    "stop_time": strategy_info.stop_time
+                    "stop_time": strategy_info.stop_time,
                 }
                 strategy_list.append(info_dict)
 
@@ -733,7 +747,7 @@ class MdClient(BaseClient):
                 Constant.MessageType: MdConstant.OnRspListStrategies,
                 MdConstant.StrategyList: strategy_list,
                 MdConstant.Success: True,
-                Constant.RspInfo: CallError.get_rsp_info(0)
+                Constant.RspInfo: CallError.get_rsp_info(0),
             }
             if self.rsp_callback:
                 await self.rsp_callback(response)
@@ -743,7 +757,7 @@ class MdClient(BaseClient):
             response = {
                 Constant.MessageType: MdConstant.OnRspListStrategies,
                 MdConstant.Success: False,
-                Constant.RspInfo: self._create_error_rsp_info(500, str(e))
+                Constant.RspInfo: self._create_error_rsp_info(500, str(e)),
             }
             if self.rsp_callback:
                 await self.rsp_callback(response)
