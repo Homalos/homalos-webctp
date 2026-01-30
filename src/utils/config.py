@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 @ProjectName: homalos-webctp
 @FileName   : config.py
@@ -11,10 +10,10 @@
 """
 
 import os
-import yaml
-from pathlib import Path
 from dataclasses import dataclass, field
-from typing import Optional, List
+from pathlib import Path
+
+import yaml
 
 
 @dataclass
@@ -24,7 +23,7 @@ class CacheConfig:
     enabled: bool = False
     host: str = "localhost"
     port: int = 6379
-    password: Optional[str] = None
+    password: str | None = None
     db: int = 0
     max_connections: int = 50
     socket_timeout: float = 2.0  # 优化：本地部署推荐 2.0 秒
@@ -38,29 +37,37 @@ class CacheConfig:
     def validate(self) -> None:
         """
         验证配置参数的合理性
-        
+
         Raises:
             ValueError: 配置参数不合理时抛出
         """
         if self.socket_timeout <= 0:
-            raise ValueError(f"socket_timeout 必须大于 0，当前值: {self.socket_timeout}")
-        
+            raise ValueError(
+                f"socket_timeout 必须大于 0，当前值: {self.socket_timeout}"
+            )
+
         if self.socket_connect_timeout <= 0:
-            raise ValueError(f"socket_connect_timeout 必须大于 0，当前值: {self.socket_connect_timeout}")
-        
+            raise ValueError(
+                f"socket_connect_timeout 必须大于 0，当前值: {self.socket_connect_timeout}"
+            )
+
         if self.max_connections <= 0:
-            raise ValueError(f"max_connections 必须大于 0，当前值: {self.max_connections}")
-        
+            raise ValueError(
+                f"max_connections 必须大于 0，当前值: {self.max_connections}"
+            )
+
         # 性能优化建议
         if self.socket_timeout > 3.0:
             from loguru import logger
+
             logger.warning(
                 f"Redis socket_timeout 设置为 {self.socket_timeout} 秒，"
                 f"对于本地部署建议设置为 1-2 秒以加快降级响应"
             )
-        
+
         if self.market_snapshot_ttl > 60:
             from loguru import logger
+
             logger.warning(
                 f"行情快照 TTL 设置为 {self.market_snapshot_ttl} 秒，"
                 f"对于高频交易建议设置为 30 秒以减少过期数据"
@@ -73,11 +80,11 @@ class MetricsConfig:
 
     enabled: bool = True
     report_interval: int = 60  # 报告间隔（秒）
-    latency_buckets: List[float] = field(
+    latency_buckets: list[float] = field(
         default_factory=lambda: [10, 50, 100, 200, 500, 1000]
     )  # 延迟桶（毫秒）
     sample_rate: float = 1.0  # 采样率（0.0-1.0）
-    
+
     # 告警阈值配置
     latency_warning_threshold_ms: float = 100.0  # 延迟告警阈值（毫秒）
     cache_hit_rate_warning_threshold: float = 50.0  # Redis 命中率告警阈值（百分比）
@@ -119,10 +126,10 @@ class SyncApiConfig:
 
     # 连接超时配置
     connect_timeout: float = 30.0  # CTP 连接超时时间（秒）
-    
+
     # 策略管理配置
     max_strategies: int = 10  # 最大并发策略数量
-    
+
     # 操作超时配置
     quote_timeout: float = 5.0  # 行情查询默认超时（秒）
     position_timeout: float = 5.0  # 持仓查询默认超时（秒）
@@ -131,7 +138,7 @@ class SyncApiConfig:
     stop_timeout: float = 5.0  # 停止服务默认超时（秒）
 
 
-class GlobalConfig(object):
+class GlobalConfig:
     TdFrontAddress: str
     MdFrontAddress: str
     BrokerID: str
@@ -192,7 +199,7 @@ class GlobalConfig(object):
                 "WEBCTP_AUTH_CODE", config.get("AuthCode", "")
             )
             cls.AppID = os.environ.get("WEBCTP_APP_ID", config.get("AppID", ""))
-            cls.Host = os.environ.get("WEBCTP_HOST", config.get("Host", "0.0.0.0"))
+            cls.Host = os.environ.get("WEBCTP_HOST", config.get("Host", "0.0.0.0"))  # nosec B104  # Web服务需要绑定0.0.0.0
 
             cls.Port = config.get("Port", 8080)
             cls.LogLevel = config.get("LogLevel", "INFO")
@@ -230,21 +237,26 @@ class GlobalConfig(object):
                 ),
                 db=int(os.environ.get("WEBCTP_REDIS_DB", redis_config.get("DB", 0))),
                 max_connections=int(redis_config.get("MaxConnections", 50)),
-                socket_timeout=float(redis_config.get("SocketTimeout", 2.0)),  # 优化默认值
+                socket_timeout=float(
+                    redis_config.get("SocketTimeout", 2.0)
+                ),  # 优化默认值
                 socket_connect_timeout=float(
                     redis_config.get("SocketConnectTimeout", 2.0)  # 优化默认值
                 ),
-                market_snapshot_ttl=int(redis_config.get("MarketSnapshotTTL", 30)),  # 优化默认值
+                market_snapshot_ttl=int(
+                    redis_config.get("MarketSnapshotTTL", 30)
+                ),  # 优化默认值
                 market_tick_ttl=int(redis_config.get("MarketTickTTL", 5)),
                 order_ttl=int(redis_config.get("OrderTTL", 86400)),
             )
-            
+
             # 验证配置
             if cls.Cache.enabled:
                 try:
                     cls.Cache.validate()
                 except ValueError as e:
                     from loguru import logger
+
                     logger.error(f"Redis 配置验证失败: {e}")
                     raise
 
