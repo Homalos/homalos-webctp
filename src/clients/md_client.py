@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 @ProjectName: homalos-webctp
 @FileName   : md_client.py
@@ -11,18 +10,17 @@
 """
 import time
 import uuid
-from typing import Callable, Any
-
-from ..ctp import thostmduserapi as mdapi
+from collections.abc import Callable
+from typing import Any
 
 from ..constants import CallError
 from ..constants import MdConstant as Constant
+from ..ctp import thostmduserapi as mdapi
 from ..utils import CTPObjectHelper, GlobalConfig, MathHelper, logger
 from .client_helper import ReconnectionController
 
 
 class MdClient(mdapi.CThostFtdcMdSpi):
-
     def __init__(self, user_id, password):
         super().__init__()
         self._front_address: str = GlobalConfig.MdFrontAddress
@@ -33,8 +31,10 @@ class MdClient(mdapi.CThostFtdcMdSpi):
         self._api: mdapi.CThostFtdcMdApi | None = None
         self._connected: bool = False
         # Reconnection control
-        self._reconnection_ctrl = ReconnectionController(max_attempts=5, interval=10.0, client_type="Md")
-        logger.info(f"Md front_address: {self._front_address}", tag='md_client')
+        self._reconnection_ctrl = ReconnectionController(
+            max_attempts=5, interval=10.0, client_type="Md"
+        )
+        logger.info(f"Md front_address: {self._front_address}", tag="md_client")
 
     @property
     def rsp_callback(self) -> Callable[[dict[str, Any]], None]:
@@ -113,7 +113,9 @@ class MdClient(mdapi.CThostFtdcMdSpi):
             mdapi.CThostFtdcMdApi: 初始化完成的CTP行情API实例
         """
         con_file_path = GlobalConfig.get_con_file_path("md" + self._user_id)
-        self._api: mdapi.CThostFtdcMdApi = mdapi.CThostFtdcMdApi.CreateFtdcMdApi(con_file_path)
+        self._api: mdapi.CThostFtdcMdApi = mdapi.CThostFtdcMdApi.CreateFtdcMdApi(
+            con_file_path
+        )
         self._api.RegisterSpi(self)
         self._api.RegisterFront(self._front_address)
         return self._api
@@ -143,7 +145,7 @@ class MdClient(mdapi.CThostFtdcMdSpi):
             callback=self._rsp_callback,
             message_type=Constant.OnRspUserLogin,
             logger=logger,
-            current_time=time.time()
+            current_time=time.time(),
         ):
             return
         self.login()
@@ -165,7 +167,7 @@ class MdClient(mdapi.CThostFtdcMdSpi):
             reason=reason,
             callback=self._rsp_callback,
             logger=logger,
-            current_time=time.time()
+            current_time=time.time(),
         )
 
     def login(self):
@@ -186,11 +188,11 @@ class MdClient(mdapi.CThostFtdcMdSpi):
         return self._api.ReqUserLogin(req, 0)
 
     def OnRspUserLogin(
-            self,
-            rsp_user_login: mdapi.CThostFtdcRspUserLoginField,
-            rsp_info: mdapi.CThostFtdcRspInfoField,
-            request_id,
-            is_last
+        self,
+        rsp_user_login: mdapi.CThostFtdcRspUserLoginField,
+        rsp_info: mdapi.CThostFtdcRspInfoField,
+        request_id,
+        is_last,
     ):
         """
         处理用户登录响应回调
@@ -212,7 +214,9 @@ class MdClient(mdapi.CThostFtdcMdSpi):
         else:
             logger.info("Md client login failed, please try again")
 
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspUserLogin, rsp_info, request_id, is_last)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnRspUserLogin, rsp_info, request_id, is_last
+        )
         response[Constant.RspUserLogin] = {
             "BrokerID": rsp_user_login.BrokerID,
             "CZCETime": rsp_user_login.CZCETime,
@@ -227,16 +231,16 @@ class MdClient(mdapi.CThostFtdcMdSpi):
             "SystemName": rsp_user_login.SystemName,
             "SysVersion": rsp_user_login.SysVersion,
             "TradingDay": rsp_user_login.TradingDay,
-            "UserID": rsp_user_login.UserID
+            "UserID": rsp_user_login.UserID,
         }
         self.rsp_callback(response)
 
     def OnRspSubMarketData(
-            self,
-            specific_instrument: mdapi.CThostFtdcSpecificInstrumentField,
-            rsp_info,
-            request_id,
-            is_last
+        self,
+        specific_instrument: mdapi.CThostFtdcSpecificInstrumentField,
+        rsp_info,
+        request_id,
+        is_last,
     ):
         """
         处理订阅行情数据的响应回调
@@ -250,14 +254,18 @@ class MdClient(mdapi.CThostFtdcMdSpi):
         Returns:
             None: 无直接返回值，通过rsp_callback回调返回处理结果
         """
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspSubMarketData, rsp_info, request_id, is_last)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnRspSubMarketData, rsp_info, request_id, is_last
+        )
         if specific_instrument:
             response[Constant.SpecificInstrument] = {
                 Constant.InstrumentID: specific_instrument.InstrumentID
             }
         self.rsp_callback(response)
 
-    def OnRtnDepthMarketData(self, depth_marketdata: mdapi.CThostFtdcDepthMarketDataField):
+    def OnRtnDepthMarketData(
+        self, depth_marketdata: mdapi.CThostFtdcDepthMarketDataField
+    ):
         """
         处理深度市场数据回调
 
@@ -284,13 +292,17 @@ class MdClient(mdapi.CThostFtdcMdSpi):
             "AskVolume4": depth_marketdata.AskVolume4,
             "AskVolume5": depth_marketdata.AskVolume5,
             "AveragePrice": MathHelper.adjust_price(depth_marketdata.AveragePrice),
-            "BandingLowerPrice": MathHelper.adjust_price(depth_marketdata.BandingLowerPrice),
-            "BandingUpperPrice": MathHelper.adjust_price(depth_marketdata.BandingUpperPrice),
+            "BandingLowerPrice": MathHelper.adjust_price(
+                depth_marketdata.BandingLowerPrice
+            ),
+            "BandingUpperPrice": MathHelper.adjust_price(
+                depth_marketdata.BandingUpperPrice
+            ),
             "BidPrice1": MathHelper.adjust_price(depth_marketdata.BidPrice1),
             "BidPrice2": MathHelper.adjust_price(depth_marketdata.BidPrice2),
             "BidPrice3": MathHelper.adjust_price(depth_marketdata.BidPrice3),
             "BidPrice4": MathHelper.adjust_price(depth_marketdata.BidPrice4),
-            "BidPrice5": MathHelper.adjust_price( depth_marketdata.BidPrice5),
+            "BidPrice5": MathHelper.adjust_price(depth_marketdata.BidPrice5),
             "BidVolume1": depth_marketdata.BidVolume1,
             "BidVolume2": depth_marketdata.BidVolume2,
             "BidVolume3": depth_marketdata.BidVolume3,
@@ -303,36 +315,44 @@ class MdClient(mdapi.CThostFtdcMdSpi):
             "HighestPrice": MathHelper.adjust_price(depth_marketdata.HighestPrice),
             "InstrumentID": depth_marketdata.InstrumentID,
             "LastPrice": MathHelper.adjust_price(depth_marketdata.LastPrice),
-            "LowerLimitPrice": MathHelper.adjust_price(depth_marketdata.LowerLimitPrice),
+            "LowerLimitPrice": MathHelper.adjust_price(
+                depth_marketdata.LowerLimitPrice
+            ),
             "LowestPrice": MathHelper.adjust_price(depth_marketdata.LowestPrice),
             "OpenInterest": depth_marketdata.OpenInterest,
             "OpenPrice": MathHelper.adjust_price(depth_marketdata.OpenPrice),
             "PreClosePrice": MathHelper.adjust_price(depth_marketdata.PreClosePrice),
             "PreDelta": depth_marketdata.PreDelta,
             "PreOpenInterest": depth_marketdata.PreOpenInterest,
-            "PreSettlementPrice": MathHelper.adjust_price(depth_marketdata.PreSettlementPrice),
-            "SettlementPrice": MathHelper.adjust_price(depth_marketdata.SettlementPrice),
+            "PreSettlementPrice": MathHelper.adjust_price(
+                depth_marketdata.PreSettlementPrice
+            ),
+            "SettlementPrice": MathHelper.adjust_price(
+                depth_marketdata.SettlementPrice
+            ),
             "TradingDay": depth_marketdata.TradingDay,
             "Turnover": depth_marketdata.Turnover,
             "UpdateMillisec": depth_marketdata.UpdateMillisec,
             "UpdateTime": depth_marketdata.UpdateTime,
-            "UpperLimitPrice": MathHelper.adjust_price(depth_marketdata.UpperLimitPrice),
+            "UpperLimitPrice": MathHelper.adjust_price(
+                depth_marketdata.UpperLimitPrice
+            ),
             "Volume": depth_marketdata.Volume,
             "reserve1": depth_marketdata.reserve1,
-            "reserve2": depth_marketdata.reserve2
-            }
+            "reserve2": depth_marketdata.reserve2,
+        }
         response = {
             Constant.MessageType: Constant.OnRtnDepthMarketData,
-            Constant.DepthMarketData: depth_data
+            Constant.DepthMarketData: depth_data,
         }
         self.rsp_callback(response)
 
     def OnRspUnSubMarketData(
-            self,
-            specific_instrument: mdapi.CThostFtdcSpecificInstrumentField,
-            rsp_info,
-            request_id,
-            is_last
+        self,
+        specific_instrument: mdapi.CThostFtdcSpecificInstrumentField,
+        rsp_info,
+        request_id,
+        is_last,
     ):
         """
         处理取消订阅行情数据的响应回调
@@ -347,7 +367,9 @@ class MdClient(mdapi.CThostFtdcMdSpi):
             None: 无直接返回值，通过回调函数返回响应数据
         """
         logger.debug("recv unsub market data")
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspUnSubMarketData, rsp_info, request_id, is_last)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnRspUnSubMarketData, rsp_info, request_id, is_last
+        )
         if specific_instrument:
             response[Constant.SpecificInstrument] = {
                 Constant.InstrumentID: specific_instrument.InstrumentID
@@ -368,7 +390,7 @@ class MdClient(mdapi.CThostFtdcMdSpi):
             None: 无直接返回值，通过回调函数返回响应数据
         """
         instrument_ids = request[Constant.InstrumentID]
-        instrument_ids = list(map(lambda i: i.encode(), instrument_ids))
+        instrument_ids = list([i.encode() for i in instrument_ids])
         logger.debug(f"subscribe data for {instrument_ids}")
         ret = self._api.SubscribeMarketData(instrument_ids, len(instrument_ids))
         self.method_called(Constant.OnRspSubMarketData, ret)
@@ -387,7 +409,7 @@ class MdClient(mdapi.CThostFtdcMdSpi):
             None
         """
         instrument_ids = request[Constant.InstrumentID]
-        instrument_ids = list(map(lambda i: i.encode(), instrument_ids))
+        instrument_ids = list([i.encode() for i in instrument_ids])
         logger.debug(f"unsubscribe data for {instrument_ids}")
         ret = self._api.UnSubscribeMarketData(instrument_ids, len(instrument_ids))
         self.method_called(Constant.OnRspUnSubMarketData, ret)
