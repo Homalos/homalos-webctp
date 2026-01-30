@@ -24,6 +24,7 @@ wheels/
 .kiro
 
 # Virtual Environment
+.venv
 .venv/
 venv/
 ENV/
@@ -57,10 +58,6 @@ logs/
 # CTP specific
 con_file/
 flows/
-PeopleQuant
-PeopleQuant/flows/
-PeopleQuant/logs/
-examples/config_example.py
 
 # Redis
 dump.rdb
@@ -68,9 +65,19 @@ dump.rdb
 # Temporary files
 *.tmp
 *.bak
-*.swp
 .cache/
 
 # OS
 Thumbs.db
-.DS_Store
+
+# Project
+files.txt
+compress.bat
+PeopleQuant核心架构研究.md
+PeopleQuant
+PeopleQuant/
+PeopleQuant/flows/
+PeopleQuant/logs/
+examples/config_example.py
+讨论.md
+*.md
