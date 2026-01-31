@@ -7,11 +7,10 @@
 
 ### Table of contents
 
-
-* [Login](#login)
-* [Subscribe Market Data](#subscribe-market-data)
-* [Unsubscribe Market Data](#unsubscribe-market-data)
-* [Market Data Push](#market-data-push)
+- [Login](#login)
+- [Subscribe Market Data](#subscribe-market-data)
+- [Unsubscribe Market Data](#unsubscribe-market-data)
+- [Market Data Push](#market-data-push)
 
 ### Login
 
@@ -145,7 +144,6 @@ Market data login does not require UserID and Password, but it is recommended to
     }
 }
 ```
-
 
 ### Unsubscribe Market Data
 
