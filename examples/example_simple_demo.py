@@ -3,8 +3,8 @@
 @ProjectName: homalos-webctp
 @FileName   : example_simple_demo.py
 @Date       : 2025/12/18
-@Author     : Kiro AI Assistant
-@Email      : -
+@Author     : Lumosylva
+@Email      : donnymoving@gmail.com
 @Software   : PyCharm
 @Description: 简单演示 - 获取行情和持仓（推荐新手）
 

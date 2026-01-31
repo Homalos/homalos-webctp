@@ -3,8 +3,8 @@
 @ProjectName: homalos-webctp
 @FileName   : sync_api.py
 @Date       : 2025/12/16
-@Author     : Kiro AI Assistant
-@Email      : -
+@Author     : Lumosylva
+@Email      : donnymoving@gmail.com
 @Software   : PyCharm
 @Description: 同步策略 API - 同步阻塞式策略编写接口
 

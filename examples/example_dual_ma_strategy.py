@@ -3,8 +3,8 @@
 @ProjectName: homalos-webctp
 @FileName   : example_dual_ma_strategy.py
 @Date       : 2025/12/18
-@Author     : Kiro AI Assistant
-@Email      : -
+@Author     : Lumosylva
+@Email      : donnymoving@gmail.com
 @Software   : PyCharm
 @Description: 双均线策略示例
 

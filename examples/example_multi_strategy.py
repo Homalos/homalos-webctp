@@ -3,7 +3,7 @@
 @ProjectName: homalos-webctp
 @FileName   : example_multi_strategy.py
 @Date       : 2025/12/18
-@Author     : Kiro AI Assistant
+@Author     : Lumosylva
 @Email      : -
 @Software   : PyCharm
 @Description: 多策略并发运行示例
