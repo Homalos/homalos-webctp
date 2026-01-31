@@ -31,28 +31,28 @@ A `tag` is a **classification label** for logs, used for:
 
 ### Common Tag Usage Scenes
 
-| Tag | Usage Scenario | Example |
-|-----|----------------|---------|
-| `auth` | Authentication and Authorization | Login, Permission Verification |
-| `database` | Database Operations | Query, Insert, Update, Delete |
-| `websocket` | WebSocket Communication | Connect, Disconnect, Message Send/Receive |
-| `request` | HTTP Request Processing | Request Receive, Response Send |
-| `payment` | Payment Related | Payment Processing, Refunds |
-| `order` | Order Related | Order Creation, Update, Cancellation |
-| `cache` | Cache Operations | Cache Hit, Cache Update |
-| `email` | Email Sending | Email Sending, Template Rendering |
-| `file` | File Operations | Upload, Download, Delete |
-| `connection` | Connection Management | Connection Establish, Disconnect |
-| `retry` | Retry Logic | Retry Count, Backoff Strategy |
-| `validation` | Data Validation | Parameter Validation, Business Rule Validation |
+| Tag          | Usage Scenario                   | Example                                        |
+| ------------ | -------------------------------- | ---------------------------------------------- |
+| `auth`       | Authentication and Authorization | Login, Permission Verification                 |
+| `database`   | Database Operations              | Query, Insert, Update, Delete                  |
+| `websocket`  | WebSocket Communication          | Connect, Disconnect, Message Send/Receive      |
+| `request`    | HTTP Request Processing          | Request Receive, Response Send                 |
+| `payment`    | Payment Related                  | Payment Processing, Refunds                    |
+| `order`      | Order Related                    | Order Creation, Update, Cancellation           |
+| `cache`      | Cache Operations                 | Cache Hit, Cache Update                        |
+| `email`      | Email Sending                    | Email Sending, Template Rendering              |
+| `file`       | File Operations                  | Upload, Download, Delete                       |
+| `connection` | Connection Management            | Connection Establish, Disconnect               |
+| `retry`      | Retry Logic                      | Retry Count, Backoff Strategy                  |
+| `validation` | Data Validation                  | Parameter Validation, Business Rule Validation |
 
 ### Tag Naming Conventions
 
 1. **Use Lowercase** - `auth`, `database`, `websocket`
-2. **Use Underscores** - `user_auth`, `db_query`, `ws_connect`
-3. **Keep it Concise** - Usually 1-2 words
-4. **Indicate Integration/Module** - Rather than log level
-5. **Consistency** - Use the same tag for the same functionality
+1. **Use Underscores** - `user_auth`, `db_query`, `ws_connect`
+1. **Keep it Concise** - Usually 1-2 words
+1. **Indicate Integration/Module** - Rather than log level
+1. **Consistency** - Use the same tag for the same functionality
 
 ## Quick Start
 
@@ -94,6 +94,7 @@ logger.error("Database Error", tag="database", trace_id="req-12345")
 ```
 
 **Output:**
+
 ```
 INFO     | [trace_id=550e8400-e29b-41d4-a716-446655440000] Processing Request
 INFO     | [trace_id=550e8400-e29b-41d4-a716-446655440001] [database] Querying Database
@@ -276,6 +277,7 @@ Log file location: `logs/` directory
 - `webctp_error.log` - Error logs only (ERROR and above)
 
 File Format:
+
 ```
 2025-12-03 14:30:45.123 | DEBUG    | utils.log.logger:debug:189 | [trace_id=req-12345] [database] Querying User: 123
 2025-12-03 14:30:46.456 | INFO     | services.td_client:call:67 | [trace_id=req-12345] [request] Processing Request
@@ -361,6 +363,7 @@ with logger.trace():  # Automatically generate trace_id
 ```
 
 **Log Output Example:**
+
 ```
 INFO     | [trace_id=abc-123] [request] Received Order Request
 DEBUG    | [trace_id=abc-123] [database] Querying User Info
@@ -538,6 +541,7 @@ A: Modify the `_get_console_format()` or `_get_file_format()` methods.
 ### Q: Will the log file grow infinitely?
 
 A: No. Log files are set to automatically rotate and compress:
+
 - Automatically rotates when a single file exceeds 500MB
 - Keeps logs for 7 days (error logs for 30 days)
 - Old logs are automatically compressed into zip files
@@ -628,10 +632,10 @@ logger.info("Message", tag="auth")  # With tag
 A: Recommended practices:
 
 1. **Use unified tag standards** - Maintain consistency within the team
-2. **Centralized Log Collection** - Use ELK Stack, Datadog, etc.
-3. **Structured Logs** - Facilitate analysis and querying
-4. **Log Sampling** - Use sampling in high-traffic scenarios
-5. **Regular Cleanup** - Clean up old log files
+1. **Centralized Log Collection** - Use ELK Stack, Datadog, etc.
+1. **Structured Logs** - Facilitate analysis and querying
+1. **Log Sampling** - Use sampling in high-traffic scenarios
+1. **Regular Cleanup** - Clean up old log files
 
 ## Performance Considerations
 

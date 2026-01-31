@@ -26,28 +26,28 @@ homalos-webctp 项目使用基于 `loguru` 的日志工具类 `Logger`，提供�
 
 ### 常见 Tag 使用场景
 
-| Tag | 使用场景 | 示例 |
-|-----|---------|------|
-| `auth` | 认证和授权相关 | 登录、权限验证 |
-| `database` | 数据库操作 | 查询、插入、更新、删除 |
-| `websocket` | WebSocket 通信 | 连接、断开、消息收发 |
-| `request` | HTTP 请求处理 | 请求接收、响应发送 |
-| `payment` | 支付相关 | 支付处理、退款 |
-| `order` | 订单相关 | 订单创建、更新、取消 |
-| `cache` | 缓存操作 | 缓存命中、缓存更新 |
-| `email` | 邮件发送 | 邮件发送、模板渲染 |
-| `file` | 文件操作 | 上传、下载、删除 |
-| `connection` | 连接管理 | 连接建立、断开 |
-| `retry` | 重试逻辑 | 重试次数、退避策略 |
-| `validation` | 数据验证 | 参数验证、业务规则验证 |
+| Tag          | 使用场景       | 示例                   |
+| ------------ | -------------- | ---------------------- |
+| `auth`       | 认证和授权相关 | 登录、权限验证         |
+| `database`   | 数据库操作     | 查询、插入、更新、删除 |
+| `websocket`  | WebSocket 通信 | 连接、断开、消息收发   |
+| `request`    | HTTP 请求处理  | 请求接收、响应发送     |
+| `payment`    | 支付相关       | 支付处理、退款         |
+| `order`      | 订单相关       | 订单创建、更新、取消   |
+| `cache`      | 缓存操作       | 缓存命中、缓存更新     |
+| `email`      | 邮件发送       | 邮件发送、模板渲染     |
+| `file`       | 文件操作       | 上传、下载、删除       |
+| `connection` | 连接管理       | 连接建立、断开         |
+| `retry`      | 重试逻辑       | 重试次数、退避策略     |
+| `validation` | 数据验证       | 参数验证、业务规则验证 |
 
 ### Tag 命名规范
 
 1. **使用小写字母** - `auth`, `database`, `websocket`
-2. **使用下划线分隔** - `user_auth`, `db_query`, `ws_connect`
-3. **保持简洁** - 通常 1-2 个单词
-4. **表示功能/模块** - 而不是日志级别
-5. **保持一致性** - 同一功能使用相同的 tag
+1. **使用下划线分隔** - `user_auth`, `db_query`, `ws_connect`
+1. **保持简洁** - 通常 1-2 个单词
+1. **表示功能/模块** - 而不是日志级别
+1. **保持一致性** - 同一功能使用相同的 tag
 
 ## 快速开始
 
@@ -89,6 +89,7 @@ logger.error("数据库错误", tag="database", trace_id="req-12345")
 ```
 
 **输出：**
+
 ```
 INFO     | [trace_id=550e8400-e29b-41d4-a716-446655440000] 处理请求
 INFO     | [trace_id=550e8400-e29b-41d4-a716-446655440001] [database] 查询数据库
@@ -271,6 +272,7 @@ ERROR    | services.connection:run:45 | [trace_id=req-12345] [connection] WebSoc
 - `webctp_error.log` - 仅错误日志（ERROR 及以上）
 
 文件格式：
+
 ```
 2025-12-03 14:30:45.123 | DEBUG    | utils.log.logger:debug:189 | [trace_id=req-12345] [database] 查询用户: 123
 2025-12-03 14:30:46.456 | INFO     | services.td_client:call:67 | [trace_id=req-12345] [request] 处理请求
@@ -356,6 +358,7 @@ with logger.trace():  # 自动生成 trace_id
 ```
 
 **输出日志示例：**
+
 ```
 INFO     | [trace_id=abc-123] [request] 收到订单请求
 DEBUG    | [trace_id=abc-123] [database] 查询用户信息
@@ -533,6 +536,7 @@ A: 修改 `_get_console_format()` 或 `_get_file_format()` 方法。
 ### Q: 日志文件会无限增长吗？
 
 A: 不会。日志文件设置了自动轮转和压缩：
+
 - 单个文件超过 500MB 时自动轮转
 - 保留 7 天的日志（错误日志保留 30 天）
 - 旧日志自动压缩为 zip 文件
@@ -623,10 +627,10 @@ logger.info("消息", tag="auth")  # 有 tag
 A: 建议的做法：
 
 1. **使用统一的 tag 规范** - 团队内保持一致
-2. **集中日志收集** - 使用 ELK Stack、Datadog 等
-3. **结构化日志** - 便于分析和查询
-4. **日志采样** - 在高流量场景中使用采样
-5. **定期清理** - 清理旧的日志文件
+1. **集中日志收集** - 使用 ELK Stack、Datadog 等
+1. **结构化日志** - 便于分析和查询
+1. **日志采样** - 在高流量场景中使用采样
+1. **定期清理** - 清理旧的日志文件
 
 ## 性能考虑
 
