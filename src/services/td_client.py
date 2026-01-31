@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 @ProjectName: homalos-webctp
 @FileName   : td_client.py
@@ -9,21 +8,21 @@
 @Software   : PyCharm
 @Description: 交易服务 (继承 BaseClient)
 """
-from typing import Any, Optional
 import time
 from queue import Queue
+from typing import Any
 
 import anyio
+from loguru import logger
 
-from .base_client import BaseClient
-from .cache_manager import CacheManager
 from ..clients import CTPTdClient
 from ..constants import CallError
 from ..constants import TdConstant as Constant
 from ..model import REQUEST_PAYLOAD
-from ..utils.serialization import get_msgpack_serializer
 from ..utils.metrics import MetricsCollector
-from loguru import logger
+from ..utils.serialization import get_msgpack_serializer
+from .base_client import BaseClient
+from .cache_manager import CacheManager
 
 
 class TdClient(BaseClient):
@@ -34,10 +33,10 @@ class TdClient(BaseClient):
     def __init__(self) -> None:
         super().__init__()
         self._client: CTPTdClient | None = None
-        self._cache_manager: Optional[CacheManager] = None
+        self._cache_manager: CacheManager | None = None
         self._serializer = get_msgpack_serializer()
-        self._user_id: Optional[str] = None
-        self._metrics_collector: Optional[MetricsCollector] = None
+        self._user_id: str | None = None
+        self._metrics_collector: MetricsCollector | None = None
         self._cache_queue: Queue = Queue()  # 缓存任务队列
 
     def set_cache_manager(self, cache_manager: CacheManager) -> None:
@@ -75,7 +74,7 @@ class TdClient(BaseClient):
         """
         # 记录 CTP 回调开始时间
         callback_start_time = time.time()
-        
+
         # 异步缓存处理（不阻塞消息推送）
         message_type = data.get(Constant.MessageType, "")
 
@@ -83,7 +82,7 @@ class TdClient(BaseClient):
         if message_type in (
             Constant.OnRspQryInvestorPosition,
             Constant.OnRspQryTradingAccount,
-            Constant.OnRtnOrder
+            Constant.OnRtnOrder,
         ):
             try:
                 self._cache_queue.put_nowait((message_type, data))
@@ -92,11 +91,13 @@ class TdClient(BaseClient):
 
         # 调用父类方法，推送到队列
         super().on_rsp_or_rtn(data)
-        
+
         # 记录 CTP 回调到队列的延迟
         if self._metrics_collector:
             callback_latency_ms = (time.time() - callback_start_time) * 1000
-            self._metrics_collector.record_latency("td_callback_to_queue_latency", callback_latency_ms)
+            self._metrics_collector.record_latency(
+                "td_callback_to_queue_latency", callback_latency_ms
+            )
 
     async def _process_cache_queue(self) -> None:
         """
@@ -106,12 +107,12 @@ class TdClient(BaseClient):
         此方法在异步上下文中运行，避免了跨线程异步调用问题。
         """
         from queue import Empty
-        
+
         while self._running:
             try:
                 # 非阻塞获取任务，避免阻塞事件循环
                 message_type, data = self._cache_queue.get_nowait()
-                
+
                 # 根据消息类型执行对应的缓存方法
                 if message_type == Constant.OnRspQryInvestorPosition:
                     await self._cache_position_data(data)
@@ -119,7 +120,7 @@ class TdClient(BaseClient):
                     await self._cache_account_data(data)
                 elif message_type == Constant.OnRtnOrder:
                     await self._cache_order_data(data)
-                    
+
             except Empty:
                 # 队列为空，短暂休眠避免CPU占用过高
                 await anyio.sleep(0.01)
@@ -147,7 +148,7 @@ class TdClient(BaseClient):
         if class_ is None:
             return {
                 Constant.MessageType: message_type,
-                Constant.RspInfo: CallError.get_rsp_info(404)
+                Constant.RspInfo: CallError.get_rsp_info(404),
             }
 
         try:
@@ -177,47 +178,45 @@ class TdClient(BaseClient):
         if ret is not None:
             if self.rsp_callback:
                 await self.rsp_callback(ret)
-        else:
-            if message_type == Constant.ReqUserLogin:
-                user_id: str = request[Constant.ReqUserLogin]["UserID"]
-                password: str = request[Constant.ReqUserLogin]["Password"]
-                # 保存用户ID用于缓存
-                self._user_id = user_id
-                await self.start(user_id, password)
-            else:
-                if message_type in self._call_map:
-                    # 记录订单操作的开始时间（用于延迟统计）
-                    start_time = None
-                    if self._metrics_collector and message_type in [
-                        Constant.ReqOrderInsert,
-                        Constant.ReqOrderAction
-                    ]:
-                        start_time = time.time()
-                    
-                    # 执行 CTP API 调用
-                    await anyio.to_thread.run_sync(
-                        self._call_map[message_type], request)
-                    
-                    # 记录订单延迟指标
-                    if start_time and self._metrics_collector:
-                        latency_ms = (time.time() - start_time) * 1000
-                        self._metrics_collector.record_latency("td_order_latency", latency_ms)
-                        
-                elif not self._call_map:
-                    response = {
-                        Constant.MessageType: message_type,
-                        Constant.RspInfo: CallError.get_rsp_info(401)
-                    }
-                    if self.rsp_callback:
-                        await self.rsp_callback(response)
+        elif message_type == Constant.ReqUserLogin:
+            user_id: str = request[Constant.ReqUserLogin]["UserID"]
+            password: str = request[Constant.ReqUserLogin]["Password"]
+            # 保存用户ID用于缓存
+            self._user_id = user_id
+            await self.start(user_id, password)
+        elif message_type in self._call_map:
+            # 记录订单操作的开始时间（用于延迟统计）
+            start_time = None
+            if self._metrics_collector and message_type in [
+                Constant.ReqOrderInsert,
+                Constant.ReqOrderAction,
+            ]:
+                start_time = time.time()
 
-                else:
-                    response = {
-                        Constant.MessageType: message_type,
-                        Constant.RspInfo: CallError.get_rsp_info(404)
-                    }
-                    if self.rsp_callback:
-                        await self.rsp_callback(response)
+            # 执行 CTP API 调用
+            await anyio.to_thread.run_sync(self._call_map[message_type], request)
+
+            # 记录订单延迟指标
+            if start_time and self._metrics_collector:
+                latency_ms = (time.time() - start_time) * 1000
+                self._metrics_collector.record_latency("td_order_latency", latency_ms)
+
+        elif not self._call_map:
+            response = {
+                Constant.MessageType: message_type,
+                Constant.RspInfo: CallError.get_rsp_info(401),
+            }
+            if self.rsp_callback:
+                await self.rsp_callback(response)
+
+        else:
+            response = {
+                Constant.MessageType: message_type,
+                Constant.RspInfo: CallError.get_rsp_info(404),
+            }
+            if self.rsp_callback:
+                await self.rsp_callback(response)
+
     async def run(self) -> None:
         """
         运行客户端协程的主循环
@@ -228,44 +227,44 @@ class TdClient(BaseClient):
             None: 此方法不返回值
         """
         import logging
-        
+
         logging.info(f"start to run new {self._get_client_type()} coroutine")
         self._stop_event = anyio.Event()
         self._running = True
-        
+
         # 使用task_group同时运行消息处理和缓存处理
         async with anyio.create_task_group() as tg:
             # 启动缓存队列处理协程
             tg.start_soon(self._process_cache_queue)
-            
+
             # 启动消息处理循环
             while self._running:
                 await self._process_a_message(1.0)
-            
+
             # task_group 会自动等待所有任务完成（优雅停止）
-        
+
         logging.info(f"stop running {self._get_client_type()} coroutine")
         self._stop_event.set()
 
     async def stop(self) -> None:
         """
         停止客户端并清理缓存队列
-        
+
         重写父类方法，在停止前：
         1. 给缓存队列处理一个短暂的时间窗口处理剩余任务
         2. 清空缓存队列避免内存泄漏
         """
         import logging
-        
+
         logging.debug(f"stopping {self._get_client_type()} client")
         self._running = False
-        
+
         # 给缓存队列一个短暂的时间窗口处理剩余任务（最多0.5秒）
         try:
             await anyio.sleep(0.5)
         except Exception:
-            pass
-        
+            logging.debug("TdClient: 等待缓存队列处理时被中断")
+
         # 清空缓存队列
         cleared_count = 0
         try:
@@ -273,20 +272,20 @@ class TdClient(BaseClient):
                 self._cache_queue.get_nowait()
                 cleared_count += 1
         except Exception:
-            pass
-        
+            logging.debug("TdClient: 清空缓存队列时出错")
+
         if cleared_count > 0:
             logging.debug(f"TdClient: 清空了 {cleared_count} 个未处理的缓存任务")
-        
+
         # 等待停止事件
         if self._stop_event:
             await self._stop_event.wait()
             self._stop_event = None
-        
+
         # 释放客户端资源
         if self._client:
             await anyio.to_thread.run_sync(self._client.release)
-        
+
         logging.debug(f"{self._get_client_type()} client stopped")
 
     def _create_ctp_client(self, user_id: str, password: str):
@@ -425,13 +424,14 @@ class TdClient(BaseClient):
 
             # 使用 zadd 添加到 Sorted Set，并设置 24 小时 TTL
             from ..utils.config import GlobalConfig
-            ttl = GlobalConfig.Cache.order_ttl if hasattr(GlobalConfig, 'Cache') else 86400
 
-            await self._cache_manager.zadd(
-                cache_key,
-                {member_key: score},
-                ttl=ttl
+            ttl = (
+                GlobalConfig.Cache.order_ttl
+                if hasattr(GlobalConfig, "Cache")
+                else 86400
             )
+
+            await self._cache_manager.zadd(cache_key, {member_key: score}, ttl=ttl)
 
             logger.debug(f"TdClient: 订单数据已缓存 - {order_key}")
 
@@ -440,8 +440,8 @@ class TdClient(BaseClient):
             # 降级：不影响正常流程
 
     async def query_position_cached(
-        self, instrument_id: Optional[str] = None
-    ) -> Optional[dict[str, Any]]:
+        self, instrument_id: str | None = None
+    ) -> dict[str, Any] | None:
         """
         从 Redis 缓存查询持仓数据
 
@@ -471,50 +471,49 @@ class TdClient(BaseClient):
                 if data:
                     position_data = self._serializer.deserialize(data)
                     logger.debug(f"TdClient: 从缓存读取持仓数据 - {instrument_id}")
-                    
+
                     # 记录缓存命中
                     if self._metrics_collector:
                         self._metrics_collector.record_counter("cache_hit_position")
-                    
+
                     return position_data
-                else:
-                    logger.debug(f"TdClient: 缓存中未找到持仓数据 - {instrument_id}")
-                    
-                    # 记录缓存未命中
-                    if self._metrics_collector:
-                        self._metrics_collector.record_counter("cache_miss_position")
-                    
-                    return None
-            else:
-                # 查询所有持仓
-                all_data = await self._cache_manager.hgetall(cache_key)
-                if all_data:
-                    result = {}
-                    for inst_id_bytes, data_bytes in all_data.items():
-                        inst_id = inst_id_bytes.decode('utf-8')
-                        position_data = self._serializer.deserialize(data_bytes)
-                        result[inst_id] = position_data
-                    logger.debug(f"TdClient: 从缓存读取所有持仓数据，共 {len(result)} 个合约")
-                    
-                    # 记录缓存命中
-                    if self._metrics_collector:
-                        self._metrics_collector.record_counter("cache_hit_position")
-                    
-                    return result
-                else:
-                    logger.debug("TdClient: 缓存中未找到持仓数据")
-                    
-                    # 记录缓存未命中
-                    if self._metrics_collector:
-                        self._metrics_collector.record_counter("cache_miss_position")
-                    
-                    return None
+                logger.debug(f"TdClient: 缓存中未找到持仓数据 - {instrument_id}")
+
+                # 记录缓存未命中
+                if self._metrics_collector:
+                    self._metrics_collector.record_counter("cache_miss_position")
+
+                return None
+            # 查询所有持仓
+            all_data = await self._cache_manager.hgetall(cache_key)
+            if all_data:
+                result = {}
+                for inst_id_bytes, data_bytes in all_data.items():
+                    inst_id = inst_id_bytes.decode("utf-8")
+                    position_data = self._serializer.deserialize(data_bytes)
+                    result[inst_id] = position_data
+                logger.debug(
+                    f"TdClient: 从缓存读取所有持仓数据，共 {len(result)} 个合约"
+                )
+
+                # 记录缓存命中
+                if self._metrics_collector:
+                    self._metrics_collector.record_counter("cache_hit_position")
+
+                return result
+            logger.debug("TdClient: 缓存中未找到持仓数据")
+
+            # 记录缓存未命中
+            if self._metrics_collector:
+                self._metrics_collector.record_counter("cache_miss_position")
+
+            return None
 
         except Exception as e:
             logger.warning(f"TdClient: 查询持仓缓存失败: {e}")
             return None
 
-    async def query_account_cached(self) -> Optional[dict[str, Any]]:
+    async def query_account_cached(self) -> dict[str, Any] | None:
         """
         从 Redis 缓存查询资金账户数据
 
@@ -537,20 +536,19 @@ class TdClient(BaseClient):
             if data:
                 account_data = self._serializer.deserialize(data)
                 logger.debug(f"TdClient: 从缓存读取资金数据 - {self._user_id}")
-                
+
                 # 记录缓存命中
                 if self._metrics_collector:
                     self._metrics_collector.record_counter("cache_hit_account")
-                
+
                 return account_data
-            else:
-                logger.debug("TdClient: 缓存中未找到资金数据")
-                
-                # 记录缓存未命中
-                if self._metrics_collector:
-                    self._metrics_collector.record_counter("cache_miss_account")
-                
-                return None
+            logger.debug("TdClient: 缓存中未找到资金数据")
+
+            # 记录缓存未命中
+            if self._metrics_collector:
+                self._metrics_collector.record_counter("cache_miss_account")
+
+            return None
 
         except Exception as e:
             logger.warning(f"TdClient: 查询资金缓存失败: {e}")
@@ -588,11 +586,11 @@ class TdClient(BaseClient):
 
             if not members:
                 logger.debug("TdClient: 缓存中未找到订单数据")
-                
+
                 # 记录缓存未命中
                 if self._metrics_collector:
                     self._metrics_collector.record_counter("cache_miss_orders")
-                
+
                 return []
 
             # 解析订单数据
@@ -600,8 +598,10 @@ class TdClient(BaseClient):
             for member in reversed(members):  # 倒序，最新的在前
                 try:
                     # 解析 member 格式: {order_key}:{hex_data}
-                    member_str = member.decode('utf-8') if isinstance(member, bytes) else member
-                    parts = member_str.split(':', 1)
+                    member_str = (
+                        member.decode("utf-8") if isinstance(member, bytes) else member
+                    )
+                    parts = member_str.split(":", 1)
                     if len(parts) == 2:
                         order_key, hex_data = parts
                         # 将 hex 字符串转换回字节
@@ -613,11 +613,11 @@ class TdClient(BaseClient):
                     continue
 
             logger.debug(f"TdClient: 从缓存读取订单数据，共 {len(orders)} 条")
-            
+
             # 记录缓存命中
             if self._metrics_collector:
                 self._metrics_collector.record_counter("cache_hit_orders")
-            
+
             return orders
 
         except Exception as e:
@@ -713,21 +713,45 @@ class TdClient(BaseClient):
         self._call_map[Constant.ReqQryInstrument] = self._client.req_qry_instrument
         self._call_map[Constant.ReqQryExchange] = self._client.req_qry_exchange
         self._call_map[Constant.ReqQryProduct] = self._client.req_qry_product
-        self._call_map[Constant.ReqQryDepthMarketData] = self._client.req_qry_depth_marketdata
-        self._call_map[Constant.ReqQryInvestorPositionDetail] = self._client.req_qry_investor_position_detail
-        self._call_map[Constant.ReqQryExchangeMarginRate] = self._client.req_qry_exchange_margin_rate
-        self._call_map[Constant.ReqQryInstrumentOrderCommRate] = self._client.req_qry_instrument_order_comm_rate
-        self._call_map[Constant.ReqQryOptionInstrTradeCost] = self._client.req_qry_option_instr_trade_cost
-        self._call_map[Constant.ReqQryOptionInstrCommRate] = self._client.req_qry_option_instr_comm_rate
+        self._call_map[
+            Constant.ReqQryDepthMarketData
+        ] = self._client.req_qry_depth_marketdata
+        self._call_map[
+            Constant.ReqQryInvestorPositionDetail
+        ] = self._client.req_qry_investor_position_detail
+        self._call_map[
+            Constant.ReqQryExchangeMarginRate
+        ] = self._client.req_qry_exchange_margin_rate
+        self._call_map[
+            Constant.ReqQryInstrumentOrderCommRate
+        ] = self._client.req_qry_instrument_order_comm_rate
+        self._call_map[
+            Constant.ReqQryOptionInstrTradeCost
+        ] = self._client.req_qry_option_instr_trade_cost
+        self._call_map[
+            Constant.ReqQryOptionInstrCommRate
+        ] = self._client.req_qry_option_instr_comm_rate
         self._call_map[Constant.ReqQryOrder] = self._client.req_qry_order
-        self._call_map[Constant.ReqQryMaxOrderVolume] = self._client.req_qry_max_order_volume
+        self._call_map[
+            Constant.ReqQryMaxOrderVolume
+        ] = self._client.req_qry_max_order_volume
         self._call_map[Constant.ReqOrderAction] = self._client.req_order_action
         self._call_map[Constant.ReqOrderInsert] = self._client.req_order_insert
-        self._call_map[Constant.ReqUserPasswordUpdate] = self._client.req_user_password_update
+        self._call_map[
+            Constant.ReqUserPasswordUpdate
+        ] = self._client.req_user_password_update
         self._call_map[Constant.ReqQryTrade] = self._client.req_qry_trade
-        self._call_map[Constant.ReqQryInvestorPosition] = self._client.req_qry_investor_position
-        self._call_map[Constant.ReqQryTradingAccount] = self._client.req_qry_trading_account
+        self._call_map[
+            Constant.ReqQryInvestorPosition
+        ] = self._client.req_qry_investor_position
+        self._call_map[
+            Constant.ReqQryTradingAccount
+        ] = self._client.req_qry_trading_account
         self._call_map[Constant.ReqQryInvestor] = self._client.req_qry_investor
         self._call_map[Constant.ReqQryTradingCode] = self._client.req_qry_trading_code
-        self._call_map[Constant.ReqQryInstrumentMarginRate] = self._client.req_qry_instrument_margin_rate
-        self._call_map[Constant.ReqQryInstrumentCommissionRate] = self._client.req_qry_instrument_commission_rate
+        self._call_map[
+            Constant.ReqQryInstrumentMarginRate
+        ] = self._client.req_qry_instrument_margin_rate
+        self._call_map[
+            Constant.ReqQryInstrumentCommissionRate
+        ] = self._client.req_qry_instrument_commission_rate
