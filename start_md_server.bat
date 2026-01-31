@@ -30,4 +30,3 @@ echo   Market data service launched successfully£¡
 echo ============================================================
 echo.
 pause > nul
-

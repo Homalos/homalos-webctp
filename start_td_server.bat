@@ -30,4 +30,3 @@ echo   Trading service launched successfully£¡
 echo ============================================================
 echo.
 pause > nul
-
