@@ -14,28 +14,28 @@ src="https://img.shields.io/badge/Group%231-Join-blue"/></a>
 
 ## 目录
 
-* [概述](#概述)
-* [安装及运行](#安装及运行)
-    * [环境依赖](#环境依赖)
-    * [环境搭建](#环境搭建)
-    * [运行](#运行)
-* [性能优化功能](#性能优化功能)
-    * [Redis 缓存](#redis-缓存)
-    * [性能监控和告警](#性能监控和告警)
-    * [策略管理](#策略管理)
-* [请求示例](#请求示例)
-    - [部分示例](#部分示例)
-* [协议](#协议)
-    * [通用协议格式](#通用协议格式)
-    * [部分通用错误码说明](#部分通用错误码说明)
-    * [详细接口文档](#详细接口文档)
-* [项目结构](#项目结构)
-* [架构说明](#架构说明)
-    - [三层架构](#三层架构)
-    - [核心组件](#核心组件)
-* [测试](#测试)
-* [文档](#文档)
-* [其他说明](#其他说明)
+- [概述](#%E6%A6%82%E8%BF%B0)
+- [安装及运行](#%E5%AE%89%E8%A3%85%E5%8F%8A%E8%BF%90%E8%A1%8C)
+  - [环境依赖](#%E7%8E%AF%E5%A2%83%E4%BE%9D%E8%B5%96)
+  - [环境搭建](#%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA)
+  - [运行](#%E8%BF%90%E8%A1%8C)
+- [性能优化功能](#%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E5%8A%9F%E8%83%BD)
+  - [Redis 缓存](#redis-%E7%BC%93%E5%AD%98)
+  - [性能监控和告警](#%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E5%92%8C%E5%91%8A%E8%AD%A6)
+  - [策略管理](#%E7%AD%96%E7%95%A5%E7%AE%A1%E7%90%86)
+- [请求示例](#%E8%AF%B7%E6%B1%82%E7%A4%BA%E4%BE%8B)
+  - [部分示例](#%E9%83%A8%E5%88%86%E7%A4%BA%E4%BE%8B)
+- [协议](#%E5%8D%8F%E8%AE%AE)
+  - [通用协议格式](#%E9%80%9A%E7%94%A8%E5%8D%8F%E8%AE%AE%E6%A0%BC%E5%BC%8F)
+  - [部分通用错误码说明](#%E9%83%A8%E5%88%86%E9%80%9A%E7%94%A8%E9%94%99%E8%AF%AF%E7%A0%81%E8%AF%B4%E6%98%8E)
+  - [详细接口文档](#%E8%AF%A6%E7%BB%86%E6%8E%A5%E5%8F%A3%E6%96%87%E6%A1%A3)
+- [项目结构](#%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%84)
+- [架构说明](#%E6%9E%B6%E6%9E%84%E8%AF%B4%E6%98%8E)
+  - [三层架构](#%E4%B8%89%E5%B1%82%E6%9E%B6%E6%9E%84)
+  - [核心组件](#%E6%A0%B8%E5%BF%83%E7%BB%84%E4%BB%B6)
+- [测试](#%E6%B5%8B%E8%AF%95)
+- [文档](#%E6%96%87%E6%A1%A3)
+- [其他说明](#%E5%85%B6%E4%BB%96%E8%AF%B4%E6%98%8E)
 
 ## 概述
 
@@ -72,51 +72,53 @@ homalos-webctp 是一个基于 Python CTP API 的开发的提供 Websocket 接�
 
    <details>
    <summary>👈方式一、系统全局安装，推荐此种方式，其他 Python 项目也可以使用 UV 管理。</summary>
-   
+
    在 Windows 系统安装
-   
+
    ```bash
    powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
    ```
-   
+
    在 Linux 系统安装
-   
+
    ```bash
    curl -LsSf https://astral.sh/uv/install.sh | sh
    ```
+
    </details>
-   
+
    <details>
    <summary>👈方式二、在已有 Python 中安装</summary>
-   
+
    和上述方式二选一，如果执行了方式一，则方式二直接跳过。此种安装方式的 UV 只能在这一个 Python 环境中使用。
-   
+
    ```bash
    pip install uv
    ```
+
    </details>
-   
-2. 安装 Python
+
+1. 安装 Python
 
    如果在步骤1中选择了全局安装 UV，则需要执行这一步，已安装直接跳过
-   
+
    ```bash
    uv python install 3.13
    ```
-   
+
    <details>
    <summary>👈Tips</summary>
    此种方式是全局安装 Python，与项目中的 Python 环境是隔离的，互不影响
    </details>
-   
-3. 克隆项目
+
+1. 克隆项目
 
    ```bash
    git clone https://github.com/Homalos/homalos-webctp.git
    cd homalos-webctp
    ```
 
-4. 安装依赖
+1. 安装依赖
 
    ```bash
    uv sync
@@ -124,17 +126,17 @@ homalos-webctp 是一个基于 Python CTP API 的开发的提供 Websocket 接�
 
    根据 pyproject.toml 中的信息，自动在当前项目根目录下创建名为 .venv 的 Python 虚拟环境及所有依赖安装
 
-5. 配置
+1. 配置
 
    <details>
    <summary>👈配置参考</summary>
-   
+
    > :pushpin: 配置参考示例 config.example.yaml，示例中行情和交易前置地址，默认配置的是 SimNow 7x24 环境， 更多 SimNow 环境详细信息参考 [SimNow官网](https://www.simnow.com.cn/product.action)、[openctp环境监控](http://121.37.80.177)，可根据需变更为其他支持CTPAPI(官方实现)的柜台环境。
    >
    > :pushpin: SimNow 7x24 环境：
    >
    > <table>
-   ><tr>
+   > <tr>
    > 	<th colspan="3">前置信息</th>
    > </tr>
    > <tr>
@@ -161,7 +163,7 @@ homalos-webctp 是一个基于 Python CTP API 的开发的提供 Websocket 接�
    > 	<td></td>
    > </tr>
    > </table>
-   > 
+   >
    > - 该环境仅服务于CTP API开发爱好者，仅为用户提供CTP API测试需求，不提供结算等其它服务。
    >
    > - 新注册用户，需要等到第三个交易日才能使用第二套环境。
@@ -171,7 +173,7 @@ homalos-webctp 是一个基于 Python CTP API 的开发的提供 Websocket 接�
    > :pushpin:  SimNow 非7x24环境：
    >
    > <table>
-   ><tr>
+   > <tr>
    > 	<th colspan="4">前置信息</th>
    > </tr>
    > <tr>
@@ -219,15 +221,17 @@ homalos-webctp 是一个基于 Python CTP API 的开发的提供 Websocket 接�
    > 	<td colspan="3">与实际生产环境保持一致。</td>
    > </tr>
    > </table>
-   > 
+   >
    > - 支持上期所期权、能源中心期权、中金所期权、广期所期权、郑商所期权、大商所期权
    >
    > - 用户注册后，默认的 APPID 为 simnow_client_test，认证码为 0000000000000000（16个0），默认开启终端认证，程序化用户可以选择不开终端认证接入。
    >
    > - 交易品种：六所所有期货品种以及上期所、能源中心、中金所、广期所所有期权品种，以及郑商所、大商所部分期权品种。
+   >
    > - 账户资金：初始资金两千万，支持入金，每日最多三次。
-   > 
+   >
    > 见 [SimNow官网](https://www.simnow.com.cn/product.action)
+
    </details>
 
    创建自己的行情配置 config_md.yaml :
@@ -244,7 +248,8 @@ homalos-webctp 是一个基于 Python CTP API 的开发的提供 Websocket 接�
    ```
 
    创建自己的交易配置 config_td.yaml :
-   ```yaml 
+
+   ```yaml
    TdFrontAddress: tcp://182.254.243.31:40001	# 交易前置地址
    MdFrontAddress: tcp://182.254.243.31:40011	# 行情前置地址
    BrokerID: "9999"							# 券商ID
@@ -320,6 +325,7 @@ api.register_plugin(MyPlugin())
 ```
 
 **插件示例**:
+
 - `examples/plugins/logging_plugin.py` - 日志记录插件
 - `examples/plugins/risk_control_plugin.py` - 风控插件
 
@@ -359,11 +365,12 @@ api.stop()
 #### 重构优势
 
 1. **更易维护**: 每个模块不超过 300 行，职责单一
-2. **更易测试**: 模块化的测试结构，测试覆盖率更高
-3. **更易扩展**: 插件系统支持功能扩展，无需修改核心代码
-4. **更易理解**: 清晰的模块边界和文档说明
+1. **更易测试**: 模块化的测试结构，测试覆盖率更高
+1. **更易扩展**: 插件系统支持功能扩展，无需修改核心代码
+1. **更易理解**: 清晰的模块边界和文档说明
 
 详细信息请参考：
+
 - [重构设计文档](.kiro/specs/sync-api-refactoring/design.md)
 - [插件开发指南](examples/plugins/README.md)
 - [性能验证报告](tests/strategy/PERFORMANCE_VALIDATION_REPORT.md)
@@ -589,6 +596,7 @@ Strategy:
     }
 }
 ```
+
 </details>
 
 <details>
@@ -818,6 +826,7 @@ Strategy:
     }
 }
 ```
+
 </details>
 
 <details>
@@ -877,13 +886,14 @@ Strategy:
     }
 }
 ```
+
 </details>
 
 ## 协议
 
 ### 通用协议格式
 
-``` python
+```python
 # 请求
 {
   "MsgType": "{method_name}",
@@ -938,6 +948,7 @@ ErrorID="14" ErrorMsg="CTP:原口令不匹配"
 ErrorID="15" ErrorMsg="CTP:报单字段有误"
 ErrorID="16" ErrorMsg="CTP:找不到合约"
 ```
+
 </details>
 
 ### 详细接口文档
@@ -971,8 +982,8 @@ homalos-webctp/
 ### 三层架构
 
 1. **应用层 (apps/)**: FastAPI WebSocket 端点
-2. **服务层 (services/)**: 异步/同步边界处理，消息路由
-3. **客户端层 (clients/)**: CTP API 封装
+1. **服务层 (services/)**: 异步/同步边界处理，消息路由
+1. **客户端层 (clients/)**: CTP API 封装
 
 ### 核心组件
 
@@ -1012,10 +1023,10 @@ pytest tests/test_strategy_manager.py
 
 ## 其他说明
 
-* 由于精力有限，只进行了 SimNow 平台的简单的测试，请自行充分测试后再接入生产环境。
-* 进行实盘交易的后果完全有使用者自行承担。
+- 由于精力有限，只进行了 SimNow 平台的简单的测试，请自行充分测试后再接入生产环境。
+- 进行实盘交易的后果完全有使用者自行承担。
 
----
+______________________________________________________________________
 
 ## 性能优化成果
 
@@ -1028,12 +1039,13 @@ pytest tests/test_strategy_manager.py
 - ✅ **智能告警系统**: 自动检测性能异常并发出告警
 
 **性能目标**:
-- 订单延迟 P95 < 100ms
-- 行情延迟 < 50ms
+
+- 订单延迟 P95 \< 100ms
+- 行情延迟 \< 50ms
 - 吞吐量 > 20 单/秒
 
 详细信息请参考 [性能优化报告](./PHASE1_CORE_COMPLETION_REPORT.md)
 
----
+______________________________________________________________________
 
 *最后更新日期：2025-12-20*

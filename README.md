@@ -14,23 +14,23 @@ src="https://img.shields.io/badge/Group%231-Join-blue"/></a>
 
 ## Table of contents
 
-* [Overview](#overview)
-* [Installation and Operation](#installation-and-operation)
-    * [Environment Dependencies](#environment-dependencies)
-    * [Environment Setup](#environment-setup)
-    * [Run](#run)
-* [Request Example](#request-example)
-    - [Partial Examples](#partial-examples)
-* [Protocol](#protocol)
-    * [General Protocol Format](#genera-protocol-format)
-    * [Explanation of Some General Error Codes](#explanation-of-some-general-error-codes)
-    * [Detailed API Documentation](#detailed-api-documentation)
-* [Project Structure](#project-structure)
-* [Architecture Description](#architecture-description)
-    - [Three-Tier Architecture](#three-tier-architecture)
-    - [Core components](#core-components)
-* [Test](#test)
-* [Other Notes](#other-notes)
+- [Overview](#overview)
+- [Installation and Operation](#installation-and-operation)
+  - [Environment Dependencies](#environment-dependencies)
+  - [Environment Setup](#environment-setup)
+  - [Run](#run)
+- [Request Example](#request-example)
+  - [Partial Examples](#partial-examples)
+- [Protocol](#protocol)
+  - [General Protocol Format](#genera-protocol-format)
+  - [Explanation of Some General Error Codes](#explanation-of-some-general-error-codes)
+  - [Detailed API Documentation](#detailed-api-documentation)
+- [Project Structure](#project-structure)
+- [Architecture Description](#architecture-description)
+  - [Three-Tier Architecture](#three-tier-architecture)
+  - [Core components](#core-components)
+- [Test](#test)
+- [Other Notes](#other-notes)
 
 ## Overview
 
@@ -54,9 +54,8 @@ homalos-webctp is a CTP service based on the Python CTP API that provides a WebS
 
    Install UV lamp; UV lamps are recommended.
 
-2. <details>
+1. <details>
    <summary>👈Method 1: System-wide installation. This method is recommended. Other Python projects can also use UV management.</summary>
-
 
    Install on Windows system
 
@@ -69,6 +68,7 @@ homalos-webctp is a CTP service based on the Python CTP API that provides a WebS
    ```bash
    curl -LsSf https://astral.sh/uv/install.sh | sh
    ```
+
    </details>
 
    <details>
@@ -78,9 +78,10 @@ homalos-webctp is a CTP service based on the Python CTP API that provides a WebS
    ```bash
    pip install uv
    ```
+
    </details>
 
-3. Install Python
+1. Install Python
 
    If you selected to install UV globally in step 1, you need to perform this step; otherwise, skip it.
 
@@ -93,14 +94,14 @@ homalos-webctp is a CTP service based on the Python CTP API that provides a WebS
    This method installs Python globally, isolating it from the Python environment in the project, and does not affect it.
    </details>
 
-4. Cloning project
+1. Cloning project
 
    ```bash
    git clone https://github.com/Homalos/homalos-webctp.git
    cd homalos-webctp
    ```
 
-5. Install dependencies
+1. Install dependencies
 
    ```bash
    uv sync
@@ -108,13 +109,12 @@ homalos-webctp is a CTP service based on the Python CTP API that provides a WebS
 
    Based on the information in pyproject.toml, automatically create a Python virtual environment named .venv in the current project root directory and install all dependencies.
 
-6. Configuration
+1. Configuration
 
    <details>
    <summary>👈Configuration Reference</summary>
 
-   
-   > :pushpin:The configuration example is config.example.yaml. The example uses the front-end address for market data and trading. The default configuration is the SimNow 7x24 environment. For more detailed information on the SimNow environment, please refer to [SimNow Official Website](https://www.simnow.com.cn/product.action) and [OpenCTP Environment Monitoring](http://121.37.80.177). You can change it to other trading environment that supports CTPAPI (official implementation) as needed. 
+   > :pushpin:The configuration example is config.example.yaml. The example uses the front-end address for market data and trading. The default configuration is the SimNow 7x24 environment. For more detailed information on the SimNow environment, please refer to [SimNow Official Website](https://www.simnow.com.cn/product.action) and [OpenCTP Environment Monitoring](http://121.37.80.177). You can change it to other trading environment that supports CTPAPI (official implementation) as needed.
    >
    > :pushpin: SimNow 7x24 environment：
    >
@@ -146,7 +146,6 @@ homalos-webctp is a CTP service based on the Python CTP API that provides a WebS
    > 	<td></td>
    > </tr>
    > </table>
-   >
    >
    > - This environment is only for CTP API development enthusiasts and is only provided for users' CTP API testing needs. It does not provide other services such as settlement.
    >
@@ -206,40 +205,43 @@ homalos-webctp is a CTP service based on the Python CTP API that provides a WebS
    > </tr>
    > </table>
    >
-   >
    > - Supports options from the Shanghai Futures Exchange, the National Energy Exchange, the China Financial Futures Exchange, the Guangzhou Futures Exchange, the Zhengzhou Commodity Exchange, and the Dalian Commodity Exchange.
    >
    > - After user registration, the default APPID is simnow_client_test, and the authentication code is 0000000000000000 (16 zeros). Terminal authentication is enabled by default, but programmatic users can choose not to enable terminal authentication for access.
    >
    > - Trading instruments: All futures instruments traded on the six exchanges, as well as all options instruments traded on the Shanghai Futures Exchange, the Energy Exchange, the China Financial Futures Exchange, and the Guangzhou Futures Exchange, and some options instruments traded on the Zhengzhou Commodity Exchange and the Dalian Commodity Exchange.
+   >
    > - Account funds: Initial capital of 20 million, supports deposits, up to three times per day.
->See [SimNow official website](https://www.simnow.com.cn/product.action)
-   > </details>
 
-   Create your own market data configuration file: config_md.yaml
+> See [SimNow official website](https://www.simnow.com.cn/product.action)
+>
+> </details>
 
-   ```yaml
-   TdFrontAddress: tcp://182.254.243.31:40001	# Trade Front Address
-   MdFrontAddress: tcp://182.254.243.31:40011	# Market Front Address
-   BrokerID: "9999"							# Brokerage ID
-   AuthCode: "0000000000000000"				# Authentication code
-   AppID: simnow_client_test					# Application ID
-   Port: 8080									# the listening port, default 8080
+Create your own market data configuration file: config_md.yaml
+
+```yaml
+TdFrontAddress: tcp://182.254.243.31:40001	# Trade Front Address
+MdFrontAddress: tcp://182.254.243.31:40011	# Market Front Address
+BrokerID: "9999"							# Brokerage ID
+AuthCode: "0000000000000000"				# Authentication code
+AppID: simnow_client_test					# Application ID
+Port: 8080									# the listening port, default 8080
 Host: 127.0.0.1								# the bind ip address, default 127.0.0.1
-   LogLevel: INFO								# NOTSET, DEBUG, INFO, WARN, ERROR, CRITICAL
-   ```
+LogLevel: INFO								# NOTSET, DEBUG, INFO, WARN, ERROR, CRITICAL
+```
 
-   Create your own trading configuration file config_td.yaml:
-   ```yaml 
-   TdFrontAddress: tcp://182.254.243.31:40001	# Trade Front Address
-   MdFrontAddress: tcp://182.254.243.31:40011	# Market Front Address
-   BrokerID: "9999"							# Brokerage ID
-   AuthCode: "0000000000000000"				# Authentication code
-   AppID: simnow_client_test					# Application ID
-   Port: 8081									# the listening port, default 8081
-   Host: 127.0.0.1								# the bind ip address, default 127.0.0.1
-   LogLevel: INFO								# NOTSET, DEBUG, INFO, WARN, ERROR, CRITICAL
-   ```
+Create your own trading configuration file config_td.yaml:
+
+```yaml
+TdFrontAddress: tcp://182.254.243.31:40001	# Trade Front Address
+MdFrontAddress: tcp://182.254.243.31:40011	# Market Front Address
+BrokerID: "9999"							# Brokerage ID
+AuthCode: "0000000000000000"				# Authentication code
+AppID: simnow_client_test					# Application ID
+Port: 8081									# the listening port, default 8081
+Host: 127.0.0.1								# the bind ip address, default 127.0.0.1
+LogLevel: INFO								# NOTSET, DEBUG, INFO, WARN, ERROR, CRITICAL
+```
 
 ### Run
 
@@ -306,6 +308,7 @@ api.register_plugin(MyPlugin())
 ```
 
 **Plugin Examples**:
+
 - `examples/plugins/logging_plugin.py` - Logging plugin
 - `examples/plugins/risk_control_plugin.py` - Risk control plugin
 
@@ -345,11 +348,12 @@ api.stop()
 #### Refactoring Benefits
 
 1. **Easier to Maintain**: Each module under 300 lines with single responsibility
-2. **Easier to Test**: Modular test structure with higher test coverage
-3. **Easier to Extend**: Plugin system supports feature extension without modifying core code
-4. **Easier to Understand**: Clear module boundaries and documentation
+1. **Easier to Test**: Modular test structure with higher test coverage
+1. **Easier to Extend**: Plugin system supports feature extension without modifying core code
+1. **Easier to Understand**: Clear module boundaries and documentation
 
 For more details, see:
+
 - [Refactoring Design Document](.kiro/specs/sync-api-refactoring/design.md)
 - [Plugin Development Guide](examples/plugins/README.md)
 - [Performance Validation Report](tests/strategy/PERFORMANCE_VALIDATION_REPORT.md)
@@ -409,6 +413,7 @@ response
     }
 }
 ```
+
 </details>
 
 <details>
@@ -638,6 +643,7 @@ In-depth market response
     }
 }
 ```
+
 </details>
 
 <details>
@@ -697,13 +703,14 @@ response
     }
 }
 ```
+
 </details>
 
 ## Protocol
 
 ### General Protocol Format
 
-``` python
+```python
 # request
 {
   "MsgType": "{method_name}",
@@ -758,6 +765,7 @@ ErrorID="14" ErrorMsg="CTP:Original password does not match"
 ErrorID="15" ErrorMsg="CTP:The order field is incorrect."
 ErrorID="16" ErrorMsg="CTP:Contract not found"
 ```
+
 </details>
 
 ### Detailed API Documentation
@@ -791,8 +799,8 @@ homalos-webctp/
 ### Three-Tier Architecture
 
 1. **Application Layer (apps/)**: FastAPI WebSocket endpoint
-2. **Service Layer (services/)**: Asynchronous/synchronous boundary handling, message routing
-3. **Client Layer (clients/): CTP API Encapsulation**
+1. **Service Layer (services/)**: Asynchronous/synchronous boundary handling, message routing
+1. **Client Layer (clients/): CTP API Encapsulation**
 
 ### Core components
 
@@ -808,9 +816,9 @@ For more detailed information, please refer to the [Development Documentation](.
 
 ## Other Notes
 
-* Due to limited resources, only a simple test of the SimNow platform was conducted. Please conduct thorough testing yourself before integrating it into the production environment.
-* Users are solely responsible for any consequences arising from real-money trading.
+- Due to limited resources, only a simple test of the SimNow platform was conducted. Please conduct thorough testing yourself before integrating it into the production environment.
+- Users are solely responsible for any consequences arising from real-money trading.
 
----
+______________________________________________________________________
 
 *Last updated: 2025-12-10*
