@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 @ProjectName: homalos-webctp
 @FileName   : test_serialization.py
@@ -11,12 +10,14 @@
 """
 
 import pytest
-from hypothesis import given, strategies as st, settings
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
 from src.utils.serialization import (
-    OrjsonSerializer,
     MsgpackSerializer,
-    SerializerFactory,
+    OrjsonSerializer,
     SerializationError,
+    SerializerFactory,
     get_json_serializer,
     get_msgpack_serializer,
 )
@@ -260,9 +261,9 @@ class TestFallbackLogic:
 def test_property_orjson_roundtrip_consistency(data):
     """
     **Feature: performance-optimization-phase1, Property 5: 序列化往返一致性**
-    
+
     属性测试：对于任何数据对象，使用 OrjsonSerializer 序列化后再反序列化应该得到等价的对象
-    
+
     验证需求：5.1, 5.2, 5.3
     """
     serializer = OrjsonSerializer()
@@ -282,9 +283,7 @@ def test_property_orjson_roundtrip_consistency(data):
             st.integers(min_value=-(2**63), max_value=2**63 - 1),
             st.floats(allow_nan=False, allow_infinity=False),
             st.text(max_size=100),
-            st.lists(
-                st.integers(min_value=-(2**63), max_value=2**63 - 1), max_size=20
-            ),
+            st.lists(st.integers(min_value=-(2**63), max_value=2**63 - 1), max_size=20),
             st.binary(max_size=100),
         ),
         max_size=20,
@@ -293,11 +292,11 @@ def test_property_orjson_roundtrip_consistency(data):
 def test_property_msgpack_roundtrip_consistency(data):
     """
     **Feature: performance-optimization-phase1, Property 5: 序列化往返一致性**
-    
+
     属性测试：对于任何数据对象，使用 MsgpackSerializer 序列化后再反序列化应该得到等价的对象
-    
+
     注意：msgpack 的整数范围限制为 64 位有符号整数（-2^63 到 2^63-1）
-    
+
     验证需求：5.1, 5.2, 5.3
     """
     serializer = MsgpackSerializer()
@@ -321,9 +320,9 @@ def test_property_msgpack_roundtrip_consistency(data):
 def test_property_orjson_list_roundtrip(data):
     """
     **Feature: performance-optimization-phase1, Property 5: 序列化往返一致性**
-    
+
     属性测试：对于任何列表数据，序列化后再反序列化应该得到等价的列表
-    
+
     验证需求：5.1, 5.2, 5.3
     """
     serializer = OrjsonSerializer()
@@ -350,9 +349,9 @@ def test_property_orjson_list_roundtrip(data):
 def test_property_nested_structure_roundtrip(data):
     """
     **Feature: performance-optimization-phase1, Property 5: 序列化往返一致性**
-    
+
     属性测试：对于任何嵌套结构，序列化后再反序列化应该得到等价的结构
-    
+
     验证需求：5.1, 5.2, 5.3
     """
     json_serializer = OrjsonSerializer()
