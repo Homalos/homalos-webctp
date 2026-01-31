@@ -5,9 +5,7 @@ __pycache__/
 *.so
 .Python
 build/
-develop-eggs/
 dist/
-downloads/
 eggs/
 .eggs/
 lib/
@@ -27,16 +25,11 @@ wheels/
 .venv
 .venv/
 venv/
-ENV/
-env/
 
 # IDE
 .cursor
 .vscode/
 .idea/
-*.swp
-*.swo
-*~
 .DS_Store
 
 # Testing
@@ -62,14 +55,6 @@ flows/
 # Redis
 dump.rdb
 
-# Temporary files
-*.tmp
-*.bak
-.cache/
-
-# OS
-Thumbs.db
-
 # Project
 files.txt
 compress.bat
@@ -80,6 +65,7 @@ PeopleQuant/flows/
 PeopleQuant/logs/
 examples/config_example.py
 讨论.md
+plan.md
 *.md
 task
 task/
