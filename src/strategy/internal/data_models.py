@@ -130,6 +130,8 @@ class Quote:
         AskVolume1: 卖一量
         Volume: 成交量
         OpenInterest: 持仓量
+        UpperLimitPrice: 涨停价
+        LowerLimitPrice: 跌停价
         UpdateTime: 更新时间
         UpdateMillisec: 更新毫秒
         ctp_datetime: CTP 时间戳对象
@@ -143,6 +145,8 @@ class Quote:
     AskVolume1: int = 0
     Volume: int = 0
     OpenInterest: float = 0
+    UpperLimitPrice: float = float("nan")  # 涨停价
+    LowerLimitPrice: float = float("nan")  # 跌停价
     UpdateTime: str = ""
     UpdateMillisec: int = 0
     ctp_datetime: Any = None
