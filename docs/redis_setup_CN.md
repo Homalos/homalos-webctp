@@ -1,49 +1,54 @@
 # Redis 配置指南
 
-**项目**: homalos-webctp  
-**版本**: v0.2.0  
+**项目**: homalos-webctp\
+**版本**: v0.2.0\
 **更新日期**: 2025-12-15
 
----
+______________________________________________________________________
 
 ## 概述
 
 本文档说明如何为 homalos-webctp 配置 Redis 缓存服务。Redis 用于缓存行情数据、账户状态，并通过 Pub/Sub 实现行情广播。
 
----
+______________________________________________________________________
 
 ## 系统要求
 
 ### Redis 版本
+
 - **最低版本**: Redis 3.0+
 - **推荐版本**: Redis 5.0+ 或更高
 - **当前测试版本**: Redis 3.0.504（Windows）
 
 ### 系统资源
+
 - **内存**: 建议至少 512 MB 可用内存
 - **磁盘**: 建议至少 1 GB 可用空间（用于持久化）
 - **网络**: 本地连接或低延迟网络
 
----
+______________________________________________________________________
 
 ## 安装 Redis
 
 ### Windows 安装
 
 #### 方法 1: MSI 安装包（推荐）
+
 1. 下载 Redis for Windows: https://github.com/microsoftarchive/redis/releases
-2. 运行 MSI 安装程序
-3. 选择安装路径（默认: `C:\Program Files\Redis`）
-4. 勾选"Add Redis to PATH"
-5. 勾选"Install Windows Service"
-6. 完成安装
+1. 运行 MSI 安装程序
+1. 选择安装路径（默认: `C:\Program Files\Redis`）
+1. 勾选"Add Redis to PATH"
+1. 勾选"Install Windows Service"
+1. 完成安装
 
 #### 方法 2: Chocolatey
+
 ```powershell
 choco install redis-64
 ```
 
 #### 方法 3: WSL (Windows Subsystem for Linux)
+
 ```bash
 # 在 WSL 中
 sudo apt-get update
@@ -53,17 +58,20 @@ sudo apt-get install redis-server
 ### Linux 安装
 
 #### Ubuntu/Debian
+
 ```bash
 sudo apt-get update
 sudo apt-get install redis-server
 ```
 
 #### CentOS/RHEL
+
 ```bash
 sudo yum install redis
 ```
 
 #### 从源码编译
+
 ```bash
 wget http://download.redis.io/redis-stable.tar.gz
 tar xvzf redis-stable.tar.gz
@@ -72,13 +80,14 @@ make
 sudo make install
 ```
 
----
+______________________________________________________________________
 
 ## 启动 Redis
 
 ### Windows
 
 #### 方法 1: Windows 服务（推荐）
+
 ```powershell
 # 启动服务
 net start Redis
@@ -91,6 +100,7 @@ sc query Redis
 ```
 
 #### 方法 2: 命令行
+
 ```powershell
 # 前台运行
 redis-server
@@ -102,6 +112,7 @@ redis-server C:\path\to\redis.conf
 ### Linux
 
 #### 使用 systemd
+
 ```bash
 # 启动服务
 sudo systemctl start redis
@@ -120,6 +131,7 @@ sudo systemctl enable redis
 ```
 
 #### 命令行
+
 ```bash
 # 前台运行
 redis-server
@@ -131,11 +143,12 @@ redis-server --daemonize yes
 redis-server /etc/redis/redis.conf
 ```
 
----
+______________________________________________________________________
 
 ## 验证 Redis 安装
 
 ### 使用 redis-cli
+
 ```bash
 # 连接到 Redis
 redis-cli
@@ -157,6 +170,7 @@ OK
 ```
 
 ### 使用测试脚本
+
 ```bash
 # 激活虚拟环境
 .venv\Scripts\activate  # Windows
@@ -167,28 +181,32 @@ python scripts/test_redis.py
 ```
 
 测试脚本会验证：
+
 - ✅ Redis 连接
 - ✅ 基本操作（SET/GET/HASH/DELETE）
 - ✅ Pub/Sub 功能
 - ✅ 性能测试
 
----
+______________________________________________________________________
 
 ## Redis 配置
 
 ### 配置文件位置
 
 #### Windows
+
 - 默认: `C:\Program Files\Redis\redis.windows.conf`
 - 服务配置: `C:\Program Files\Redis\redis.windows-service.conf`
 
 #### Linux
+
 - Ubuntu/Debian: `/etc/redis/redis.conf`
 - CentOS/RHEL: `/etc/redis.conf`
 
 ### 重要配置项
 
 #### 1. 网络配置
+
 ```conf
 # 绑定地址（默认只允许本地连接）
 bind 127.0.0.1
@@ -201,6 +219,7 @@ timeout 0
 ```
 
 #### 2. 内存配置
+
 ```conf
 # 最大内存限制（建议设置）
 maxmemory 512mb
@@ -210,6 +229,7 @@ maxmemory-policy allkeys-lru
 ```
 
 推荐的淘汰策略：
+
 - `allkeys-lru`: 所有键使用 LRU 算法淘汰（推荐）
 - `volatile-lru`: 只对设置了过期时间的键使用 LRU
 - `allkeys-lfu`: 所有键使用 LFU 算法（Redis 4.0+）
@@ -217,6 +237,7 @@ maxmemory-policy allkeys-lru
 #### 3. 持久化配置
 
 **RDB 快照（默认启用）**:
+
 ```conf
 # 自动保存规则
 save 900 1      # 900 秒内至少 1 个键变化
@@ -231,6 +252,7 @@ dir ./
 ```
 
 **AOF 日志（可选，更安全）**:
+
 ```conf
 # 启用 AOF
 appendonly yes
@@ -245,6 +267,7 @@ appendfsync everysec  # 每秒同步（推荐）
 ```
 
 #### 4. 日志配置
+
 ```conf
 # 日志级别
 loglevel notice
@@ -253,7 +276,7 @@ loglevel notice
 logfile "redis.log"
 ```
 
----
+______________________________________________________________________
 
 ## homalos-webctp 配置
 
@@ -297,7 +320,7 @@ export WEBCTP_REDIS_PASSWORD=
 export WEBCTP_REDIS_DB=0
 ```
 
----
+______________________________________________________________________
 
 ## 性能优化
 
@@ -305,23 +328,23 @@ export WEBCTP_REDIS_DB=0
 
 根据系统负载调整连接池大小：
 
-| 负载 | MaxConnections | 说明 |
-|------|----------------|------|
-| 低 | 10-20 | 单客户端，低频操作 |
-| 中 | 30-50 | 多客户端，正常操作 |
-| 高 | 50-100 | 多客户端，高频操作 |
+| 负载 | MaxConnections | 说明               |
+| ---- | -------------- | ------------------ |
+| 低   | 10-20          | 单客户端，低频操作 |
+| 中   | 30-50          | 多客户端，正常操作 |
+| 高   | 50-100         | 多客户端，高频操作 |
 
 ### 2. TTL 配置
 
 根据数据特性调整 TTL：
 
-| 数据类型 | 推荐 TTL | 说明 |
-|---------|---------|------|
-| 行情快照 | 60 秒 | 相对稳定，可缓存较长时间 |
-| 实时 tick | 5 秒 | 快速变化，短时间缓存 |
-| 订单记录 | 24 小时 | 历史记录，长时间保留 |
-| 持仓信息 | 无限期 | 实时更新，不过期 |
-| 资金信息 | 无限期 | 实时更新，不过期 |
+| 数据类型  | 推荐 TTL | 说明                     |
+| --------- | -------- | ------------------------ |
+| 行情快照  | 60 秒    | 相对稳定，可缓存较长时间 |
+| 实时 tick | 5 秒     | 快速变化，短时间缓存     |
+| 订单记录  | 24 小时  | 历史记录，长时间保留     |
+| 持仓信息  | 无限期   | 实时更新，不过期         |
+| 资金信息  | 无限期   | 实时更新，不过期         |
 
 ### 3. 内存优化
 
@@ -339,6 +362,7 @@ maxmemory-policy allkeys-lru
 ### 4. 持久化优化
 
 **生产环境推荐配置**:
+
 ```conf
 # 启用 RDB 快照
 save 900 1
@@ -354,13 +378,14 @@ auto-aof-rewrite-percentage 100
 auto-aof-rewrite-min-size 64mb
 ```
 
----
+______________________________________________________________________
 
 ## 监控和维护
 
 ### 1. 监控 Redis 状态
 
 #### 使用 redis-cli
+
 ```bash
 # 查看信息
 redis-cli INFO
@@ -376,6 +401,7 @@ redis-cli SLOWLOG GET 10
 ```
 
 #### 使用 Python 脚本
+
 ```python
 import redis
 
@@ -397,6 +423,7 @@ homalos-webctp 自动监控 Redis 性能：
 - **连接数**: 监控连接池使用情况
 
 查看监控日志：
+
 ```bash
 # 查看性能报告
 tail -f logs/webctp.log | grep "性能报告"
@@ -408,6 +435,7 @@ tail -f logs/webctp.log | grep "Redis"
 ### 3. 数据备份
 
 #### 手动备份
+
 ```bash
 # 触发 RDB 快照
 redis-cli BGSAVE
@@ -417,6 +445,7 @@ cp /path/to/dump.rdb /backup/dump_$(date +%Y%m%d).rdb
 ```
 
 #### 自动备份脚本（Linux）
+
 ```bash
 #!/bin/bash
 # backup_redis.sh
@@ -443,6 +472,7 @@ echo "备份完成: $BACKUP_DIR/dump_$DATE.rdb"
 ```
 
 #### 定时任务（crontab）
+
 ```bash
 # 每天凌晨 2 点备份
 0 2 * * * /path/to/backup_redis.sh
@@ -451,6 +481,7 @@ echo "备份完成: $BACKUP_DIR/dump_$DATE.rdb"
 ### 4. 数据恢复
 
 #### 从 RDB 恢复
+
 ```bash
 # 1. 停止 Redis
 sudo systemctl stop redis
@@ -463,6 +494,7 @@ sudo systemctl start redis
 ```
 
 #### 从 AOF 恢复
+
 ```bash
 # 1. 停止 Redis
 sudo systemctl stop redis
@@ -474,7 +506,7 @@ cp /backup/appendonly_20251215.aof /var/lib/redis/appendonly.aof
 sudo systemctl start redis
 ```
 
----
+______________________________________________________________________
 
 ## 故障排查
 
@@ -483,29 +515,33 @@ sudo systemctl start redis
 **症状**: `ConnectionError: Error connecting to localhost:6379`
 
 **解决方案**:
+
 1. 检查 Redis 服务是否运行
+
    ```bash
    # Windows
    sc query Redis
-   
+
    # Linux
    sudo systemctl status redis
    ```
 
-2. 检查端口是否被占用
+1. 检查端口是否被占用
+
    ```bash
    # Windows
    netstat -ano | findstr :6379
-   
+
    # Linux
    netstat -tlnp | grep 6379
    ```
 
-3. 检查防火墙设置
+1. 检查防火墙设置
+
    ```bash
    # Windows
    netsh advfirewall firewall add rule name="Redis" dir=in action=allow protocol=TCP localport=6379
-   
+
    # Linux
    sudo ufw allow 6379/tcp
    ```
@@ -515,17 +551,21 @@ sudo systemctl start redis
 **症状**: `OOM command not allowed when used memory > 'maxmemory'`
 
 **解决方案**:
+
 1. 增加最大内存限制
+
    ```conf
    maxmemory 1gb
    ```
 
-2. 启用内存淘汰策略
+1. 启用内存淘汰策略
+
    ```conf
    maxmemory-policy allkeys-lru
    ```
 
-3. 清理不需要的数据
+1. 清理不需要的数据
+
    ```bash
    redis-cli FLUSHDB  # 清空当前数据库
    redis-cli FLUSHALL # 清空所有数据库
@@ -536,22 +576,26 @@ sudo systemctl start redis
 **症状**: 操作延迟高，响应慢
 
 **解决方案**:
+
 1. 检查慢查询日志
+
    ```bash
    redis-cli SLOWLOG GET 10
    ```
 
-2. 优化持久化配置
+1. 优化持久化配置
+
    ```conf
    # 减少快照频率
    save 900 1
    save 300 10
-   
+
    # 使用 everysec 而不是 always
    appendfsync everysec
    ```
 
-3. 增加连接池大小
+1. 增加连接池大小
+
    ```yaml
    Redis:
      MaxConnections: 100
@@ -562,31 +606,35 @@ sudo systemctl start redis
 **症状**: Redis 重启后数据丢失
 
 **解决方案**:
+
 1. 启用持久化
+
    ```conf
    # 启用 RDB
    save 900 1
-   
+
    # 启用 AOF
    appendonly yes
    ```
 
-2. 检查持久化文件
+1. 检查持久化文件
+
    ```bash
    # 检查 RDB 文件
    ls -lh /var/lib/redis/dump.rdb
-   
+
    # 检查 AOF 文件
    ls -lh /var/lib/redis/appendonly.aof
    ```
 
-3. 验证持久化配置
+1. 验证持久化配置
+
    ```bash
    redis-cli CONFIG GET save
    redis-cli CONFIG GET appendonly
    ```
 
----
+______________________________________________________________________
 
 ## 安全建议
 
@@ -598,6 +646,7 @@ requirepass your_strong_password_here
 ```
 
 配置文件中使用密码：
+
 ```yaml
 Redis:
   Password: "your_strong_password_here"
@@ -635,7 +684,7 @@ sudo iptables -A INPUT -p tcp --dport 6379 -s 127.0.0.1 -j ACCEPT
 sudo iptables -A INPUT -p tcp --dport 6379 -j DROP
 ```
 
----
+______________________________________________________________________
 
 ## 测试验证
 
@@ -680,35 +729,40 @@ python main.py --config=./config/config_td.yaml --app_type=td
 ```
 
 查看日志确认 Redis 连接：
+
 ```
 [INFO] Redis 连接成功: localhost:6379 (DB: 0)
 [INFO] Redis 命中率: 78.5%
 ```
 
----
+______________________________________________________________________
 
 ## 参考资源
 
 ### 官方文档
+
 - Redis 官网: https://redis.io/
 - Redis 文档: https://redis.io/documentation
 - Redis 命令参考: https://redis.io/commands
 
 ### Windows 版本
+
 - Redis for Windows: https://github.com/microsoftarchive/redis
 - Redis on WSL: https://docs.microsoft.com/en-us/windows/wsl/
 
 ### Python 客户端
+
 - redis-py: https://github.com/redis/redis-py
 - redis-py 文档: https://redis-py.readthedocs.io/
 
 ### 相关文档
+
 - [监控指南](./monitoring_guide_CN.md) - 性能监控和告警
 - [故障排查](./troubleshooting_CN.md) - 常见问题解决
 - [迁移指南](./migration_guide_CN.md) - 版本升级指南
 
----
+______________________________________________________________________
 
-**最后更新**: 2025-12-15  
-**维护者**: homalos-webctp 团队  
+**最后更新**: 2025-12-15\
+**维护者**: homalos-webctp 团队\
 **版本**: v0.2.0
