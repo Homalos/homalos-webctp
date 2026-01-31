@@ -306,6 +306,8 @@ class _QuoteCache(_CacheManager[Quote]):
                 AskVolume1=market_data.get("AskVolume1", 0),
                 Volume=market_data.get("Volume", 0),
                 OpenInterest=market_data.get("OpenInterest", 0),
+                UpperLimitPrice=market_data.get("UpperLimitPrice", float("nan")),
+                LowerLimitPrice=market_data.get("LowerLimitPrice", float("nan")),
                 UpdateTime=market_data.get("UpdateTime", ""),
                 UpdateMillisec=market_data.get("UpdateMillisec", 0),
                 ctp_datetime=market_data.get("ctp_datetime"),
@@ -351,6 +353,8 @@ class _QuoteCache(_CacheManager[Quote]):
             ask_volume1 = quote.AskVolume1
             volume = quote.Volume
             open_interest = quote.OpenInterest
+            upper_limit_price = quote.UpperLimitPrice
+            lower_limit_price = quote.LowerLimitPrice
             update_time = quote.UpdateTime
             update_millisec = quote.UpdateMillisec
             ctp_datetime = quote.ctp_datetime
@@ -365,6 +369,8 @@ class _QuoteCache(_CacheManager[Quote]):
             AskVolume1=ask_volume1,
             Volume=volume,
             OpenInterest=open_interest,
+            UpperLimitPrice=upper_limit_price,
+            LowerLimitPrice=lower_limit_price,
             UpdateTime=update_time,
             UpdateMillisec=update_millisec,
             ctp_datetime=ctp_datetime,
@@ -442,6 +448,8 @@ class _QuoteCache(_CacheManager[Quote]):
                         AskVolume1=quote.AskVolume1,
                         Volume=quote.Volume,
                         OpenInterest=quote.OpenInterest,
+                        UpperLimitPrice=quote.UpperLimitPrice,
+                        LowerLimitPrice=quote.LowerLimitPrice,
                         UpdateTime=quote.UpdateTime,
                         UpdateMillisec=quote.UpdateMillisec,
                         ctp_datetime=quote.ctp_datetime,
