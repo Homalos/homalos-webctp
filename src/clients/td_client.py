@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 @ProjectName: homalos-webctp
 @FileName   : td_client.py
@@ -10,36 +9,44 @@
 @Description: 交易客户端 (继承 CThostFtdcTraderSpi)
 """
 import time
-from typing import Callable, Any
-
-from .client_helper import build_order_to_dict, build_order_insert_to_dict, ReconnectionController, extract_login_response_fields
-from ..ctp import thosttraderapi as tdapi
+from collections.abc import Callable
+from typing import Any
 
 from ..constants import CallError
 from ..constants import TdConstant as Constant
+from ..ctp import thosttraderapi as tdapi
 from ..utils import CTPObjectHelper, GlobalConfig, MathHelper, logger
+from .client_helper import (
+    ReconnectionController,
+    build_order_insert_to_dict,
+    build_order_to_dict,
+    extract_login_response_fields,
+)
 
 
 class TdClient(tdapi.CThostFtdcTraderSpi):
-
     def __init__(self, user_id, password):
         super().__init__()
-        self._front_address:str = GlobalConfig.TdFrontAddress
-        self._broker_id:str = GlobalConfig.BrokerID
-        self._auth_code:str = GlobalConfig.AuthCode
-        self._app_id:str = GlobalConfig.AppID
-        self._user_id:str = user_id
+        self._front_address: str = GlobalConfig.TdFrontAddress
+        self._broker_id: str = GlobalConfig.BrokerID
+        self._auth_code: str = GlobalConfig.AuthCode
+        self._app_id: str = GlobalConfig.AppID
+        self._user_id: str = user_id
         self._password: str = password
         self._rsp_callback: Callable[[dict[str, Any]], None] | None = None
         self._api: tdapi.CThostFtdcTraderApi | None = None
         self._connected: bool = False
         # Reconnection control
-        self._reconnection_ctrl = ReconnectionController(max_attempts=5, interval=10.0, client_type="Td")
+        self._reconnection_ctrl = ReconnectionController(
+            max_attempts=5, interval=10.0, client_type="Td"
+        )
         # Settlement confirmation state
         self._pending_login_response: dict | None = None
         self._settlement_confirmed: bool = False
-        logger.info(f"Td front_address: {self._front_address}, broker_id: {self._broker_id}, "
-                    f"auth_code: {self._auth_code}, app_id: {self._app_id}, user_id: {self._user_id}")
+        logger.info(
+            f"Td front_address: {self._front_address}, broker_id: {self._broker_id}, "
+            f"auth_code: {self._auth_code}, app_id: {self._app_id}, user_id: {self._user_id}"
+        )
 
     @property
     def rsp_callback(self) -> Callable[[dict[str, Any]], None]:
@@ -128,7 +135,9 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             tdapi.CThostFtdcTraderApi: 初始化完成的CTP交易API实例
         """
         con_file_path = GlobalConfig.get_con_file_path("td" + self._user_id)
-        self._api: tdapi.CThostFtdcTraderApi = tdapi.CThostFtdcTraderApi.CreateFtdcTraderApi(con_file_path)
+        self._api: tdapi.CThostFtdcTraderApi = (
+            tdapi.CThostFtdcTraderApi.CreateFtdcTraderApi(con_file_path)
+        )
         self._api.RegisterSpi(self)
         self._api.SubscribePrivateTopic(tdapi.THOST_TERT_QUICK)
         self._api.SubscribePublicTopic(tdapi.THOST_TERT_QUICK)
@@ -152,7 +161,7 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             callback=self._rsp_callback,
             message_type=Constant.OnRspUserLogin,
             logger=logger,
-            current_time=time.time()
+            current_time=time.time(),
         ):
             return
         self.authenticate()
@@ -171,7 +180,7 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             reason=reason,
             callback=self._rsp_callback,
             logger=logger,
-            current_time=time.time()
+            current_time=time.time(),
         )
 
     def authenticate(self):
@@ -199,11 +208,11 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         self._api.ReqAuthenticate(req, 0)
 
     def OnRspAuthenticate(
-            self,
-            rsp_authenticate_field: tdapi.CThostFtdcRspAuthenticateField,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField,
-            request_id: int,
-            is_last: bool
+        self,
+        rsp_authenticate_field: tdapi.CThostFtdcRspAuthenticateField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
+        request_id: int,
+        is_last: bool,
     ):
         """
         处理认证请求的响应回调
@@ -242,11 +251,11 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         self._api.ReqUserLogin(req, 0)
 
     def OnRspUserLogin(
-            self,
-            rsp_user_login_field: tdapi.CThostFtdcRspUserLoginField,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField,
-            request_id: int,
-            is_last: bool
+        self,
+        rsp_user_login_field: tdapi.CThostFtdcRspUserLoginField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
+        request_id: int,
+        is_last: bool,
     ):
         """
         处理用户登录响应回调
@@ -268,9 +277,9 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             self._pending_login_response = {
                 "rsp_info": {
                     "ErrorID": rsp_info_field.ErrorID if rsp_info_field else 0,
-                    "ErrorMsg": rsp_info_field.ErrorMsg if rsp_info_field else ""
+                    "ErrorMsg": rsp_info_field.ErrorMsg if rsp_info_field else "",
                 },
-                "rsp_user_login": extract_login_response_fields(rsp_user_login_field)
+                "rsp_user_login": extract_login_response_fields(rsp_user_login_field),
             }
             self.settlement_confirm()
         else:
@@ -293,24 +302,24 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         self._api.ReqSettlementInfoConfirm(req, 0)
 
     def OnRspSettlementInfoConfirm(
-            self,
-            settlement_info_confirm_field: tdapi.CThostFtdcSettlementInfoConfirmField,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField,
-            request_id: int,
-            is_last: bool
+        self,
+        settlement_info_confirm_field: tdapi.CThostFtdcSettlementInfoConfirmField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
+        request_id: int,
+        is_last: bool,
     ):
         """
         结算单确认响应回调
 
         当客户端发送结算单确认请求后，服务器返回确认结果时触发此回调
-        
+
         此回调在登录成功后被调用，只有在结算单确认成功后，才会将登录响应发送给客户端。
         这确保了客户端收到登录成功响应时，可以立即开始交易操作。
         """
         if rsp_info_field is None or rsp_info_field.ErrorID == 0:
             logger.info("settlement info confirm success")
             self._settlement_confirmed = True
-            
+
             # 发送之前保存的登录响应给客户端
             if self._pending_login_response:
                 # 使用保存的数据副本构建响应
@@ -318,16 +327,22 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
                     Constant.OnRspUserLogin,
                     None,  # 不使用 rsp_info_field，使用保存的数据
                     0,
-                    True
+                    True,
                 )
                 response[Constant.RspInfo] = self._pending_login_response["rsp_info"]
-                response[Constant.RspUserLogin] = self._pending_login_response["rsp_user_login"]
+                response[Constant.RspUserLogin] = self._pending_login_response[
+                    "rsp_user_login"
+                ]
                 self.rsp_callback(response)
                 self._pending_login_response = None
-                logger.info("login response sent to client after settlement confirmation")
+                logger.info(
+                    "login response sent to client after settlement confirmation"
+                )
         else:
-            logger.error(f"settlement info confirm failed, ErrorID: {rsp_info_field.ErrorID}, ErrorMsg: {rsp_info_field.ErrorMsg}")
-            
+            logger.error(
+                f"settlement info confirm failed, ErrorID: {rsp_info_field.ErrorID}, ErrorMsg: {rsp_info_field.ErrorMsg}"
+            )
+
             # 结算单确认失败，通知客户端登录失败
             if self._pending_login_response:
                 # 构造登录失败响应
@@ -336,11 +351,11 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
                 logger.error("login failed due to settlement confirmation failure")
 
     def OnRspQrySettlementInfoConfirm(
-            self,
-            settlement_info_confirm_field: tdapi.CThostFtdcSettlementInfoConfirmField,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField,
-            request_id: int,
-            is_last: bool
+        self,
+        settlement_info_confirm_field: tdapi.CThostFtdcSettlementInfoConfirmField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
+        request_id: int,
+        is_last: bool,
     ):
         """
         查询结算信息确认响应回调函数
@@ -356,7 +371,9 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 通过回调函数返回查询结果
         """
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQrySettlementInfoConfirm, rsp_info_field, request_id, is_last)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnRspQrySettlementInfoConfirm, rsp_info_field, request_id, is_last
+        )
         result = {}
         if settlement_info_confirm_field:
             result = {
@@ -366,16 +383,16 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
                 "ConfirmTime": settlement_info_confirm_field.ConfirmTime,
                 "SettlementID": settlement_info_confirm_field.SettlementID,
                 "AccountID": settlement_info_confirm_field.AccountID,
-                "CurrencyID": settlement_info_confirm_field.CurrencyID
+                "CurrencyID": settlement_info_confirm_field.CurrencyID,
             }
         response[Constant.SettlementInfoConfirm] = result
         self.rsp_callback(response)
 
     def process_connect_result(
-            self,
-            message_type: str,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField,
-            rsp_user_login_field: tdapi.CThostFtdcRspUserLoginField = None
+        self,
+        message_type: str,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
+        rsp_user_login_field: tdapi.CThostFtdcRspUserLoginField = None,
     ):
         """处理CTP交易连接结果回调
 
@@ -389,9 +406,13 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             无返回值，通过self.rsp_callback返回处理后的响应数据
         """
-        response = CTPObjectHelper.build_response_dict(message_type, rsp_info_field, 0, True)
+        response = CTPObjectHelper.build_response_dict(
+            message_type, rsp_info_field, 0, True
+        )
         if rsp_user_login_field:
-            response[Constant.RspUserLogin] = extract_login_response_fields(rsp_user_login_field)
+            response[Constant.RspUserLogin] = extract_login_response_fields(
+                rsp_user_login_field
+            )
 
         self.rsp_callback(response)
 
@@ -409,9 +430,13 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             查询结果将通过 OnRspQryInstrument 回调方法返回
         """
         logger.info(f"[TdClient] 准备发送合约查询请求: {request}")
-        req, request_id = CTPObjectHelper.extract_request(request, Constant.ReqQryInstrument, tdapi.CThostFtdcQryInstrumentField)
-        logger.debug(f"[TdClient] 提取的请求参数 - InstrumentID: {req.InstrumentID if req else 'None'}, RequestID: {request_id}")
-        logger.info(f"[TdClient] 调用 CTP API: ReqQryInstrument")
+        req, request_id = CTPObjectHelper.extract_request(
+            request, Constant.ReqQryInstrument, tdapi.CThostFtdcQryInstrumentField
+        )
+        logger.debug(
+            f"[TdClient] 提取的请求参数 - InstrumentID: {req.InstrumentID if req else 'None'}, RequestID: {request_id}"
+        )
+        logger.info("[TdClient] 调用 CTP API: ReqQryInstrument")
         ret = self._api.ReqQryInstrument(req, request_id)
         logger.info(f"[TdClient] CTP API 返回值: {ret} (0=成功, 非0=失败)")
         if ret != 0:
@@ -419,11 +444,11 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         self.method_called(Constant.OnRspQryInstrument, ret)
 
     def OnRspQryInstrument(
-            self,
-            instrument_field: tdapi.CThostFtdcInstrumentField,
-            rsp_info: tdapi.CThostFtdcRspInfoField,
-            request_id: int,
-            is_last: bool
+        self,
+        instrument_field: tdapi.CThostFtdcInstrumentField,
+        rsp_info: tdapi.CThostFtdcRspInfoField,
+        request_id: int,
+        is_last: bool,
     ):
         """
         查询合约信息响应回调函数
@@ -439,24 +464,40 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             无返回值，通过回调函数将响应数据返回给调用方
         """
-        logger.info(f"[TdClient-回调] OnRspQryInstrument 被触发！")
-        logger.info(f"[TdClient-回调] 参数 - instrument_field存在: {instrument_field is not None}, RequestID: {request_id}, IsLast: {is_last}")
-        
+        logger.info("[TdClient-回调] OnRspQryInstrument 被触发！")
+        logger.info(
+            f"[TdClient-回调] 参数 - instrument_field存在: {instrument_field is not None}, RequestID: {request_id}, IsLast: {is_last}"
+        )
+
         if rsp_info:
-            error_id = rsp_info.ErrorID if hasattr(rsp_info, 'ErrorID') else 0
-            error_msg = rsp_info.ErrorMsg if hasattr(rsp_info, 'ErrorMsg') else ''
-            logger.info(f"[TdClient-回调] 响应信息 - ErrorID: {error_id}, ErrorMsg: {error_msg}")
+            error_id = rsp_info.ErrorID if hasattr(rsp_info, "ErrorID") else 0
+            error_msg = rsp_info.ErrorMsg if hasattr(rsp_info, "ErrorMsg") else ""
+            logger.info(
+                f"[TdClient-回调] 响应信息 - ErrorID: {error_id}, ErrorMsg: {error_msg}"
+            )
         else:
-            logger.warning(f"[TdClient-回调] rsp_info 为 None")
-        
+            logger.warning("[TdClient-回调] rsp_info 为 None")
+
         if instrument_field:
-            instrument_id = instrument_field.InstrumentID if hasattr(instrument_field, 'InstrumentID') else 'Unknown'
-            volume_multiple = instrument_field.VolumeMultiple if hasattr(instrument_field, 'VolumeMultiple') else 'Unknown'
-            logger.info(f"[TdClient-回调] 合约数据 - InstrumentID: {instrument_id}, VolumeMultiple: {volume_multiple}")
+            instrument_id = (
+                instrument_field.InstrumentID
+                if hasattr(instrument_field, "InstrumentID")
+                else "Unknown"
+            )
+            volume_multiple = (
+                instrument_field.VolumeMultiple
+                if hasattr(instrument_field, "VolumeMultiple")
+                else "Unknown"
+            )
+            logger.info(
+                f"[TdClient-回调] 合约数据 - InstrumentID: {instrument_id}, VolumeMultiple: {volume_multiple}"
+            )
         else:
-            logger.warning(f"[TdClient-回调] instrument_field 为 None")
-        
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInstrument, rsp_info, request_id, is_last)
+            logger.warning("[TdClient-回调] instrument_field 为 None")
+
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnRspQryInstrument, rsp_info, request_id, is_last
+        )
         rsp_instrument = {}
         if instrument_field:
             rsp_instrument = {
@@ -490,7 +531,7 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
                 "StrikePrice": instrument_field.StrikePrice,
                 "OptionsType": instrument_field.OptionsType,
                 "UnderlyingMultiple": instrument_field.UnderlyingMultiple,
-                "CombinationType": instrument_field.CombinationType
+                "CombinationType": instrument_field.CombinationType,
             }
         response[Constant.Instrument] = rsp_instrument
         self.rsp_callback(response)
@@ -507,16 +548,18 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 该函数没有返回值，通过回调函数返回查询结果
         """
-        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryExchange, tdapi.CThostFtdcQryExchangeField)
+        req, request_id = CTPObjectHelper.extract_request(
+            request, Constant.QryExchange, tdapi.CThostFtdcQryExchangeField
+        )
         ret = self._api.ReqQryExchange(req, request_id)
         self.method_called(Constant.OnRspQryExchange, ret)
 
     def OnRspQryExchange(
-            self,
-            exchange_field: tdapi.CThostFtdcExchangeField,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField,
-            request_id: int,
-            is_last: bool
+        self,
+        exchange_field: tdapi.CThostFtdcExchangeField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
+        request_id: int,
+        is_last: bool,
     ):
         """
         处理查询交易所信息的响应回调
@@ -530,13 +573,15 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 通过回调函数返回包含交易所信息的响应结果
         """
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryExchange, rsp_info_field, request_id, is_last)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnRspQryExchange, rsp_info_field, request_id, is_last
+        )
         result = {}
         if exchange_field:
             result = {
                 "ExchangeID": exchange_field.ExchangeID,
                 "ExchangeName": exchange_field.ExchangeName,
-                "ExchangeProperty": exchange_field.ExchangeProperty
+                "ExchangeProperty": exchange_field.ExchangeProperty,
             }
         response[Constant.Exchange] = result
         self.rsp_callback(response)
@@ -553,16 +598,18 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 该方法没有返回值，查询结果将通过回调方式返回
         """
-        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryProduct, tdapi.CThostFtdcQryProductField)
+        req, request_id = CTPObjectHelper.extract_request(
+            request, Constant.QryProduct, tdapi.CThostFtdcQryProductField
+        )
         ret = self._api.ReqQryProduct(req, request_id)
         self.method_called(Constant.OnRspQryProduct, ret)
 
     def OnRspQryProduct(
-            self,
-            product_field: tdapi.CThostFtdcProductField,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField,
-            request_id: int,
-            is_last: bool
+        self,
+        product_field: tdapi.CThostFtdcProductField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
+        request_id: int,
+        is_last: bool,
     ):
         """
         处理查询产品信息的响应回调
@@ -578,7 +625,9 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 该方法没有返回值，查询结果通过rsp_callback方法回调返回
         """
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryProduct, rsp_info_field, request_id, is_last)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnRspQryProduct, rsp_info_field, request_id, is_last
+        )
         result = {}
         if product_field:
             result = {
@@ -600,7 +649,7 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
                 "ProductName": product_field.ProductName,
                 "TradeCurrencyID": product_field.TradeCurrencyID,
                 "UnderlyingMultiple": product_field.UnderlyingMultiple,
-                "VolumeMultiple": product_field.VolumeMultiple
+                "VolumeMultiple": product_field.VolumeMultiple,
             }
         response[Constant.Product] = result
         self.rsp_callback(response)
@@ -615,16 +664,20 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 无返回值，结果通过回调函数返回
         """
-        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryDepthMarketData, tdapi.CThostFtdcQryDepthMarketDataField)
+        req, request_id = CTPObjectHelper.extract_request(
+            request,
+            Constant.QryDepthMarketData,
+            tdapi.CThostFtdcQryDepthMarketDataField,
+        )
         ret = self._api.ReqQryDepthMarketData(req, request_id)
         self.method_called(Constant.OnRspQryDepthMarketData, ret)
 
     def OnRspQryDepthMarketData(
-            self,
-            depth_marketdata: tdapi.CThostFtdcDepthMarketDataField,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField,
-            request_id: int,
-            is_last: bool
+        self,
+        depth_marketdata: tdapi.CThostFtdcDepthMarketDataField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
+        request_id: int,
+        is_last: bool,
     ):
         """
         处理查询深度市场数据的响应回调
@@ -644,7 +697,9 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
                 - 最新价、开盘价、最高价、最低价等
                 - 成交量、持仓量等
         """
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryDepthMarketData, rsp_info_field, request_id, is_last)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnRspQryDepthMarketData, rsp_info_field, request_id, is_last
+        )
         result = {}
         if depth_marketdata:
             result = {
@@ -660,8 +715,12 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
                 "AskVolume4": depth_marketdata.AskVolume4,
                 "AskVolume5": depth_marketdata.AskVolume5,
                 "AveragePrice": MathHelper.adjust_price(depth_marketdata.AveragePrice),
-                "BandingLowerPrice": MathHelper.adjust_price(depth_marketdata.BandingLowerPrice),
-                "BandingUpperPrice": MathHelper.adjust_price(depth_marketdata.BandingUpperPrice),
+                "BandingLowerPrice": MathHelper.adjust_price(
+                    depth_marketdata.BandingLowerPrice
+                ),
+                "BandingUpperPrice": MathHelper.adjust_price(
+                    depth_marketdata.BandingUpperPrice
+                ),
                 "BidPrice1": MathHelper.adjust_price(depth_marketdata.BidPrice1),
                 "BidPrice2": MathHelper.adjust_price(depth_marketdata.BidPrice2),
                 "BidPrice3": MathHelper.adjust_price(depth_marketdata.BidPrice3),
@@ -679,21 +738,29 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
                 "HighestPrice": MathHelper.adjust_price(depth_marketdata.HighestPrice),
                 "InstrumentID": depth_marketdata.InstrumentID,
                 "LastPrice": MathHelper.adjust_price(depth_marketdata.LastPrice),
-                "LowerLimitPrice": MathHelper.adjust_price(depth_marketdata.LowerLimitPrice),
+                "LowerLimitPrice": MathHelper.adjust_price(
+                    depth_marketdata.LowerLimitPrice
+                ),
                 "LowestPrice": MathHelper.adjust_price(depth_marketdata.LowestPrice),
                 "OpenInterest": depth_marketdata.OpenInterest,
                 "OpenPrice": MathHelper.adjust_price(depth_marketdata.OpenPrice),
-                "PreClosePrice": MathHelper.adjust_price(depth_marketdata.PreClosePrice),
+                "PreClosePrice": MathHelper.adjust_price(
+                    depth_marketdata.PreClosePrice
+                ),
                 "PreDelta": depth_marketdata.PreDelta,
                 "PreOpenInterest": depth_marketdata.PreOpenInterest,
                 "PreSettlementPrice": depth_marketdata.PreSettlementPrice,
-                "SettlementPrice": MathHelper.adjust_price(depth_marketdata.SettlementPrice),
+                "SettlementPrice": MathHelper.adjust_price(
+                    depth_marketdata.SettlementPrice
+                ),
                 "TradingDay": depth_marketdata.TradingDay,
                 "Turnover": depth_marketdata.Turnover,
                 "UpdateMillisec": depth_marketdata.UpdateMillisec,
                 "UpdateTime": depth_marketdata.UpdateTime,
-                "UpperLimitPrice": MathHelper.adjust_price(depth_marketdata.UpperLimitPrice),
-                "Volume": depth_marketdata.Volume
+                "UpperLimitPrice": MathHelper.adjust_price(
+                    depth_marketdata.UpperLimitPrice
+                ),
+                "Volume": depth_marketdata.Volume,
             }
         response[Constant.DepthMarketData] = result
         self.rsp_callback(response)
@@ -710,16 +777,20 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 该方法通过回调方式返回查询结果
         """
-        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryInvestorPositionDetail, tdapi.CThostFtdcQryInvestorPositionDetailField)
+        req, request_id = CTPObjectHelper.extract_request(
+            request,
+            Constant.QryInvestorPositionDetail,
+            tdapi.CThostFtdcQryInvestorPositionDetailField,
+        )
         ret = self._api.ReqQryInvestorPositionDetail(req, request_id)
         self.method_called(Constant.OnRspQryInvestorPositionDetail, ret)
 
     def OnRspQryInvestorPositionDetail(
-            self,
-            investor_position_detail_field: tdapi.CThostFtdcInvestorPositionDetailField,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField,
-            request_id: int,
-            is_last: bool
+        self,
+        investor_position_detail_field: tdapi.CThostFtdcInvestorPositionDetailField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
+        request_id: int,
+        is_last: bool,
     ):
         """
         处理投资者持仓明细查询响应
@@ -736,7 +807,9 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             无返回值，通过rsp_callback返回处理结果
         """
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInvestorPositionDetail, rsp_info_field, request_id, is_last)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnRspQryInvestorPositionDetail, rsp_info_field, request_id, is_last
+        )
         result = {}
         if investor_position_detail_field:
             result = {
@@ -768,7 +841,7 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
                 "TradeID": investor_position_detail_field.TradeID,
                 "TradeType": investor_position_detail_field.TradeType,
                 "TradingDay": investor_position_detail_field.TradingDay,
-                "Volume": investor_position_detail_field.Volume
+                "Volume": investor_position_detail_field.Volume,
             }
         response[Constant.InvestorPositionDetail] = result
         self.rsp_callback(response)
@@ -792,16 +865,20 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Note:
             请求发送后，结果将通过异步回调返回，调用方需要监听相应的响应消息类型。
         """
-        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryExchangeMarginRate, tdapi.CThostFtdcQryExchangeMarginRateField)
+        req, request_id = CTPObjectHelper.extract_request(
+            request,
+            Constant.QryExchangeMarginRate,
+            tdapi.CThostFtdcQryExchangeMarginRateField,
+        )
         ret = self._api.ReqQryExchangeMarginRate(req, request_id)
         self.method_called(Constant.OnRspQryExchangeMarginRate, ret)
 
     def OnRspQryExchangeMarginRate(
-            self,
-            exchange_margin_rate_field: tdapi.CThostFtdcExchangeMarginRateField,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField,
-            request_id: int,
-            is_last: bool
+        self,
+        exchange_margin_rate_field: tdapi.CThostFtdcExchangeMarginRateField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
+        request_id: int,
+        is_last: bool,
     ):
         """
         查询交易所保证金率响应回调
@@ -817,7 +894,9 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 结果通过rsp_callback异步返回
         """
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryExchangeMarginRate, rsp_info_field, request_id, is_last)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnRspQryExchangeMarginRate, rsp_info_field, request_id, is_last
+        )
         result = {}
         if exchange_margin_rate_field:
             result = {
@@ -828,7 +907,7 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
                 "LongMarginRatioByMoney": exchange_margin_rate_field.LongMarginRatioByMoney,
                 "LongMarginRatioByVolume": exchange_margin_rate_field.LongMarginRatioByVolume,
                 "ShortMarginRatioByMoney": exchange_margin_rate_field.ShortMarginRatioByMoney,
-                "ShortMarginRatioByVolume": exchange_margin_rate_field.ShortMarginRatioByVolume
+                "ShortMarginRatioByVolume": exchange_margin_rate_field.ShortMarginRatioByVolume,
             }
         response[Constant.ExchangeMarginRate] = result
         self.rsp_callback(response)
@@ -845,16 +924,20 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 该方法不直接返回结果，查询结果通过OnRspQryInstrumentOrderCommRate回调返回
         """
-        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryInstrumentOrderCommRate, tdapi.CThostFtdcQryInstrumentOrderCommRateField)
+        req, request_id = CTPObjectHelper.extract_request(
+            request,
+            Constant.QryInstrumentOrderCommRate,
+            tdapi.CThostFtdcQryInstrumentOrderCommRateField,
+        )
         ret = self._api.ReqQryInstrumentOrderCommRate(req, request_id)
         self.method_called(Constant.OnRspQryInstrumentOrderCommRate, ret)
 
     def OnRspQryInstrumentOrderCommRate(
-            self,
-            instrument_order_comm_rate_field: tdapi.CThostFtdcInstrumentOrderCommRateField,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField,
-            request_id: int,
-            is_last: bool
+        self,
+        instrument_order_comm_rate_field: tdapi.CThostFtdcInstrumentOrderCommRateField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
+        request_id: int,
+        is_last: bool,
     ):
         """
         查询合约报单手续费率响应回调函数
@@ -877,7 +960,12 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             无返回值，通过rsp_callback回调返回响应数据
         """
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInstrumentOrderCommRate, rsp_info_field, request_id, is_last)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnRspQryInstrumentOrderCommRate,
+            rsp_info_field,
+            request_id,
+            is_last,
+        )
         result = {}
         if instrument_order_comm_rate_field:
             result = {
@@ -891,7 +979,7 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
                 "OrderActionCommByTrade": instrument_order_comm_rate_field.OrderActionCommByTrade,
                 "OrderActionCommByVolume": instrument_order_comm_rate_field.OrderActionCommByVolume,
                 "OrderCommByTrade": instrument_order_comm_rate_field.OrderCommByTrade,
-                "OrderCommByVolume": instrument_order_comm_rate_field.OrderCommByVolume
+                "OrderCommByVolume": instrument_order_comm_rate_field.OrderCommByVolume,
             }
         response[Constant.InstrumentOrderCommRate] = result
         self.rsp_callback(response)
@@ -909,16 +997,20 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 此方法没有返回值，查询结果将通过回调函数异步返回
         """
-        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryOptionInstrTradeCost, tdapi.CThostFtdcQryOptionInstrTradeCostField)
+        req, request_id = CTPObjectHelper.extract_request(
+            request,
+            Constant.QryOptionInstrTradeCost,
+            tdapi.CThostFtdcQryOptionInstrTradeCostField,
+        )
         ret = self._api.ReqQryOptionInstrTradeCost(req, request_id)
         self.method_called(Constant.OnRspQryOptionInstrTradeCost, ret)
 
     def OnRspQryOptionInstrTradeCost(
-            self,
-            option_instr_trade_cost_field: tdapi.CThostFtdcOptionInstrTradeCostField,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField,
-            request_id: int,
-            is_last: bool
+        self,
+        option_instr_trade_cost_field: tdapi.CThostFtdcOptionInstrTradeCostField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
+        request_id: int,
+        is_last: bool,
     ):
         """
         查询期权交易成本请求响应回调
@@ -934,7 +1026,9 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             无返回值，通过self.rsp_callback回调函数返回响应结果
         """
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryOptionInstrTradeCost, rsp_info_field, request_id, is_last)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnRspQryOptionInstrTradeCost, rsp_info_field, request_id, is_last
+        )
         result = {}
         if option_instr_trade_cost_field:
             result = {
@@ -948,7 +1042,7 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
                 "InvestUnitID": option_instr_trade_cost_field.InvestUnitID,
                 "InvestorID": option_instr_trade_cost_field.InvestorID,
                 "MiniMargin": option_instr_trade_cost_field.MiniMargin,
-                "Royalty": option_instr_trade_cost_field.Royalty
+                "Royalty": option_instr_trade_cost_field.Royalty,
             }
         response[Constant.OptionInstrTradeCost] = result
         self.rsp_callback(response)
@@ -965,16 +1059,20 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 通过回调函数返回查询结果
         """
-        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryOptionInstrCommRate, tdapi.CThostFtdcQryOptionInstrCommRateField)
+        req, request_id = CTPObjectHelper.extract_request(
+            request,
+            Constant.QryOptionInstrCommRate,
+            tdapi.CThostFtdcQryOptionInstrCommRateField,
+        )
         ret = self._api.ReqQryOptionInstrCommRate(req, request_id)
         self.method_called(Constant.OnRspQryOptionInstrCommRate, ret)
 
     def OnRspQryOptionInstrCommRate(
-            self,
-            option_instr_comm_rate_field: tdapi.CThostFtdcOptionInstrCommRateField,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField,
-            request_id: int,
-            is_last: bool
+        self,
+        option_instr_comm_rate_field: tdapi.CThostFtdcOptionInstrCommRateField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
+        request_id: int,
+        is_last: bool,
     ):
         """
         查询期权合约手续费率响应回调函数
@@ -990,7 +1088,9 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             无返回值，通过回调函数返回处理结果
         """
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryOptionInstrCommRate, rsp_info_field, request_id, is_last)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnRspQryOptionInstrCommRate, rsp_info_field, request_id, is_last
+        )
         result = {}
         if option_instr_comm_rate_field:
             result = {
@@ -1007,7 +1107,7 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
                 "StrikeRatioByVolume": option_instr_comm_rate_field.StrikeRatioByVolume,
                 "ExchangeID": option_instr_comm_rate_field.ExchangeID,
                 "InvestUnitID": option_instr_comm_rate_field.InvestUnitID,
-                "InstrumentID": option_instr_comm_rate_field.InstrumentID
+                "InstrumentID": option_instr_comm_rate_field.InstrumentID,
             }
         response[Constant.OptionInstrCommRate] = result
         self.rsp_callback(response)
@@ -1025,16 +1125,20 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 此方法不直接返回结果，结果通过回调函数返回
         """
-        req, request_id = CTPObjectHelper.extract_request(request, Constant.UserPasswordUpdate, tdapi.CThostFtdcUserPasswordUpdateField)
+        req, request_id = CTPObjectHelper.extract_request(
+            request,
+            Constant.UserPasswordUpdate,
+            tdapi.CThostFtdcUserPasswordUpdateField,
+        )
         ret = self._api.ReqUserPasswordUpdate(req, request_id)
         self.method_called(Constant.OnRspUserPasswordUpdate, ret)
 
     def OnRspUserPasswordUpdate(
-            self,
-            user_password_update_field: tdapi.CThostFtdcUserPasswordUpdateField,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField,
-            request_id: int,
-            is_last: bool
+        self,
+        user_password_update_field: tdapi.CThostFtdcUserPasswordUpdateField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
+        request_id: int,
+        is_last: bool,
     ):
         """
         处理用户密码更新请求的响应回调
@@ -1049,14 +1153,16 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             此方法将响应数据封装为字典格式，并通过rsp_callback回调返回给上层
             如果user_password_update_field不为空，会提取其中的关键字段信息
         """
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspUserPasswordUpdate, rsp_info_field, request_id, is_last)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnRspUserPasswordUpdate, rsp_info_field, request_id, is_last
+        )
         user_password_update = None
         if user_password_update_field:
             user_password_update = {
                 "BrokerID": user_password_update_field.BrokerID,
                 "UserID": user_password_update_field.UserID,
                 "OldPassword": user_password_update_field.OldPassword,
-                "NewPassword": user_password_update_field.NewPassword
+                "NewPassword": user_password_update_field.NewPassword,
             }
         response[Constant.UserPasswordUpdate] = user_password_update
         self.rsp_callback(response)
@@ -1077,16 +1183,18 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
                   调用结果将通过method_called方法处理，并在OnRspOrderInsert
                   回调中返回响应信息。
         """
-        req, request_id = CTPObjectHelper.extract_request(request, Constant.InputOrder, tdapi.CThostFtdcInputOrderField)
+        req, request_id = CTPObjectHelper.extract_request(
+            request, Constant.InputOrder, tdapi.CThostFtdcInputOrderField
+        )
         ret = self._api.ReqOrderInsert(req, request_id)
         self.method_called(Constant.OnRspOrderInsert, ret)
 
     def OnRspOrderInsert(
-            self,
-            input_order_field: tdapi.CThostFtdcInputOrderField,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField,
-            request_id: int,
-            is_last: bool
+        self,
+        input_order_field: tdapi.CThostFtdcInputOrderField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
+        request_id: int,
+        is_last: bool,
     ):
         """
         处理订单插入请求的响应回调
@@ -1100,7 +1208,9 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 通过回调函数返回响应结果
         """
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspOrderInsert, rsp_info_field, request_id, is_last)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnRspOrderInsert, rsp_info_field, request_id, is_last
+        )
         order_insert = {}
         if input_order_field:
             order_insert = build_order_insert_to_dict(input_order_field)
@@ -1108,9 +1218,9 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         self.rsp_callback(response)
 
     def OnErrRtnOrderInsert(
-            self,
-            input_order_field: tdapi.CThostFtdcInputOrderField,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField
+        self,
+        input_order_field: tdapi.CThostFtdcInputOrderField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
     ):
         """
         处理报单录入错误回报回调
@@ -1122,7 +1232,9 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             无返回值，通过回调函数返回响应结果
         """
-        response = CTPObjectHelper.build_response_dict(Constant.OnErrRtnOrderInsert, rsp_info_field)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnErrRtnOrderInsert, rsp_info_field
+        )
         err_rtn_order_insert = {}
         if input_order_field:
             err_rtn_order_insert = build_order_insert_to_dict(input_order_field)
@@ -1212,16 +1324,18 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 该函数不直接返回值，操作结果通过异步回调返回
         """
-        req, request_id = CTPObjectHelper.extract_request(request, Constant.InputOrderAction, tdapi.CThostFtdcInputOrderActionField)
+        req, request_id = CTPObjectHelper.extract_request(
+            request, Constant.InputOrderAction, tdapi.CThostFtdcInputOrderActionField
+        )
         ret = self._api.ReqOrderAction(req, request_id)
         self.method_called(Constant.OnRspOrderAction, ret)
 
     def OnRspOrderAction(
-            self,
-            input_order_action_field: tdapi.CThostFtdcInputOrderActionField,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField,
-            request_id: int,
-            is_last: bool
+        self,
+        input_order_action_field: tdapi.CThostFtdcInputOrderActionField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
+        request_id: int,
+        is_last: bool,
     ):
         """
         报单操作请求响应回调函数
@@ -1237,7 +1351,9 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 该函数不直接返回值，操作结果通过rsp_callback异步回调返回
         """
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspOrderAction, rsp_info_field, request_id, is_last)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnRspOrderAction, rsp_info_field, request_id, is_last
+        )
         order_action = None
         if input_order_action_field:
             order_action = {
@@ -1257,15 +1373,15 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
                 "InvestUnitID": input_order_action_field.InvestUnitID,
                 "MacAddress": input_order_action_field.MacAddress,
                 "InstrumentID": input_order_action_field.InstrumentID,
-                "IPAddress": input_order_action_field.IPAddress
+                "IPAddress": input_order_action_field.IPAddress,
             }
         response[Constant.InputOrderAction] = order_action
         self.rsp_callback(response)
 
     def OnErrRtnOrderAction(
-            self,
-            order_action_filed: tdapi.CThostFtdcOrderActionField,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField
+        self,
+        order_action_filed: tdapi.CThostFtdcOrderActionField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
     ):
         """
         订单操作错误回报回调函数
@@ -1279,7 +1395,9 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 无直接返回值，通过回调函数返回响应数据
         """
-        response = CTPObjectHelper.build_response_dict(Constant.OnErrRtnOrderAction, rsp_info_field)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnErrRtnOrderAction, rsp_info_field
+        )
         order_action = None
         if order_action_filed:
             order_action = {
@@ -1311,7 +1429,7 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
                 "InvestUnitID": order_action_filed.InvestUnitID,
                 "MacAddress": order_action_filed.MacAddress,
                 "InstrumentID": order_action_filed.InstrumentID,
-                "IPAddress": order_action_filed.IPAddress
+                "IPAddress": order_action_filed.IPAddress,
             }
         response[Constant.OrderAction] = order_action
         self.rsp_callback(response)
@@ -1333,16 +1451,18 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 无直接返回值，结果将通过回调函数返回
         """
-        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryMaxOrderVolume, tdapi.CThostFtdcQryMaxOrderVolumeField)
+        req, request_id = CTPObjectHelper.extract_request(
+            request, Constant.QryMaxOrderVolume, tdapi.CThostFtdcQryMaxOrderVolumeField
+        )
         ret = self._api.ReqQryMaxOrderVolume(req, request_id)
         self.method_called(Constant.OnRspQryMaxOrderVolume, ret)
 
     def OnRspQryMaxOrderVolume(
-            self,
-            qry_max_order_volume_filed: tdapi.CThostFtdcQryMaxOrderVolumeField,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField,
-            request_id: int,
-            is_last: bool
+        self,
+        qry_max_order_volume_filed: tdapi.CThostFtdcQryMaxOrderVolumeField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
+        request_id: int,
+        is_last: bool,
     ):
         """
         处理查询最大报单数量响应
@@ -1356,7 +1476,9 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             无返回值，但会通过回调函数返回响应结果
         """
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryMaxOrderVolume, rsp_info_field, request_id, is_last)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnRspQryMaxOrderVolume, rsp_info_field, request_id, is_last
+        )
         max_order_volume = None
         if qry_max_order_volume_filed:
             max_order_volume = {
@@ -1368,7 +1490,7 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
                 "MaxVolume": qry_max_order_volume_filed.MaxVolume,
                 "Direction": qry_max_order_volume_filed.Direction,
                 "OffsetFlag": qry_max_order_volume_filed.OffsetFlag,
-                "HedgeFlag": qry_max_order_volume_filed.HedgeFlag
+                "HedgeFlag": qry_max_order_volume_filed.HedgeFlag,
             }
         response[Constant.QryMaxOrderVolume] = max_order_volume
         self.rsp_callback(response)
@@ -1386,15 +1508,18 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 该方法无直接返回值，查询结果将通过回调函数返回
         """
-        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryOrder, tdapi.CThostFtdcQryOrderField)
+        req, request_id = CTPObjectHelper.extract_request(
+            request, Constant.QryOrder, tdapi.CThostFtdcQryOrderField
+        )
         ret = self._api.ReqQryOrder(req, request_id)
         self.method_called(Constant.OnRspQryOrder, ret)
 
     def OnRspQryOrder(
-            self, order_field: tdapi.CThostFtdcOrderField,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField,
-            request_id: int,
-            is_last: bool
+        self,
+        order_field: tdapi.CThostFtdcOrderField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
+        request_id: int,
+        is_last: bool,
     ):
         """
         处理查询订单请求的响应回调
@@ -1413,13 +1538,14 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             - 是否最后一条
             - 订单信息字典(如存在)
         """
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryOrder, rsp_info_field, request_id, is_last)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnRspQryOrder, rsp_info_field, request_id, is_last
+        )
         qry_order = {}
         if order_field:
             qry_order = build_order_to_dict(order_field)
         response[Constant.Order] = qry_order
         self.rsp_callback(response)
-
 
     def req_qry_trade(self, request: dict[str, Any]) -> None:
         """
@@ -1431,11 +1557,19 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 该方法不直接返回值，查询结果通过回调函数返回
         """
-        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryTrade, tdapi.CThostFtdcQryTradeField)
+        req, request_id = CTPObjectHelper.extract_request(
+            request, Constant.QryTrade, tdapi.CThostFtdcQryTradeField
+        )
         ret = self._api.ReqQryTrade(req, request_id)
         self.method_called(Constant.OnRspQryTrade, ret)
 
-    def OnRspQryTrade(self, trade_field: tdapi.CThostFtdcTradeField, rsp_info_field: tdapi.CThostFtdcRspInfoField, request_id: int, is_last: bool):
+    def OnRspQryTrade(
+        self,
+        trade_field: tdapi.CThostFtdcTradeField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
+        request_id: int,
+        is_last: bool,
+    ):
         """
         处理查询成交回报
 
@@ -1450,7 +1584,9 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 该方法不直接返回值，查询结果通过回调函数返回
         """
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryTrade, rsp_info_field, request_id, is_last)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnRspQryTrade, rsp_info_field, request_id, is_last
+        )
         qry_trade = {}
         if trade_field:
             qry_trade = {
@@ -1484,8 +1620,8 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
                 "TradingDay": trade_field.TradingDay,
                 "TradingRole": trade_field.TradingRole,
                 "UserID": trade_field.UserID,
-                "Volume": trade_field.Volume
-                }
+                "Volume": trade_field.Volume,
+            }
         response[Constant.Trade] = qry_trade
         self.rsp_callback(response)
 
@@ -1501,16 +1637,20 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 该方法无返回值，查询结果通过回调函数返回
         """
-        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryInvestorPosition, tdapi.CThostFtdcQryInvestorPositionField)
+        req, request_id = CTPObjectHelper.extract_request(
+            request,
+            Constant.QryInvestorPosition,
+            tdapi.CThostFtdcQryInvestorPositionField,
+        )
         ret = self._api.ReqQryInvestorPosition(req, request_id)
         self.method_called(Constant.OnRspQryInvestorPosition, ret)
 
     def OnRspQryInvestorPosition(
-            self,
-            investor_position_field: tdapi.CThostFtdcInvestorPositionField,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField,
-            request_id: int,
-            is_last: bool
+        self,
+        investor_position_field: tdapi.CThostFtdcInvestorPositionField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
+        request_id: int,
+        is_last: bool,
     ):
         """
         处理投资者持仓查询响应回调
@@ -1526,7 +1666,9 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 无直接返回值，通过rsp_callback返回处理结果
         """
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInvestorPosition, rsp_info_field, request_id, is_last)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnRspQryInvestorPosition, rsp_info_field, request_id, is_last
+        )
         qry_investor_position = None
         if investor_position_field:
             qry_investor_position = {
@@ -1578,8 +1720,8 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
                 "TradingDay": investor_position_field.TradingDay,
                 "UseMargin": investor_position_field.UseMargin,
                 "YdPosition": investor_position_field.YdPosition,
-                "YdStrikeFrozen": investor_position_field.YdStrikeFrozen
-                }
+                "YdStrikeFrozen": investor_position_field.YdStrikeFrozen,
+            }
         response[Constant.InvestorPosition] = qry_investor_position
         self.rsp_callback(response)
 
@@ -1593,16 +1735,18 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 此方法无返回值，查询结果将通过回调函数返回
         """
-        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryTradingAccount, tdapi.CThostFtdcQryTradingAccountField)
+        req, request_id = CTPObjectHelper.extract_request(
+            request, Constant.QryTradingAccount, tdapi.CThostFtdcQryTradingAccountField
+        )
         ret = self._api.ReqQryTradingAccount(req, request_id)
         self.method_called(Constant.OnRspQryTradingAccount, ret)
 
     def OnRspQryTradingAccount(
-            self,
-            trading_account_field: tdapi.CThostFtdcTradingAccountField,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField,
-            request_id: int,
-            is_last: bool
+        self,
+        trading_account_field: tdapi.CThostFtdcTradingAccountField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
+        request_id: int,
+        is_last: bool,
     ):
         """
         处理交易账户查询响应回调
@@ -1618,7 +1762,9 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 无直接返回值，通过rsp_callback将响应结果传递给上层调用者
         """
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryTradingAccount, rsp_info_field, request_id, is_last)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnRspQryTradingAccount, rsp_info_field, request_id, is_last
+        )
         qry_trading_account = None
         if trading_account_field:
             qry_trading_account = {
@@ -1670,8 +1816,8 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
                 "SpecProductPositionProfitByAlg": trading_account_field.SpecProductPositionProfitByAlg,
                 "TradingDay": trading_account_field.TradingDay,
                 "Withdraw": trading_account_field.Withdraw,
-                "WithdrawQuota": trading_account_field.WithdrawQuota
-                }
+                "WithdrawQuota": trading_account_field.WithdrawQuota,
+            }
         response[Constant.TradingAccount] = qry_trading_account
         self.rsp_callback(response)
 
@@ -1685,16 +1831,18 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 该方法没有返回值，通过回调函数返回查询结果
         """
-        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryInvestor, tdapi.CThostFtdcQryInvestorField)
+        req, request_id = CTPObjectHelper.extract_request(
+            request, Constant.QryInvestor, tdapi.CThostFtdcQryInvestorField
+        )
         ret = self._api.ReqQryInvestor(req, request_id)
         self.method_called(Constant.OnRspQryInvestor, ret)
 
     def OnRspQryInvestor(
-            self,
-            investor_field: tdapi.CThostFtdcInvestorField,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField,
-            request_id: int,
-            is_last: bool
+        self,
+        investor_field: tdapi.CThostFtdcInvestorField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
+        request_id: int,
+        is_last: bool,
     ):
         """
         处理查询投资者信息的响应回调
@@ -1710,7 +1858,9 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 该方法没有返回值，通过回调函数返回查询结果
         """
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInvestor, rsp_info_field, request_id, is_last)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnRspQryInvestor, rsp_info_field, request_id, is_last
+        )
         qry_investor = None
         if investor_field:
             qry_investor = {
@@ -1726,8 +1876,8 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
                 "MarginModelID": investor_field.MarginModelID,
                 "Mobile": investor_field.Mobile,
                 "OpenDate": investor_field.OpenDate,
-                "Telephone": investor_field.Telephone
-                }
+                "Telephone": investor_field.Telephone,
+            }
         response[Constant.Investor] = qry_investor
         self.rsp_callback(response)
 
@@ -1745,16 +1895,18 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
             None: 本函数不直接返回结果，查询结果将通过回调函数返回
                 异步处理模式，响应结果将在OnRspQryTradingCode回调中返回
         """
-        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryTradingCode, tdapi.CThostFtdcQryTradingCodeField)
+        req, request_id = CTPObjectHelper.extract_request(
+            request, Constant.QryTradingCode, tdapi.CThostFtdcQryTradingCodeField
+        )
         ret = self._api.ReqQryTradingCode(req, request_id)
         self.method_called(Constant.OnRspQryTradingCode, ret)
 
     def OnRspQryTradingCode(
-            self,
-            trading_code_field: tdapi.CThostFtdcTradingCodeField,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField,
-            request_id: int,
-            is_last: bool
+        self,
+        trading_code_field: tdapi.CThostFtdcTradingCodeField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
+        request_id: int,
+        is_last: bool,
     ):
         """
         查询交易编码响应回调函数
@@ -1770,7 +1922,9 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             无返回值，通过回调函数将响应数据传递给上层应用
         """
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryTradingCode, rsp_info_field, request_id, is_last)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnRspQryTradingCode, rsp_info_field, request_id, is_last
+        )
         qry_trading_code = None
         if trading_code_field:
             qry_trading_code = {
@@ -1782,8 +1936,8 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
                 "ExchangeID": trading_code_field.ExchangeID,
                 "InvestUnitID": trading_code_field.InvestUnitID,
                 "InvestorID": trading_code_field.InvestorID,
-                "IsActive": trading_code_field.IsActive
-                }
+                "IsActive": trading_code_field.IsActive,
+            }
         response[Constant.TradingCode] = qry_trading_code
         self.rsp_callback(response)
 
@@ -1804,16 +1958,20 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 结果将通过回调函数OnRspQryInstrumentMarginRate返回
         """
-        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryInstrumentMarginRate, tdapi.CThostFtdcQryInstrumentMarginRateField)
+        req, request_id = CTPObjectHelper.extract_request(
+            request,
+            Constant.QryInstrumentMarginRate,
+            tdapi.CThostFtdcQryInstrumentMarginRateField,
+        )
         ret = self._api.ReqQryInstrumentMarginRate(req, request_id)
         self.method_called(Constant.OnRspQryInstrumentMarginRate, ret)
 
     def OnRspQryInstrumentMarginRate(
-            self,
-            instrument_margin_rate: tdapi.CThostFtdcInstrumentMarginRateField,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField,
-            request_id: int,
-            is_last: bool
+        self,
+        instrument_margin_rate: tdapi.CThostFtdcInstrumentMarginRateField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
+        request_id: int,
+        is_last: bool,
     ):
         """
         查询合约保证金率响应回调函数
@@ -1829,7 +1987,9 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 结果通过rsp_callback回调函数返回，包含标准响应格式和保证金率信息
         """
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInstrumentMarginRate, rsp_info_field, request_id, is_last)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnRspQryInstrumentMarginRate, rsp_info_field, request_id, is_last
+        )
         qry_instrument_margin_rate = None
         if instrument_margin_rate:
             qry_instrument_margin_rate = {
@@ -1844,8 +2004,8 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
                 "LongMarginRatioByMoney": instrument_margin_rate.LongMarginRatioByMoney,
                 "LongMarginRatioByVolume": instrument_margin_rate.LongMarginRatioByVolume,
                 "ShortMarginRatioByMoney": instrument_margin_rate.ShortMarginRatioByMoney,
-                "ShortMarginRatioByVolume": instrument_margin_rate.ShortMarginRatioByVolume
-                }
+                "ShortMarginRatioByVolume": instrument_margin_rate.ShortMarginRatioByVolume,
+            }
         response[Constant.InstrumentMarginRate] = qry_instrument_margin_rate
         self.rsp_callback(response)
 
@@ -1864,16 +2024,20 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 结果将通过回调函数返回
         """
-        req, request_id = CTPObjectHelper.extract_request(request, Constant.QryInstrumentCommissionRate, tdapi.CThostFtdcQryInstrumentCommissionRateField)
+        req, request_id = CTPObjectHelper.extract_request(
+            request,
+            Constant.QryInstrumentCommissionRate,
+            tdapi.CThostFtdcQryInstrumentCommissionRateField,
+        )
         ret = self._api.ReqQryInstrumentCommissionRate(req, request_id)
         self.method_called(Constant.OnRspQryInstrumentCommissionRate, ret)
 
     def OnRspQryInstrumentCommissionRate(
-            self,
-            instrument_commission_rate_field: tdapi.CThostFtdcInstrumentCommissionRateField,
-            rsp_info_field: tdapi.CThostFtdcRspInfoField,
-            request_id: int,
-            is_last: bool
+        self,
+        instrument_commission_rate_field: tdapi.CThostFtdcInstrumentCommissionRateField,
+        rsp_info_field: tdapi.CThostFtdcRspInfoField,
+        request_id: int,
+        is_last: bool,
     ):
         """
         查询合约手续费率响应回调函数
@@ -1889,7 +2053,12 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
         Returns:
             None: 无直接返回值，通过rsp_callback返回处理结果
         """
-        response = CTPObjectHelper.build_response_dict(Constant.OnRspQryInstrumentCommissionRate, rsp_info_field, request_id, is_last)
+        response = CTPObjectHelper.build_response_dict(
+            Constant.OnRspQryInstrumentCommissionRate,
+            rsp_info_field,
+            request_id,
+            is_last,
+        )
         qry_instrument_commission_rate = None
         if instrument_commission_rate_field:
             qry_instrument_commission_rate = {
@@ -1905,7 +2074,7 @@ class TdClient(tdapi.CThostFtdcTraderSpi):
                 "InvestorID": instrument_commission_rate_field.InvestorID,
                 "InvestorRange": instrument_commission_rate_field.InvestorRange,
                 "OpenRatioByMoney": instrument_commission_rate_field.OpenRatioByMoney,
-                "OpenRatioByVolume": instrument_commission_rate_field.OpenRatioByVolume
-                }
+                "OpenRatioByVolume": instrument_commission_rate_field.OpenRatioByVolume,
+            }
         response[Constant.InstrumentCommissionRate] = qry_instrument_commission_rate
         self.rsp_callback(response)
