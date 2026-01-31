@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 @ProjectName: homalos-webctp
 @FileName   : main.py
@@ -9,6 +8,8 @@
 @Software   : PyCharm
 @Description: 运行CTP应用服务
 """
+import sys
+
 import uvicorn
 
 from .utils.log import logger
@@ -53,8 +54,10 @@ async def run(config_file_path: str, app_type: str):
         app = "src.apps:dev_app"
     else:
         logger.error("error app type: %s", app_type)
-        exit(1)
+        sys.exit()
 
-    server_config = uvicorn.Config(app, host=GlobalConfig.Host, port=GlobalConfig.Port, log_level="info")
+    server_config = uvicorn.Config(
+        app, host=GlobalConfig.Host, port=GlobalConfig.Port, log_level="info"
+    )
     server = uvicorn.Server(server_config)
     await server.serve()
