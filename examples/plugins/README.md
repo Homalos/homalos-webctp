@@ -4,15 +4,15 @@
 
 ## 目录
 
-- [插件系统概述](#插件系统概述)
-- [插件架构](#插件架构)
-- [快速开始](#快速开始)
-- [插件开发教程](#插件开发教程)
-- [示例插件](#示例插件)
-- [高级主题](#高级主题)
-- [最佳实践](#最佳实践)
-- [常见问题](#常见问题)
-- [故障排查](#故障排查)
+- [插件系统概述](#%E6%8F%92%E4%BB%B6%E7%B3%BB%E7%BB%9F%E6%A6%82%E8%BF%B0)
+- [插件架构](#%E6%8F%92%E4%BB%B6%E6%9E%B6%E6%9E%84)
+- [快速开始](#%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B)
+- [插件开发教程](#%E6%8F%92%E4%BB%B6%E5%BC%80%E5%8F%91%E6%95%99%E7%A8%8B)
+- [示例插件](#%E7%A4%BA%E4%BE%8B%E6%8F%92%E4%BB%B6)
+- [高级主题](#%E9%AB%98%E7%BA%A7%E4%B8%BB%E9%A2%98)
+- [最佳实践](#%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5)
+- [常见问题](#%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98)
+- [故障排查](#%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5)
 
 ## 插件系统概述
 
@@ -21,9 +21,9 @@
 ### 为什么使用插件？
 
 1. **代码解耦**: 将特定功能从核心代码中分离，提高可维护性
-2. **灵活扩展**: 在不修改核心代码的情况下添加新功能
-3. **动态配置**: 可以动态注册和注销插件，支持热插拔
-4. **功能组合**: 多个插件可以链式调用，实现复杂的数据处理流程
+1. **灵活扩展**: 在不修改核心代码的情况下添加新功能
+1. **动态配置**: 可以动态注册和注销插件，支持热插拔
+1. **功能组合**: 多个插件可以链式调用，实现复杂的数据处理流程
 
 ### 适用场景
 
@@ -69,9 +69,9 @@ class MyPlugin(StrategyPlugin):
 插件的生命周期包括以下阶段：
 
 1. **创建阶段**: 实例化插件对象
-2. **注册阶段**: 调用 `api.register_plugin(plugin)`，触发 `on_init()`
-3. **运行阶段**: 在行情和交易事件发生时调用 `on_quote()` 和 `on_trade()`
-4. **停止阶段**: 调用 `api.stop()` 或 `api.unregister_plugin(plugin)`，触发 `on_stop()`
+1. **注册阶段**: 调用 `api.register_plugin(plugin)`，触发 `on_init()`
+1. **运行阶段**: 在行情和交易事件发生时调用 `on_quote()` 和 `on_trade()`
+1. **停止阶段**: 调用 `api.stop()` 或 `api.unregister_plugin(plugin)`，触发 `on_stop()`
 
 ```
 创建 -> 注册(on_init) -> 运行(on_quote/on_trade) -> 停止(on_stop)
@@ -84,11 +84,13 @@ class MyPlugin(StrategyPlugin):
 **调用时机**: 插件注册时
 
 **参数**:
+
 - `api`: SyncStrategyApi 实例，可以调用所有公共方法
 
 **返回**: 无
 
 **用途**:
+
 - 保存 API 引用以便后续使用
 - 初始化插件状态（计数器、缓存等）
 - 加载配置文件
@@ -96,6 +98,7 @@ class MyPlugin(StrategyPlugin):
 - 初始化日志记录器
 
 **示例**:
+
 ```python
 def on_init(self, api):
     self.api = api
@@ -109,13 +112,16 @@ def on_init(self, api):
 **调用时机**: 每次收到行情推送时
 
 **参数**:
+
 - `quote`: Quote 对象，包含最新行情数据
 
 **返回**:
+
 - Quote 对象: 处理后的行情数据（可以是原始数据或修改后的数据）
 - None: 过滤该行情，不会传递给后续插件和缓存
 
 **用途**:
+
 - 行情数据验证和过滤
 - 数据转换和增强
 - 异常数据检测
@@ -123,6 +129,7 @@ def on_init(self, api):
 - 生成交易信号
 
 **示例**:
+
 ```python
 def on_quote(self, quote: Quote) -> Quote:
     # 过滤无效价格
@@ -142,13 +149,16 @@ def on_quote(self, quote: Quote) -> Quote:
 **调用时机**: 每次收到交易数据回调时（订单回报、成交回报等）
 
 **参数**:
+
 - `trade_data`: 字典，包含交易数据（订单、成交、持仓等）
 
 **返回**:
+
 - dict: 处理后的交易数据
 - None: 过滤该数据，不会传递给后续插件
 
 **用途**:
+
 - 交易数据验证
 - 风险控制检查
 - 交易数据记录
@@ -156,6 +166,7 @@ def on_quote(self, quote: Quote) -> Quote:
 - 订单状态跟踪
 
 **示例**:
+
 ```python
 def on_trade(self, trade_data: dict) -> dict:
     msg_type = trade_data.get('MsgType', '')
@@ -179,6 +190,7 @@ def on_trade(self, trade_data: dict) -> dict:
 **返回**: 无
 
 **用途**:
+
 - 关闭文件句柄
 - 保存数据到磁盘
 - 关闭数据库连接
@@ -186,6 +198,7 @@ def on_trade(self, trade_data: dict) -> dict:
 - 记录统计信息
 
 **示例**:
+
 ```python
 def on_stop(self):
     # 保存统计数据
@@ -205,11 +218,13 @@ def on_stop(self):
 ```
 
 **规则**:
+
 1. 前一个插件的输出是下一个插件的输入
-2. 如果任何插件返回 None，链中断，后续插件不会被调用
-3. 插件异常会被捕获，不影响其他插件和核心功能
+1. 如果任何插件返回 None，链中断，后续插件不会被调用
+1. 插件异常会被捕获，不影响其他插件和核心功能
 
 **示例**:
+
 ```python
 # 注册插件链
 api.register_plugin(ValidationPlugin())  # 验证数据
@@ -281,6 +296,7 @@ python your_strategy.py
 ```
 
 你会看到类似的输出：
+
 ```
 [INFO] 我的第一个插件已初始化
 [INFO] 收到第 1 条行情: rb2605 @ 3500.0
@@ -341,6 +357,7 @@ class PriceFilterPlugin(StrategyPlugin):
 ```
 
 **使用示例**:
+
 ```python
 # 只接受价格在 3000-4000 之间的行情
 plugin = PriceFilterPlugin(min_price=3000, max_price=4000)
@@ -510,11 +527,13 @@ class MovingAverageSignalPlugin(StrategyPlugin):
 **文件**: `logging_plugin.py`
 
 **功能**:
+
 - 记录行情更新(合约代码、价格、成交量等)
 - 记录交易数据(订单、成交等)
 - 可配置日志级别
 
 **使用示例**:
+
 ```python
 from examples.plugins.logging_plugin import LoggingPlugin
 
@@ -529,11 +548,13 @@ api.register_plugin(plugin)
 **文件**: `risk_control_plugin.py`
 
 **功能**:
+
 - 过滤无效行情(价格为 NaN 或 0)
 - 检测价格异常变动
 - 验证交易数据完整性
 
 **使用示例**:
+
 ```python
 from examples.plugins.risk_control_plugin import RiskControlPlugin
 
@@ -691,7 +712,6 @@ def on_quote(self, quote: Quote) -> Quote:
 
 如有问题或建议,请提交 Issue 或 Pull Request。
 
-
 ## 示例插件
 
 本目录包含以下示例插件：
@@ -701,11 +721,13 @@ def on_quote(self, quote: Quote) -> Quote:
 **文件**: `logging_plugin.py`
 
 **功能**:
+
 - 记录所有行情更新（合约代码、价格、成交量等）
 - 记录所有交易数据（订单、成交等）
 - 可配置日志级别和输出格式
 
 **使用示例**:
+
 ```python
 from examples.plugins.logging_plugin import LoggingPlugin
 
@@ -723,12 +745,14 @@ api.register_plugin(plugin)
 **文件**: `risk_control_plugin.py`
 
 **功能**:
+
 - 过滤无效行情（价格为 NaN 或 0）
 - 检测价格异常变动（超过设定百分比）
 - 验证交易数据完整性
 - 监控持仓风险
 
 **使用示例**:
+
 ```python
 from examples.plugins.risk_control_plugin import RiskControlPlugin
 
@@ -834,6 +858,7 @@ class ConfigurablePlugin(StrategyPlugin):
 ```
 
 配置文件 `plugin_config.yaml`:
+
 ```yaml
 min_price: 3000
 max_price: 4000
@@ -931,6 +956,7 @@ class AlertPlugin(StrategyPlugin):
 ### 1. 性能优化
 
 **避免在钩子中执行耗时操作**:
+
 ```python
 # 不好：同步写文件
 def on_quote(self, quote: Quote) -> Quote:
@@ -945,6 +971,7 @@ def on_quote(self, quote: Quote) -> Quote:
 ```
 
 **批量处理数据**:
+
 ```python
 def on_quote(self, quote: Quote) -> Quote:
     self.buffer.append(quote)
@@ -960,6 +987,7 @@ def on_quote(self, quote: Quote) -> Quote:
 ### 2. 错误处理
 
 **捕获并记录异常**:
+
 ```python
 def on_quote(self, quote: Quote) -> Quote:
     try:
@@ -972,6 +1000,7 @@ def on_quote(self, quote: Quote) -> Quote:
 ```
 
 **验证数据完整性**:
+
 ```python
 def on_quote(self, quote: Quote) -> Quote:
     # 验证必要字段
@@ -989,6 +1018,7 @@ def on_quote(self, quote: Quote) -> Quote:
 ### 3. 资源管理
 
 **使用上下文管理器**:
+
 ```python
 class FileWriterPlugin(StrategyPlugin):
     def on_init(self, api):
@@ -1002,6 +1032,7 @@ class FileWriterPlugin(StrategyPlugin):
 ```
 
 **及时释放资源**:
+
 ```python
 def on_stop(self):
     # 关闭数据库连接
@@ -1017,6 +1048,7 @@ def on_stop(self):
 ### 4. 日志记录
 
 **使用结构化日志**:
+
 ```python
 from loguru import logger
 
@@ -1031,6 +1063,7 @@ def on_quote(self, quote: Quote) -> Quote:
 ```
 
 **设置日志级别**:
+
 ```python
 def on_init(self, api):
     self.api = api
@@ -1045,6 +1078,7 @@ def on_init(self, api):
 ### 5. 测试
 
 **编写单元测试**:
+
 ```python
 import unittest
 from src.strategy.internal.data_models import Quote
@@ -1070,6 +1104,7 @@ class TestMyPlugin(unittest.TestCase):
 ```
 
 **集成测试**:
+
 ```python
 def test_plugin_integration():
     # 创建 API 实例
@@ -1180,12 +1215,14 @@ def on_quote(self, quote: Quote) -> Quote:
 **症状**: 注册了插件但钩子方法没有被调用
 
 **排查步骤**:
+
 1. 检查插件是否正确注册：`api.register_plugin(plugin)`
-2. 检查钩子方法签名是否正确
-3. 检查是否有其他插件返回了 None（中断了插件链）
-4. 查看日志中是否有插件异常
+1. 检查钩子方法签名是否正确
+1. 检查是否有其他插件返回了 None（中断了插件链）
+1. 查看日志中是否有插件异常
 
 **解决方案**:
+
 ```python
 # 确保正确注册
 plugin = MyPlugin()
@@ -1200,11 +1237,13 @@ logger.info(f"已注册插件数量: {len(api._plugin_manager._plugins)}")
 **症状**: 插件抛出异常后，数据没有被处理
 
 **排查步骤**:
+
 1. 查看日志中的异常信息
-2. 检查插件是否正确处理了异常
-3. 确认插件返回了有效数据
+1. 检查插件是否正确处理了异常
+1. 确认插件返回了有效数据
 
 **解决方案**:
+
 ```python
 def on_quote(self, quote: Quote) -> Quote:
     try:
@@ -1220,11 +1259,13 @@ def on_quote(self, quote: Quote) -> Quote:
 **症状**: 注册插件后系统变慢
 
 **排查步骤**:
+
 1. 使用性能分析工具（如 cProfile）
-2. 检查插件中是否有耗时操作
-3. 查看日志中的处理时间
+1. 检查插件中是否有耗时操作
+1. 查看日志中的处理时间
 
 **解决方案**:
+
 ```python
 import time
 
@@ -1246,11 +1287,13 @@ def on_quote(self, quote: Quote) -> Quote:
 **症状**: 长时间运行后内存或文件句柄增加
 
 **排查步骤**:
+
 1. 检查 `on_stop()` 是否正确实现
-2. 检查是否有未关闭的文件或连接
-3. 使用内存分析工具
+1. 检查是否有未关闭的文件或连接
+1. 使用内存分析工具
 
 **解决方案**:
+
 ```python
 def on_init(self, api):
     self.api = api
@@ -1281,18 +1324,19 @@ def on_stop(self):
 欢迎贡献新的插件示例！请遵循以下步骤：
 
 1. Fork 项目
-2. 创建插件文件
-3. 添加文档和示例
-4. 编写测试
-5. 提交 Pull Request
+1. 创建插件文件
+1. 添加文档和示例
+1. 编写测试
+1. 提交 Pull Request
 
 ## 技术支持
 
 如有问题或建议，请：
+
 - 提交 Issue
 - 发送邮件
 - 查看项目文档
 
----
+______________________________________________________________________
 
 **祝你开发愉快！** 🚀
