@@ -81,3 +81,5 @@ PeopleQuant/logs/
 examples/config_example.py
 讨论.md
 *.md
+task
+task/
