@@ -1,23 +1,237 @@
 [project]
 name = "homalos-webctp"
-version = "0.2.0"
+version = "0.0.1"
 description = "homalos-webctp is a CTP service that provides a WebSocket interface based on the CTP API."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "anyio>=4.12.0",
-    "fakeredis>=2.32.1",
-    "fastapi>=0.123.3",
-    "hypothesis>=6.0.0",
+    "aiosqlite>=0.21.0",
+    "argon2-cffi>=23.1.0",
+    "bypy>=1.8.9",
+    "chinese-days>=0.0.1",
+    "configparser>=7.2.0",
+    "fastapi>=0.118.0",
     "loguru>=0.7.3",
-    "msgpack>=1.0.0",
-    "orjson>=3.9.0",
-    "psutil>=5.9.0",
-    "pytest>=9.0.2",
-    "pytest-asyncio>=1.3.0",
-    "pyyaml>=6.0.3",
-    "redis>=5.0.0",
-    "ruff>=0.14.8",
-    "uvicorn>=0.38.0",
-    "websockets>=15.0.1",
+    "msgpack>=1.1.2",
+    "pandas>=2.3.2",
+    "passlib[bcrypt]>=1.7.4",
+    "psutil>=7.1.0",
+    "pydantic[email]>=2.12.0",
+    "python-jose[cryptography]>=3.5.0",
+    "python-multipart>=0.0.20",
+    "pyyaml>=6.0.2",
+    "pyzmq>=27.1.0",
+    "requests>=2.32.5",
+    "ruamel-yaml>=0.18.15",
+    "sqlalchemy>=2.0.43",
+    "tzdata>=2025.2",
+    "uvicorn[standard]>=0.37.0",
+    "watchfiles>=1.1.0",
+    "websocket-client>=1.9.0",
+    "pre-commit>=4.5.1",
 ]
+
+# ============================================================================
+# Ruff 配置 - Python 代码检查和格式化工具
+# ============================================================================
+[tool.ruff]
+# 目标 Python 版本（Ruff 当前最高支持 py312）
+target-version = "py312"
+
+# 每行最大字符数
+line-length = 100
+
+# 排除的文件和目录
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    ".pytest_cache",
+    ".ruff_cache",
+    "build",
+    "dist",
+    "*.egg-info",
+    "PeopleQuant",
+    "libs",
+    "con_file",
+    "flows",
+    "logs",
+]
+
+# 启用的规则集
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort (导入排序)
+#    "N",      # pep8-naming (命名规范)
+#    "UP",     # pyupgrade (Python 版本升级建议)
+#    "B",      # flake8-bugbear (常见错误)
+#    "C4",     # flake8-comprehensions (列表推导式优化)
+#    "SIM",    # flake8-simplify (代码简化建议)
+#    "RET",    # flake8-return (return 语句优化)
+#    "ARG",    # flake8-unused-arguments (未使用的参数)
+#    "PTH",    # flake8-use-pathlib (使用 pathlib)
+#    "ERA",    # eradicate (删除注释的代码)
+#    "PL",     # pylint
+#    "PERF",   # perflint (性能优化建议)
+#    "RUF",    # Ruff 特定规则
+]
+
+# 忽略的规则
+ignore = [
+    "E501",    # 行长度由 formatter 处理
+    "E722",    # Do not use bare `except`
+    "F841",    # 未使用的变量
+    "PLR0912", # 函数分支过多（某些复杂业务逻辑合理）
+    "PLR0913", # 函数参数过多（某些情况下合理）
+    "PLR0915", # 函数语句过多（某些复杂业务逻辑合理）
+    "PLR2004", # 魔法数字（某些情况下合理）
+    "PLW0602", # 使用 global 但未赋值（FastAPI 应用常见模式）
+    "PLW0603", # 使用 global 更新变量（FastAPI 应用常见模式）
+    "RET504",  # 不必要的赋值后返回（有时为了可读性）
+    "SIM108",  # 使用三元运算符（有时 if-else 更清晰）
+    "SIM105",  # Use `contextlib.suppress(ImportError)` instead of `try`-`except`-`pass`
+    "N803",    # Argument name should be lowercase
+    "N802",    # Function name should be lowercase
+    "RUF001",  # 注释中允许中文标点符号（，）
+    "RUF002",  # 注释中允许中文标点符号（：）
+    "RUF003",  # 注释中允许中文标点符号（，）
+    "ARG001",  # Unused function argument
+    "ARG002",  # Unused method argument
+    "ERA001",  # 存在被注释掉的代码段，生产环境中应该启用检查，开发环境可以忽略
+    "E402",    # Module level import not at top of file
+    "UP031",   # Use format specifiers instead of percent format
+]
+
+# 每个文件允许的自动修复数量
+fixable = ["ALL"]
+unfixable = []
+
+# 允许未使用的变量（以下划线开头）
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.lint.per-file-ignores]
+# 测试文件可以使用 assert 和魔法数字
+"tests/**/*.py" = ["PLR2004", "S101"]
+# __init__.py 可以有未使用的导入
+"__init__.py" = ["F401"]
+
+[tool.ruff.lint.isort]
+# 导入排序配置
+known-first-party = ["src"]
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+
+[tool.ruff.lint.mccabe]
+# 最大圈复杂度
+max-complexity = 10
+
+[tool.ruff.format]
+# 代码格式化配置
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "lf"
+
+# ============================================================================
+# Bandit 配置 - Python 安全检查工具
+# ============================================================================
+[tool.bandit]
+# 排除的目录
+exclude_dirs = [
+    ".venv",
+    "tests",
+    "PeopleQuant",
+    "examples",
+    "scripts",
+]
+
+# 跳过的测试
+skips = [
+    "B101",  # assert_used (测试中需要使用 assert)
+    "B601",  # paramiko_calls (如果使用 paramiko)
+    "B104",  # hardcoded_bind_all_interfaces (Web服务需要绑定0.0.0.0)
+    "B106",  # hardcoded_password_funcarg (示例代码中的占位符密码)
+]
+
+# ============================================================================
+# Pytest 配置 - 测试框架
+# ============================================================================
+[tool.pytest.ini_options]
+# 测试目录
+testpaths = ["tests"]
+
+# Python 文件匹配模式
+python_files = ["test_*.py", "*_test.py"]
+
+# Python 类匹配模式
+python_classes = ["Test*"]
+
+# Python 函数匹配模式
+python_functions = ["test_*"]
+
+# 添加的命令行选项
+addopts = [
+    "-v",                    # 详细输出
+    "--strict-markers",      # 严格标记模式
+    "--tb=short",           # 简短的回溯信息
+    "--cov=src",            # 代码覆盖率
+    "--cov-report=term-missing",  # 显示未覆盖的行
+    "--cov-report=html",    # 生成 HTML 报告
+]
+
+# 标记
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+
+# 异步测试配置
+asyncio_mode = "auto"
+
+# ============================================================================
+# Coverage 配置 - 代码覆盖率
+# ============================================================================
+[tool.coverage.run]
+# 源代码目录
+source = ["src"]
+
+# 排除的文件
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/site-packages/*",
+    "*/PeopleQuant/*",
+]
+
+# 并行模式
+parallel = true
+
+[tool.coverage.report]
+# 精度
+precision = 2
+
+# 显示缺失的行
+show_missing = true
+
+# 跳过覆盖的文件
+skip_covered = false
+
+# 排除的行
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.coverage.html]
+# HTML 报告目录
+directory = "htmlcov"
