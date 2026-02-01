@@ -9,25 +9,20 @@
 @Description: 同步策略 API - 同步阻塞式策略编写接口
 
 模块概述
-========
-
-本模块提供 PeopleQuant 风格的同步阻塞式策略编写接口，封装了 CTP API 的复杂性，
-让策略开发者可以使用简单的同步调用方式编写量化交易策略。
+本模块提供同步阻塞式策略编写接口，封装了 CTP API 的复杂性，让策略开发者可以使用简单的同步调用方式编写量化交易策略。
 
 重构后的架构
-============
-
-本模块经过模块化重构，将原来的单一大文件（2300+ 行）拆分为多个职责清晰的模块：
+本模块经过模块化重构，将原来的单一大文件拆分为多个职责清晰的模块：
 
 主模块（sync_api.py）
----------------------
+
 - 提供 SyncStrategyApi 公共接口
 - 组合内部组件（缓存、事件循环、插件管理器）
 - 实现同步 API 方法（get_quote, open_close 等）
 - 协调各组件之间的交互
 
 内部模块（internal/）
---------------------
+
 - data_models.py: Quote 和 Position 数据类
 - cache_manager.py: 通用缓存管理器和行情/持仓缓存
 - event_manager.py: 统一的线程同步事件管理
@@ -37,7 +32,6 @@
 - instrument_helper.py: 合约信息处理辅助函数
 
 模块化的好处
-============
 
 1. **代码可维护性提升**
    - 每个模块不超过 300 行，职责单一
@@ -56,7 +50,6 @@
    - 模块化的测试结构提高了测试覆盖率
 
 快速开始
-========
 
 基本用法::
 
@@ -112,24 +105,20 @@
     thread = api.run_strategy(my_strategy)
 
 向后兼容性
-==========
 
 重构完全保持了向后兼容性，所有现有的策略代码无需修改即可运行。
 公共 API 接口（SyncStrategyApi、Quote、Position）保持不变。
 
 更多信息
-========
 
 - 插件开发指南: 参见 examples/plugins/README.md
 - 性能优化指南: 参见 docs/performance_tuning_guide_CN.md
 - 故障排除: 参见 docs/troubleshooting_CN.md
 """
 
-# ===== 标准库导入 =====
 import threading
 from collections.abc import Callable
 
-# ===== 第三方库导入 =====
 import anyio
 import anyio.from_thread
 import anyio.lowlevel
@@ -151,12 +140,15 @@ from .internal.event_manager import _EventManager
 # 插件系统：策略插件接口和管理器
 from .internal.plugin import PluginManager, StrategyPlugin
 
+# 订单跟踪：订单状态管理
+from .internal.order_tracking import OrderInfo, OrderStatus
+
 
 class SyncStrategyApi:
     """
     同步策略 API 主类
 
-    提供 PeopleQuant 风格的同步阻塞式策略编写接口。
+    提供同步阻塞式策略编写接口。
     内部使用异步的 MdClient 和 TdClient，通过桥接层实现同步/异步转换。
 
     主要功能：
@@ -206,23 +198,23 @@ class SyncStrategyApi:
             RuntimeError: 初始化失败或登录失败
 
         Example:
-            >>> # 使用默认配置
-            >>> api = SyncStrategyApi("user_id", "password")
-            >>>
-            >>> # 使用自定义配置文件
-            >>> api = SyncStrategyApi("user_id", "password", config_path="config.yaml")
-            >>>
-            >>> # 使用自定义超时时间
-            >>> api = SyncStrategyApi("user_id", "password", timeout=60.0)
-            >>>
-            >>> # 预加载合约信息（推荐方式：直接提供合约信息）
-            >>> api = SyncStrategyApi(
-            >>>     "user_id", "password",
-            >>>     instrument_info={"rb2605": {"VolumeMultiple": 10}}
-            >>> )
-            >>>
-            >>> # 预加载合约信息（通过 CTP 查询，可能不支持）
-            >>> api = SyncStrategyApi("user_id", "password", instruments=["rb2605"])
+            使用默认配置
+            api = SyncStrategyApi("user_id", "password")
+
+            使用自定义配置文件
+            api = SyncStrategyApi("user_id", "password", config_path="config.yaml")
+
+            使用自定义超时时间
+            api = SyncStrategyApi("user_id", "password", timeout=60.0)
+
+            预加载合约信息（推荐方式：直接提供合约信息）
+            api = SyncStrategyApi(
+                "user_id", "password",
+                instrument_info={"rb2605": {"VolumeMultiple": 10}}
+            )
+
+            预加载合约信息（通过 CTP 查询，可能不支持）
+            api = SyncStrategyApi("user_id", "password", instruments=["rb2605"])
         """
         logger.info("初始化 SyncStrategyApi...")
 
@@ -281,7 +273,14 @@ class SyncStrategyApi:
         # 订单响应状态跟踪
         self._order_responses: dict[str, dict] = {}
         self._order_response_lock = threading.RLock()
-        self._pending_order_ids: list = []  # 等待中的订单ID队列（FIFO）
+        self._pending_orders: dict[str, OrderInfo] = {}  # 订单跟踪字典，key为唯一标识符
+        self._completed_orders: dict[str, OrderInfo] = {}  # 已完成订单历史（用于查询）
+
+        # 订单计数器和会话信息
+        self._order_ref_counter = 0
+        self._order_ref_lock = threading.Lock()
+        self._front_id: int | None = None
+        self._session_id: int | None = None
 
         # 策略管理
         self._running_strategies: dict[str, threading.Thread] = {}
@@ -328,6 +327,82 @@ class SyncStrategyApi:
                 logger.warning(f"预加载合约信息失败: {e}，将在需要时按需查询")
 
         logger.info("SyncStrategyApi 初始化完成，CTP 连接成功")
+
+    def _generate_order_unique_id(
+        self, front_id: int, session_id: int, order_ref: str
+    ) -> str:
+        """
+        生成订单唯一标识符
+
+        Args:
+            front_id: 前置机编号
+            session_id: 会话编号
+            order_ref: 订单引用
+
+        Returns:
+            订单唯一标识符，格式: "{front_id}_{session_id}_{order_ref}"
+        """
+        return f"{front_id}_{session_id}_{order_ref}"
+
+    def _parse_order_unique_id(self, unique_id: str) -> tuple[int, int, str]:
+        """
+        解析订单唯一标识符
+
+        Args:
+            unique_id: 订单唯一标识符
+
+        Returns:
+            (front_id, session_id, order_ref) 元组
+
+        Raises:
+            ValueError: 如果标识符格式不正确
+        """
+        try:
+            parts = unique_id.split("_")
+            if len(parts) != 3:
+                raise ValueError(f"无效的订单唯一标识符格式: {unique_id}")
+            front_id = int(parts[0])
+            session_id = int(parts[1])
+            order_ref = parts[2]
+            return front_id, session_id, order_ref
+        except (ValueError, IndexError) as e:
+            raise ValueError(f"解析订单唯一标识符失败: {unique_id}, 错误: {e}")
+
+    def _generate_order_ref(self) -> str:
+        """
+        生成订单引用（OrderRef）
+
+        使用线程安全的自增计数器生成唯一的订单引用。
+
+        Returns:
+            订单引用字符串
+        """
+        with self._order_ref_lock:
+            self._order_ref_counter += 1
+            # OrderRef 通常是数字字符串，最多12位
+            order_ref = str(self._order_ref_counter).zfill(12)
+            return order_ref
+
+    def _get_session_info(self) -> tuple[int, int]:
+        """
+        获取当前会话的 FrontID 和 SessionID
+
+        这些信息在登录成功后从 OnRspUserLogin 响应中缓存。
+
+        Returns:
+            (front_id, session_id) 元组
+
+        Raises:
+            RuntimeError: 如果会话信息未初始化（未登录或登录失败）
+        """
+        if self._front_id is None or self._session_id is None:
+            raise RuntimeError(
+                "无法获取会话信息（FrontID/SessionID），"
+                "请确保已成功登录 CTP。"
+                "提示：FrontID 和 SessionID 在登录成功后自动缓存。"
+            )
+
+        return self._front_id, self._session_id
 
     def _query_instrument(
         self, instrument_id: str, timeout: float = 5.0
@@ -601,7 +676,12 @@ class SyncStrategyApi:
 
     def _handle_order_response(self, response: dict) -> None:
         """
-        处理订单响应，缓存响应并通知等待线程
+        处理订单响应，跟踪订单完整生命周期
+
+        支持多次回调处理：
+        1. 首次回调：订单提交成功，触发等待事件
+        2. 后续回调：更新订单状态，记录状态变更历史
+        3. 最终状态：将订单移至已完成列表
 
         Args:
             response: 订单响应字典
@@ -609,31 +689,176 @@ class SyncStrategyApi:
         msg_type = response.get("MsgType", "")
         logger.debug(f"[订单响应] 收到订单响应，消息类型: {msg_type}")
 
-        # 缓存响应并通知等待线程
-        with self._order_response_lock:
-            # 由于我们无法从响应中获取请求ID，使用FIFO策略
-            # 假设订单是按顺序处理的，通知第一个等待的订单
-            if self._pending_order_ids:
-                # 获取第一个等待的订单ID
-                order_id = self._pending_order_ids.pop(0)
+        from ..constants.constant import TdConstant as Constant
 
-                # 缓存响应
-                self._order_responses[order_id] = response
+        # 尝试从不同类型的响应中提取订单信息
+        order_data = None
+        input_order_data = None
+        is_error = False
 
-                # 通知等待订单响应的线程
-                self._event_manager.set_event(f"order_response_{order_id}")
-                logger.debug(f"[订单响应] 已通知订单完成: {order_id}")
+        # RtnOrder: 订单回报
+        if "RtnOrder" in msg_type:
+            order_data = response.get(Constant.Order, {})
+
+        # ErrRtnOrderInsert: 订单录入错误回报
+        elif "ErrRtnOrderInsert" in msg_type:
+            input_order_data = response.get(Constant.InputOrder, {})
+            is_error = True
+
+        # RspOrderInsert: 订单录入响应
+        elif "RspOrderInsert" in msg_type:
+            input_order_data = response.get(Constant.InputOrder, {})
+            # 检查是否有错误
+            rsp_info = response.get("RspInfo", {})
+            if rsp_info and rsp_info.get("ErrorID", 0) != 0:
+                is_error = True
+
+        # 提取唯一标识符字段
+        front_id = None
+        session_id = None
+        order_ref = None
+
+        if order_data:
+            front_id = order_data.get("FrontID")
+            session_id = order_data.get("SessionID")
+            order_ref = order_data.get("OrderRef")
+        elif input_order_data:
+            # InputOrder 中可能没有 FrontID 和 SessionID
+            # 需要从其他地方获取或使用备用方案
+            order_ref = input_order_data.get("OrderRef")
+            logger.debug(f"[订单响应] InputOrder 中提取到 OrderRef: {order_ref}")
+
+        # 如果无法提取完整的唯一标识符，尝试降级处理
+        if not all([front_id is not None, session_id is not None, order_ref]):
+            logger.warning(
+                f"[订单响应] 无法提取完整的订单唯一标识符: "
+                f"FrontID={front_id}, SessionID={session_id}, OrderRef={order_ref}"
+            )
+
+            # 降级处理：如果有 OrderRef，尝试使用缓存的会话信息
+            if order_ref:
+                # 尝试使用缓存的会话信息构造唯一标识符
+                if self._front_id is not None and self._session_id is not None:
+                    front_id = self._front_id
+                    session_id = self._session_id
+                    logger.info(
+                        f"[订单响应] 使用缓存的会话信息构造唯一标识符: "
+                        f"FrontID={front_id}, SessionID={session_id}, OrderRef={order_ref}"
+                    )
+                    # 继续正常的匹配流程（不 return，让代码继续执行）
+                else:
+                    logger.error(
+                        "[订单响应] 缓存的会话信息不可用，无法构造唯一标识符"
+                    )
+                    return
             else:
-                logger.warning("[订单响应] 收到订单响应但没有等待的订单")
+                logger.error("[订单响应] 无法处理该订单响应，缺少必要的标识信息")
+                return
+
+        # 生成唯一标识符
+        unique_id = self._generate_order_unique_id(front_id, session_id, order_ref)
+        logger.debug(f"[订单响应] 订单唯一标识符: {unique_id}")
+
+        # 在待处理订单中查找匹配的订单
+        with self._order_response_lock:
+            if unique_id not in self._pending_orders:
+                # 检查是否在已完成订单中
+                if unique_id in self._completed_orders:
+                    logger.debug(
+                        f"[订单响应] 收到已完成订单的后续响应: {unique_id}，忽略"
+                    )
+                else:
+                    logger.warning(
+                        f"[订单响应] 收到未知订单的响应: {unique_id}，"
+                        f"可能是重复响应或订单已超时"
+                    )
+                return
+
+            # 获取订单信息对象
+            order_info = self._pending_orders[unique_id]
+            
+            # 添加响应记录
+            order_info.add_response(response)
+            
+            # 提取订单状态信息
+            if order_data:
+                # 从 RtnOrder 中提取状态
+                ctp_status = order_data.get("OrderStatus", "a")
+                status_msg = order_data.get("StatusMsg", "")
+                volume_traded = order_data.get("VolumeTraded", 0)
+                volume_total = order_data.get("VolumeTotal", order_info.volume)
+                
+                # 转换为 OrderStatus 枚举
+                new_status = OrderStatus.from_ctp_status(ctp_status)
+                
+                # 更新订单状态
+                order_info.update_status(
+                    new_status=new_status,
+                    status_msg=status_msg,
+                    volume_traded=volume_traded,
+                    volume_total=volume_total,
+                )
+                
+                logger.info(
+                    f"[订单响应] 订单状态更新: {unique_id} -> "
+                    f"{new_status.get_description()} "
+                    f"(已成交: {volume_traded}/{order_info.volume})"
+                )
+                
+            elif is_error:
+                # 处理错误响应
+                rsp_info = response.get("RspInfo", {})
+                error_id = rsp_info.get("ErrorID", -1) if rsp_info else -1
+                error_msg = rsp_info.get("ErrorMsg", "未知错误") if rsp_info else "未知错误"
+                
+                order_info.set_error(error_id, error_msg)
+                
+                logger.error(
+                    f"[订单响应] 订单录入错误: {unique_id} - "
+                    f"[{error_id}] {error_msg}"
+                )
+            
+            # 判断是否为首次响应（需要通知等待线程）
+            is_first_response = len(order_info.order_responses) == 1
+            
+            if is_first_response:
+                # 首次响应：缓存响应并通知等待线程
+                self._order_responses[unique_id] = response
+                self._event_manager.set_event(f"order_response_{unique_id}")
+                logger.debug(f"[订单响应] 首次响应，已通知等待线程: {unique_id}")
+            else:
+                # 后续响应：只记录状态变更
+                logger.debug(
+                    f"[订单响应] 后续响应（第 {len(order_info.order_responses)} 次）: "
+                    f"{unique_id} - {order_info.status.get_description()}"
+                )
+            
+            # 如果订单达到最终状态，移至已完成列表
+            if order_info.is_final():
+                logger.info(
+                    f"[订单响应] 订单达到最终状态: {unique_id} - "
+                    f"{order_info.status.get_description()}"
+                )
+                logger.debug(f"[订单响应] {order_info.get_status_history_str()}")
+                
+                # 移至已完成列表
+                self._completed_orders[unique_id] = order_info
+                del self._pending_orders[unique_id]
+                
+                logger.debug(
+                    f"[订单响应] 订单已移至已完成列表，"
+                    f"当前活跃订单数: {len(self._pending_orders)}"
+                )
 
     def _on_trade_data(self, response: dict) -> None:
         """
         处理交易数据回调（在事件循环线程中调用）
 
-        处理三种类型的回调：
-        1. 合约查询响应（OnRspQryInstrument）：更新合约信息缓存
-        2. 持仓查询响应（OnRspQryInvestorPosition）：更新持仓缓存
-        3. 成交回报（OnRtnTrade）：触发持仓查询以自动更新缓存
+        处理以下类型的回调：
+        1. 登录响应（OnRspUserLogin）：缓存 FrontID 和 SessionID
+        2. 合约查询响应（OnRspQryInstrument）：更新合约信息缓存
+        3. 持仓查询响应（OnRspQryInvestorPosition）：更新持仓缓存
+        4. 成交回报（OnRtnTrade）：触发持仓查询以自动更新缓存
 
         Args:
             response: 交易响应字典，包含 MsgType 和相关数据字段
@@ -649,6 +874,30 @@ class SyncStrategyApi:
 
         # 注意：字段名是 "MsgType" 而不是 "msg_type"
         msg_type = response.get("MsgType", "")
+
+        # ===== 处理登录响应：缓存 FrontID 和 SessionID =====
+        if "RspUserLogin" in msg_type:
+            from ..constants.constant import TdConstant as Constant
+
+            rsp_user_login = response.get(Constant.RspUserLogin, {})
+            if rsp_user_login:
+                self._front_id = rsp_user_login.get("FrontID")
+                self._session_id = rsp_user_login.get("SessionID")
+                max_order_ref = rsp_user_login.get("MaxOrderRef", "")
+                
+                logger.info(
+                    f"[登录成功] 缓存会话信息: FrontID={self._front_id}, "
+                    f"SessionID={self._session_id}, MaxOrderRef={max_order_ref}"
+                )
+                
+                # 初始化订单计数器（使用 MaxOrderRef + 1）
+                if max_order_ref and max_order_ref.isdigit():
+                    with self._order_ref_lock:
+                        self._order_ref_counter = int(max_order_ref)
+                        logger.info(f"[登录成功] 初始化订单计数器: {self._order_ref_counter}")
+            
+            # 登录响应不需要进一步处理，直接返回
+            return
 
         # ===== 关键日志：记录所有TD回调消息类型 =====
         logger.debug(f"[TD回调] 收到消息类型: {msg_type}")
@@ -1203,17 +1452,17 @@ class SyncStrategyApi:
             TimeoutError: 等待订单响应超时（仅在 block=True 时）
 
         Example:
-            >>> api = SyncStrategyApi()
-            >>> api.connect("user_id", "password")
-            >>> # 开多 1 手，价格 3500
-            >>> result = api.open_close("rb2505", "kaiduo", 1, 3500.0)
-            >>> if result["success"]:
-            >>>     print(f"订单提交成功，订单号: {result['order_ref']}")
-            >>> else:
-            >>>     print(f"订单提交失败: {result['error_msg']}")
-            >>>
-            >>> # 平多仓（自动处理今昨仓）
-            >>> result = api.open_close("rb2505", "pingduo", 3, 3520.0)
+            api = SyncStrategyApi()
+            api.connect("user_id", "password")
+            开多 1 手，价格 3500
+            result = api.open_close("rb2505", "kaiduo", 1, 3500.0)
+            if result["success"]:
+                print(f"订单提交成功，订单号: {result['order_ref']}")
+            else:
+                print(f"订单提交失败: {result['error_msg']}")
+
+            平多仓（自动处理今昨仓）
+            result = api.open_close("rb2505", "pingduo", 3, 3520.0)
         """
         # 使用配置的超时值（如果未指定）
         if timeout is None:
@@ -1456,6 +1705,32 @@ class SyncStrategyApi:
         # 获取交易所ID
         exchange_id = self._get_exchange_id(instrument_id)
 
+        # 生成 OrderRef
+        order_ref = self._generate_order_ref()
+        logger.debug(f"[订单提交] 生成 OrderRef: {order_ref}")
+
+        # 获取会话信息
+        try:
+            front_id, session_id = self._get_session_info()
+            logger.debug(
+                f"[订单提交] 会话信息: FrontID={front_id}, SessionID={session_id}"
+            )
+        except RuntimeError as e:
+            logger.error(f"[订单提交] 获取会话信息失败: {e}")
+            return {
+                "success": False,
+                "error_id": -1,
+                "error_msg": str(e),
+                "instrument_id": instrument_id,
+                "action": action,
+                "volume": volume,
+                "price": price,
+            }
+
+        # 生成订单唯一标识符
+        unique_id = self._generate_order_unique_id(front_id, session_id, order_ref)
+        logger.info(f"[订单提交] 订单唯一标识符: {unique_id}")
+
         # 构造订单请求
         request = {
             CommonConstant.MessageType: Constant.ReqOrderInsert,
@@ -1464,6 +1739,7 @@ class SyncStrategyApi:
                 "BrokerID": GlobalConfig.BrokerID,
                 "InvestorID": self._user_id,
                 "InstrumentID": instrument_id,
+                "OrderRef": order_ref,  # 使用生成的 OrderRef
                 "ExchangeID": exchange_id,
                 "OrderPriceType": "2",  # 限价单
                 "Direction": direction,
@@ -1480,7 +1756,7 @@ class SyncStrategyApi:
             },
         }
 
-        logger.debug(f"订单请求: {request}")
+        logger.debug(f"[订单提交] 订单请求: {request}")
 
         # 获取 TdClient
         td_client = self._event_loop_thread.td_client
@@ -1490,41 +1766,57 @@ class SyncStrategyApi:
         # 使用 anyio.from_thread.run() 调用异步方法
         if block:
             # 阻塞等待订单响应
-            logger.debug(f"等待订单响应（超时: {timeout}秒）...")
-
-            # 生成订单ID（使用时间戳）
-            import time
-
-            order_id = str(int(time.time() * 1000000))  # 微秒级时间戳
+            logger.debug(f"[订单提交] 等待订单响应（超时: {timeout}秒）...")
 
             try:
                 # 创建等待事件
-                self._event_manager.create_event(f"order_response_{order_id}")
+                self._event_manager.create_event(f"order_response_{unique_id}")
 
-                # 将订单ID添加到等待队列
+                # 创建订单跟踪对象并注册到待处理列表
+                order_info = OrderInfo(
+                    unique_id=unique_id,
+                    instrument_id=instrument_id,
+                    action=action,
+                    volume=volume,
+                    price=price,
+                    direction=direction,
+                    offset_flag=comb_offset_flag,
+                    submit_time=__import__("time").time(),
+                )
+                
                 with self._order_response_lock:
-                    self._pending_order_ids.append(order_id)
+                    self._pending_orders[unique_id] = order_info
 
-                # 提交订单请求（不等待返回值）
+                logger.info(f"[订单提交] 订单已注册到待处理列表: {unique_id}")
+
+                # 提交订单请求
                 anyio.from_thread.run(
                     td_client.call, request, token=self._event_loop_thread.anyio_token
                 )
+                logger.info(f"[订单提交] 订单请求已提交: {unique_id}")
 
                 # 等待订单响应（通过事件通知）
                 if not self._event_manager.wait_event(
-                    f"order_response_{order_id}", timeout=timeout
+                    f"order_response_{unique_id}", timeout=timeout
                 ):
+                    logger.error(
+                        f"[订单提交] 等待订单响应超时（{timeout}秒）: {unique_id}"
+                    )
+                    # 清理待处理订单
+                    with self._order_response_lock:
+                        if unique_id in self._pending_orders:
+                            del self._pending_orders[unique_id]
                     raise TimeoutError(f"等待订单响应超时（{timeout}秒）")
 
                 # 从缓存中获取响应
                 with self._order_response_lock:
-                    response = self._order_responses.get(order_id)
+                    response = self._order_responses.get(unique_id)
 
                 if not response:
                     raise RuntimeError("订单响应丢失")
 
                 # 解析响应
-                logger.debug(f"订单响应: {response}")
+                logger.debug(f"[订单提交] 订单响应: {response}")
 
                 # 检查响应信息
                 rsp_info = response.get("RspInfo", {})
@@ -1534,24 +1826,16 @@ class SyncStrategyApi:
 
                 if error_id == 0:
                     # 订单提交成功
-                    input_order = response.get(Constant.InputOrder, {})
-                    if input_order is None:
-                        input_order = {}
-
-                    # 尝试从 Order 字段获取 OrderRef（RtnOrder 响应）
-                    order_data = response.get(Constant.Order, {})
-                    if order_data is None:
-                        order_data = {}
-
-                    order_ref = input_order.get("OrderRef", "") or order_data.get(
-                        "OrderRef", ""
+                    logger.info(
+                        f"[订单提交] 订单提交成功: {instrument_id}, 订单号: {order_ref}"
                     )
-
-                    logger.info(f"订单提交成功: {instrument_id}, 订单号: {order_ref}")
 
                     return {
                         "success": True,
                         "order_ref": order_ref,
+                        "unique_id": unique_id,  # 添加唯一标识符
+                        "front_id": front_id,
+                        "session_id": session_id,
                         "instrument_id": instrument_id,
                         "action": action,
                         "volume": volume,
@@ -1559,7 +1843,7 @@ class SyncStrategyApi:
                     }
                 # 订单提交失败
                 error_msg = rsp_info.get("ErrorMsg", "未知错误")
-                logger.error(f"订单提交失败: [{error_id}] {error_msg}")
+                logger.error(f"[订单提交] 订单提交失败: [{error_id}] {error_msg}")
 
                 return {
                     "success": False,
@@ -1572,19 +1856,22 @@ class SyncStrategyApi:
                 }
 
             except TimeoutError:
-                logger.error(f"等待订单响应超时（{timeout}秒）")
-                raise TimeoutError(f"等待订单响应超时（{timeout}秒）")
+                logger.error(f"[订单提交] 等待订单响应超时（{timeout}秒）")
+                raise
 
             finally:
                 # 清理事件和缓存
-                self._event_manager.clear_event(f"order_response_{order_id}")
+                self._event_manager.clear_event(f"order_response_{unique_id}")
                 with self._order_response_lock:
-                    if order_id in self._order_responses:
-                        del self._order_responses[order_id]
+                    if unique_id in self._order_responses:
+                        del self._order_responses[unique_id]
+                    # 确保从待处理列表中移除（如果还在的话）
+                    if unique_id in self._pending_orders:
+                        del self._pending_orders[unique_id]
 
         else:
             # 不阻塞，立即返回
-            logger.debug("订单已提交，不等待响应")
+            logger.debug("[订单提交] 订单已提交，不等待响应")
 
             # 使用 anyio.from_thread.run() 提交订单但不等待响应
             anyio.from_thread.run(
@@ -1593,7 +1880,10 @@ class SyncStrategyApi:
 
             return {
                 "success": True,
-                "order_ref": "",  # 非阻塞模式下无法获取订单号
+                "order_ref": order_ref,
+                "unique_id": unique_id,  # 添加唯一标识符
+                "front_id": front_id,
+                "session_id": session_id,
                 "instrument_id": instrument_id,
                 "action": action,
                 "volume": volume,
@@ -1709,6 +1999,120 @@ class SyncStrategyApi:
             # 返回副本，避免外部修改
             return dict(self._running_strategies)
 
+    def get_order_info(self, unique_id: str) -> OrderInfo | None:
+        """
+        获取订单信息
+        
+        Args:
+            unique_id: 订单唯一标识符 (FrontID_SessionID_OrderRef)
+            
+        Returns:
+            OrderInfo 对象，如果订单不存在则返回 None
+            
+        Example:
+            >>> result = api.open_close("rb2605", "kaiduo", 1, 3500.0)
+            >>> order_info = api.get_order_info(result["unique_id"])
+            >>> print(order_info.get_status_summary())
+        """
+        with self._order_response_lock:
+            # 先在活跃订单中查找
+            if unique_id in self._pending_orders:
+                return self._pending_orders[unique_id]
+            # 再在已完成订单中查找
+            if unique_id in self._completed_orders:
+                return self._completed_orders[unique_id]
+        return None
+    
+    def get_active_orders(self) -> dict[str, OrderInfo]:
+        """
+        获取所有活跃订单（未完成的订单）
+        
+        Returns:
+            字典，键为订单唯一标识符，值为 OrderInfo 对象
+            
+        Example:
+            >>> active_orders = api.get_active_orders()
+            >>> for unique_id, order_info in active_orders.items():
+            >>>     print(order_info.get_status_summary())
+        """
+        with self._order_response_lock:
+            return dict(self._pending_orders)
+    
+    def get_completed_orders(self, limit: int | None = None) -> dict[str, OrderInfo]:
+        """
+        获取已完成订单历史
+        
+        Args:
+            limit: 返回的最大订单数量，None 表示返回全部
+            
+        Returns:
+            字典，键为订单唯一标识符，值为 OrderInfo 对象
+            
+        Example:
+            >>> # 获取最近 10 个已完成订单
+            >>> completed = api.get_completed_orders(limit=10)
+            >>> for unique_id, order_info in completed.items():
+            >>>     print(order_info.get_status_summary())
+        """
+        with self._order_response_lock:
+            if limit is None:
+                return dict(self._completed_orders)
+            
+            # 按时间排序，返回最近的 N 个
+            sorted_orders = sorted(
+                self._completed_orders.items(),
+                key=lambda x: x[1].last_update_time,
+                reverse=True
+            )
+            return dict(sorted_orders[:limit])
+    
+    def clear_completed_orders(self, keep_recent: int = 100) -> int:
+        """
+        清理已完成订单历史
+        
+        为了避免内存占用过大，可以定期清理已完成订单历史。
+        默认保留最近 100 个订单。
+        
+        Args:
+            keep_recent: 保留最近的订单数量
+            
+        Returns:
+            清理的订单数量
+            
+        Example:
+            >>> # 清理已完成订单，只保留最近 50 个
+            >>> cleared = api.clear_completed_orders(keep_recent=50)
+            >>> print(f"清理了 {cleared} 个订单")
+        """
+        with self._order_response_lock:
+            total_count = len(self._completed_orders)
+            
+            if total_count <= keep_recent:
+                logger.debug(
+                    f"已完成订单数量({total_count})未超过保留数量({keep_recent})，无需清理"
+                )
+                return 0
+            
+            # 按时间排序，保留最近的 N 个
+            sorted_orders = sorted(
+                self._completed_orders.items(),
+                key=lambda x: x[1].last_update_time,
+                reverse=True
+            )
+            
+            # 保留最近的订单
+            orders_to_keep = dict(sorted_orders[:keep_recent])
+            
+            # 清理旧订单
+            cleared_count = total_count - len(orders_to_keep)
+            self._completed_orders = orders_to_keep
+            
+            logger.info(
+                f"清理已完成订单: 清理 {cleared_count} 个，保留 {len(orders_to_keep)} 个"
+            )
+            
+            return cleared_count
+
     def register_plugin(self, plugin: StrategyPlugin) -> None:
         """
         注册策略插件
@@ -1723,17 +2127,17 @@ class SyncStrategyApi:
             plugin: 插件实例,必须继承自 StrategyPlugin
 
         Example:
-            >>> class MyPlugin(StrategyPlugin):
-            >>>     def on_init(self, api):
-            >>>         self.api = api
-            >>>         print("插件初始化")
-            >>>
-            >>>     def on_quote(self, quote):
-            >>>         print(f"收到行情: {quote.InstrumentID}")
-            >>>         return quote
-            >>>
-            >>> api = SyncStrategyApi("user_id", "password")
-            >>> api.register_plugin(MyPlugin())
+            class MyPlugin(StrategyPlugin):
+                def on_init(self, api):
+                    self.api = api
+                    print("插件初始化")
+
+                def on_quote(self, quote):
+                    print(f"收到行情: {quote.InstrumentID}")
+                    return quote
+
+            api = SyncStrategyApi("user_id", "password")
+            api.register_plugin(MyPlugin())
         """
         self._plugin_manager.register(plugin, self)
         logger.info(f"插件已注册: {plugin.__class__.__name__}")
@@ -1746,10 +2150,10 @@ class SyncStrategyApi:
             plugin: 要注销的插件实例
 
         Example:
-            >>> plugin = MyPlugin()
-            >>> api.register_plugin(plugin)
-            >>> # ... 使用插件 ...
-            >>> api.unregister_plugin(plugin)
+            plugin = MyPlugin()
+            api.register_plugin(plugin)
+            ... 使用插件 ...
+            api.unregister_plugin(plugin)
         """
         self._plugin_manager.unregister(plugin)
         logger.info(f"插件已注销: {plugin.__class__.__name__}")
@@ -1768,10 +2172,10 @@ class SyncStrategyApi:
             timeout: 等待策略线程停止的超时时间（秒），None 表示使用配置文件中的默认值
 
         Example:
-            >>> api = SyncStrategyApi()
-            >>> api.connect("user_id", "password")
-            >>> # ... 运行策略 ...
-            >>> api.stop()  # 停止所有服务
+            api = SyncStrategyApi()
+            api.connect("user_id", "password")
+            ... 运行策略 ...
+            api.stop()  # 停止所有服务
         """
         # 使用配置的超时值（如果未指定）
         if timeout is None:
@@ -1850,6 +2254,8 @@ class SyncStrategyApi:
             # 清空订单响应缓存
             with self._order_response_lock:
                 self._order_responses.clear()
+                self._pending_orders.clear()
+                self._completed_orders.clear()
                 logger.debug("订单响应缓存已清空")
 
             # 清空合约信息缓存
