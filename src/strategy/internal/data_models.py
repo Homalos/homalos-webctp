@@ -3,19 +3,17 @@
 @ProjectName: homalos-webctp
 @FileName   : data_models.py
 @Date       : 2025/12/19
-@Author     : Kiro AI Assistant
-@Email      : -
+@Author     : Lumosylva
+@Email      : donnymoving@gmail.com
 @Software   : PyCharm
 @Description: SyncStrategyApi 数据模型定义
 
 模块概述
-========
 
 本模块定义了 SyncStrategyApi 使用的核心数据类，包括行情快照（Quote）和持仓信息（Position）。
 这些数据类使用 Python 的 @dataclass 装饰器，提供简洁的数据结构定义和自动生成的方法。
 
 数据类特性
-==========
 
 1. **自动生成方法**
    - __init__: 自动生成初始化方法
@@ -31,7 +29,6 @@
    - 无效价格使用 float('nan') 表示
 
 使用示例
-========
 
 创建 Quote 对象::
 
@@ -56,7 +53,6 @@
     price = quote["LastPrice"]
 
     # 检查价格是否有效
-    import math
     if not math.isnan(quote.LastPrice):
         print(f"有效价格: {quote.LastPrice}")
 
@@ -74,7 +70,6 @@
     print(f"净持仓: {net_position}")
 
 最佳实践
-========
 
 1. **使用类型注解**
    - 在函数签名中使用 Quote 和 Position 类型
@@ -165,10 +160,10 @@ class Quote:
             AttributeError: 字段不存在时抛出
 
         Example:
-            >>> quote = Quote(InstrumentID="rb2605", LastPrice=3500.0)
-            >>> quote["LastPrice"]  # 字典访问
+            quote = Quote(InstrumentID="rb2605", LastPrice=3500.0)
+            quote["LastPrice"]  # 字典访问
             3500.0
-            >>> quote.LastPrice  # 属性访问
+            quote.LastPrice  # 属性访问
             3500.0
         """
         return getattr(self, key)
