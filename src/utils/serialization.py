@@ -10,8 +10,9 @@
 """
 
 import json
+import time
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Literal, overload
 
 try:
     import orjson
@@ -19,6 +20,7 @@ try:
     ORJSON_AVAILABLE = True
 except ImportError:
     ORJSON_AVAILABLE = False
+    orjson = None
 
 try:
     import msgpack
@@ -26,6 +28,7 @@ try:
     MSGPACK_AVAILABLE = True
 except ImportError:
     MSGPACK_AVAILABLE = False
+    msgpack = None
 
 from loguru import logger
 
@@ -110,8 +113,6 @@ class OrjsonSerializer(Serializer):
         Raises:
             SerializationError: 序列化失败时抛出
         """
-        import time
-
         start_time = time.time()
 
         try:
@@ -133,7 +134,7 @@ class OrjsonSerializer(Serializer):
         except (
             TypeError,
             ValueError,
-            orjson.JSONEncodeError if ORJSON_AVAILABLE else Exception,
+            (orjson.JSONEncodeError if ORJSON_AVAILABLE else Exception),
         ) as e:
             if ORJSON_AVAILABLE and not self._fallback_used:
                 logger.warning(f"orjson 序列化失败，降级到标准 json: {e}")
@@ -191,7 +192,7 @@ class OrjsonSerializer(Serializer):
             return result
         except (
             json.JSONDecodeError,
-            orjson.JSONDecodeError if ORJSON_AVAILABLE else Exception,
+            (orjson.JSONDecodeError if ORJSON_AVAILABLE else Exception),
             UnicodeDecodeError,
         ) as e:
             if ORJSON_AVAILABLE and not self._fallback_used:
@@ -251,8 +252,6 @@ class MsgpackSerializer(Serializer):
         Raises:
             SerializationError: 序列化失败时抛出
         """
-        import time
-
         start_time = time.time()
 
         try:
@@ -282,7 +281,6 @@ class MsgpackSerializer(Serializer):
         Raises:
             SerializationError: 反序列化失败时抛出
         """
-        import time
 
         start_time = time.time()
 
@@ -311,12 +309,22 @@ class SerializerFactory:
     _serializers = {}
 
     @staticmethod
-    def get_serializer(format: str) -> Serializer:
+    @overload
+    def get_serializer(format_type: Literal["json"]) -> OrjsonSerializer:
+        pass
+
+    @staticmethod
+    @overload
+    def get_serializer(format_type: Literal["msgpack"]) -> MsgpackSerializer:
+        pass
+
+    @staticmethod
+    def get_serializer(format_type: str) -> Serializer:
         """
         获取指定格式的序列化器实例
 
         Args:
-            format: 序列化格式，支持 'json' 和 'msgpack'
+            format_type: 序列化格式，支持 'json' 和 'msgpack'
 
         Returns:
             Serializer: 对应格式的序列化器实例
@@ -324,20 +332,20 @@ class SerializerFactory:
         Raises:
             ValueError: 不支持的序列化格式时抛出
         """
-        format = format.lower()
+        format_type = format_type.lower()
 
         # 使用单例模式，避免重复创建实例
-        if format not in SerializerFactory._serializers:
-            if format == "json":
-                SerializerFactory._serializers[format] = OrjsonSerializer()
-            elif format == "msgpack":
-                SerializerFactory._serializers[format] = MsgpackSerializer()
+        if format_type not in SerializerFactory._serializers:
+            if format_type == "json":
+                SerializerFactory._serializers[format_type] = OrjsonSerializer()
+            elif format_type == "msgpack":
+                SerializerFactory._serializers[format_type] = MsgpackSerializer()
             else:
                 raise ValueError(
-                    f"不支持的序列化格式: {format}，支持的格式: json, msgpack"
+                    f"不支持的序列化格式: {format_type}，支持的格式: json, msgpack"
                 )
 
-        return SerializerFactory._serializers[format]
+        return SerializerFactory._serializers[format_type]
 
     @staticmethod
     def clear_cache():
@@ -345,7 +353,6 @@ class SerializerFactory:
         SerializerFactory._serializers.clear()
 
 
-# 便捷函数
 def get_json_serializer() -> OrjsonSerializer:
     """获取 JSON 序列化器实例"""
     return SerializerFactory.get_serializer("json")
