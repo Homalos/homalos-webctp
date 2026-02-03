@@ -105,6 +105,7 @@ import anyio.from_thread
 import anyio.lowlevel
 from loguru import logger
 
+from .internal import OrderHelper
 # 缓存管理：行情缓存和持仓缓存
 from .internal.cache_manager import _PositionCache, _QuoteCache
 
@@ -311,16 +312,12 @@ class SyncStrategyApi:
     @staticmethod
     def _map_action_to_ctp(action: str, close_today: bool = False) -> tuple:
         """映射 action 参数到 CTP 的 Direction 和 CombOffsetFlag"""
-        from .internal.order_helper import _OrderHelper
-
-        return _OrderHelper.map_action_to_ctp(action, close_today)
+        return OrderHelper.map_action_to_ctp(action, close_today)
 
     @staticmethod
     def _get_exchange_id(instrument_id: str) -> str:
         """根据合约代码推断交易所ID"""
-        from .internal.order_helper import _OrderHelper
-
-        return _OrderHelper.get_exchange_id(instrument_id)
+        return OrderHelper.get_exchange_id(instrument_id)
 
     @staticmethod
     def _generate_order_unique_id(
@@ -337,9 +334,7 @@ class SyncStrategyApi:
         Returns:
             订单唯一标识符，格式: "{front_id}_{session_id}_{order_ref}"
         """
-        from .internal.order_helper import _OrderHelper
-
-        return _OrderHelper.generate_order_unique_id(front_id, session_id, order_ref)
+        return OrderHelper.generate_order_unique_id(front_id, session_id, order_ref)
 
     def _generate_order_ref(self) -> str:
         """
@@ -403,7 +398,7 @@ class SyncStrategyApi:
                 logger.debug(f"合约信息缓存命中: {instrument_id}")
                 return self._instrument_cache[instrument_id]
 
-        if not self._event_loop_thread or not self._event_loop_thread._clients_ready:
+        if not self._event_loop_thread or not self._event_loop_thread.get_clients_ready():
             raise RuntimeError("事件循环未启动，无法查询合约信息")
 
         logger.info(f"[合约查询] 开始查询合约信息: {instrument_id}, 超时: {timeout}秒")
@@ -1045,7 +1040,7 @@ class SyncStrategyApi:
             RuntimeError: 查询失败
             TimeoutError: 查询超时
         """
-        if not self._event_loop_thread or not self._event_loop_thread._clients_ready:
+        if not self._event_loop_thread or not self._event_loop_thread.get_clients_ready():
             raise RuntimeError("事件循环未启动，请先调用 connect() 方法")
 
         logger.info(f"查询合约持仓: {instrument_id}")
@@ -1109,7 +1104,7 @@ class SyncStrategyApi:
         Raises:
             RuntimeError: 事件循环未启动
         """
-        if not self._event_loop_thread or not self._event_loop_thread._clients_ready:
+        if not self._event_loop_thread or not self._event_loop_thread.get_clients_ready():
             raise RuntimeError("事件循环未启动，请先调用 connect() 方法")
 
         with self._subscription_lock:
@@ -1436,7 +1431,7 @@ class SyncStrategyApi:
         )
 
         # 检查事件循环是否启动
-        if not self._event_loop_thread or not self._event_loop_thread._clients_ready:
+        if not self._event_loop_thread or not self._event_loop_thread.get_clients_ready():
             raise RuntimeError("事件循环未启动，请先调用 connect() 方法")
 
         # 检查服务是否可用
@@ -1489,32 +1484,8 @@ class SyncStrategyApi:
                         )
 
                     # 智能拆分订单：优先平昨仓，再平今仓
-                    orders_to_submit: list[dict] = []
-                    remaining_volume = volume
-
-                    # 先平昨仓
-                    if his_pos > 0 and remaining_volume > 0:
-                        close_his_volume = min(his_pos, remaining_volume)
-                        orders_to_submit.append(
-                            {
-                                "volume": close_his_volume,
-                                "close_today": False,  # 平昨仓
-                                "description": f"平昨仓 {close_his_volume} 手",
-                            }
-                        )
-                        remaining_volume -= close_his_volume
-
-                    # 再平今仓
-                    if today_pos > 0 and remaining_volume > 0:
-                        close_today_volume = min(today_pos, remaining_volume)
-                        orders_to_submit.append(
-                            {
-                                "volume": close_today_volume,
-                                "close_today": True,  # 平今仓
-                                "description": f"平今仓 {close_today_volume} 手",
-                            }
-                        )
-                        remaining_volume -= close_today_volume
+                    # 调用 OrderHelper 的静态方法 split_close_orders
+                    orders_to_submit: list[dict] = OrderHelper.split_close_orders(volume, today_pos, his_pos, total_pos)
 
                     # 如果需要拆分订单，递归调用
                     if len(orders_to_submit) > 1:
