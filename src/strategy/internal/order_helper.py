@@ -217,3 +217,45 @@ class _OrderHelper:
             remaining_volume -= close_today_volume
 
         return orders_to_submit
+
+    @staticmethod
+    def generate_order_unique_id(
+        front_id: int, session_id: int, order_ref: str
+    ) -> str:
+        """
+        生成订单唯一标识符
+
+        Args:
+            front_id: 前置机编号
+            session_id: 会话编号
+            order_ref: 订单引用
+
+        Returns:
+            订单唯一标识符，格式: "{front_id}_{session_id}_{order_ref}"
+        """
+        return f"{front_id}_{session_id}_{order_ref}"
+
+    @staticmethod
+    def parse_order_unique_id(unique_id: str) -> tuple[int, int, str]:
+        """
+        解析订单唯一标识符
+
+        Args:
+            unique_id: 订单唯一标识符
+
+        Returns:
+            (front_id, session_id, order_ref) 元组
+
+        Raises:
+            ValueError: 如果标识符格式不正确
+        """
+        try:
+            parts = unique_id.split("_")
+            if len(parts) != 3:
+                raise ValueError(f"无效的订单唯一标识符格式: {unique_id}")
+            front_id = int(parts[0])
+            session_id = int(parts[1])
+            order_ref = parts[2]
+            return front_id, session_id, order_ref
+        except (ValueError, IndexError) as e:
+            raise ValueError(f"解析订单唯一标识符失败: {unique_id}, 错误: {e}")
