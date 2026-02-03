@@ -13,6 +13,7 @@ dependencies = [
     "fastapi>=0.118.0",
     "loguru>=0.7.3",
     "msgpack>=1.1.2",
+    "orjson>=3.11.7",
     "pandas>=2.3.2",
     "passlib[bcrypt]>=1.7.4",
     "psutil>=7.1.0",
@@ -65,17 +66,16 @@ select = [
     "F",      # pyflakes
     "I",      # isort (导入排序)
 #    "N",      # pep8-naming (命名规范)
-#    "UP",     # pyupgrade (Python 版本升级建议)
-#    "B",      # flake8-bugbear (常见错误)
-#    "C4",     # flake8-comprehensions (列表推导式优化)
-#    "SIM",    # flake8-simplify (代码简化建议)
-#    "RET",    # flake8-return (return 语句优化)
+    "B",      # flake8-bugbear (常见错误)
+    "C4",     # flake8-comprehensions (列表推导式优化)
+    "SIM",    # flake8-simplify (代码简化建议)
+    "RET",    # flake8-return (return 语句优化)
 #    "ARG",    # flake8-unused-arguments (未使用的参数)
 #    "PTH",    # flake8-use-pathlib (使用 pathlib)
 #    "ERA",    # eradicate (删除注释的代码)
-#    "PL",     # pylint
-#    "PERF",   # perflint (性能优化建议)
-#    "RUF",    # Ruff 特定规则
+    "PL",     # pylint
+    "PERF",   # perflint (性能优化建议)
+    "RUF",    # Ruff 特定规则
 ]
 
 # 忽略的规则
