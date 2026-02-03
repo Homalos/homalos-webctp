@@ -316,6 +316,18 @@ class _EventLoopThread:
         self._md_logged_in: bool = False
         self._td_logged_in: bool = False
 
+    def get_clients_ready(self) -> bool:
+        """
+        获取客户端就绪状态
+
+        检查 MdClient 和 TdClient 是否都已经初始化并就绪。
+        当两个客户端都成功登录后，此方法返回 True。
+
+        Returns:
+            bool: 如果客户端已就绪返回 True，否则返回 False
+        """
+        return self._clients_ready
+
     def start(
         self,
         user_id: str,
