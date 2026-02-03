@@ -97,9 +97,9 @@ python examples/example_multi_strategy.py
 ## 注意事项
 
 1. **修改账号信息**：运行示例前，请先修改 `config_example.py` 中的用户名和密码
-1. **合约信息**：建议在 `INSTRUMENT_INFO` 中提供合约乘数，避免 CTP 查询失败
-1. **非交易时间**：非交易时间段运行示例时，行情更新会超时并返回缓存数据
-1. **SimNow 环境**：示例默认使用 SimNow 7x24 模拟环境
+2. **合约信息**：建议在 `INSTRUMENT_INFO` 中提供合约乘数，避免 CTP 查询失败
+3. **非交易时间**：非交易时间段运行示例时，行情更新会超时并返回缓存数据
+4. **SimNow 环境**：示例默认使用 SimNow 7x24 模拟环境
 
 ## 旧版示例
 
