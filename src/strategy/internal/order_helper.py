@@ -3,12 +3,11 @@
 @ProjectName: homalos-webctp
 @FileName   : order_helper.py
 @Date       : 2025/12/20
-@Author     : Kiro AI Assistant
-@Email      : -
+@Author     : Lumosylva
+@Email      : donnymoving@gmail.com
 @Software   : PyCharm
 @Description: 订单处理辅助模块 - 处理订单提交、智能平仓等逻辑
 """
-
 
 class _OrderHelper:
     """
