@@ -144,7 +144,7 @@ from .event_manager import _EventManager
 from .instrument_helper import _InstrumentHelper
 
 # 导出辅助模块（内部使用）
-from .order_helper import _OrderHelper
+from .order_helper import OrderHelper
 
 # 导出插件系统
 from .plugin import PluginManager, StrategyPlugin
@@ -158,7 +158,7 @@ __all__ = [
     "_EventLoopThread",
     "_EventManager",
     "_InstrumentHelper",
-    "_OrderHelper",
+    "OrderHelper",
     "_PositionCache",
     "_QuoteCache",
 ]
