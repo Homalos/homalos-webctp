@@ -3,19 +3,17 @@
 @ProjectName: homalos-webctp
 @FileName   : event_manager.py
 @Date       : 2025/12/20
-@Author     : Kiro AI Assistant
-@Email      : -
+@Author     : Lumosylva
+@Email      : donnymoving@gmail.com
 @Software   : PyCharm
 @Description: 统一事件管理器 - 管理线程同步事件
 
 模块概述
-========
 
 本模块提供统一的事件管理功能，用于管理各种线程同步事件。
 通过集中管理事件，消除了重复的事件管理代码模式，提高了代码的可维护性。
 
 事件管理器的作用
-================
 
 在多线程环境中，经常需要在不同线程之间进行同步和通信。
 _EventManager 提供了一个统一的接口来管理这些同步事件：
@@ -37,7 +35,6 @@ _EventManager 提供了一个统一的接口来管理这些同步事件：
    - 防止内存泄漏
 
 使用场景
-========
 
 _EventManager 主要用于以下场景：
 
@@ -61,7 +58,6 @@ _EventManager 主要用于以下场景：
    - 替代传统的 Event + 字典管理模式
 
 使用示例
-========
 
 基本用法::
 
@@ -125,7 +121,6 @@ _EventManager 主要用于以下场景：
         event_manager.clear_event(event_id)
 
 最佳实践
-========
 
 1. **事件命名规范**
    - 使用描述性的事件ID
@@ -152,7 +147,6 @@ _EventManager 主要用于以下场景：
    - 不要在持有其他锁时等待事件
 
 线程安全保证
-============
 
 _EventManager 的所有公共方法都是线程安全的：
 
@@ -163,7 +157,6 @@ _EventManager 的所有公共方法都是线程安全的：
 - clear_all(): 使用锁保护批量清理
 
 性能考虑
-========
 
 1. **锁粒度**
    - 使用 RLock 支持可重入
@@ -178,7 +171,6 @@ _EventManager 的所有公共方法都是线程安全的：
    - 使用 clear_all() 批量清理
 
 与传统方法的对比
-================
 
 传统方法（重复代码）::
 
@@ -260,9 +252,9 @@ class _EventManager:
             创建或已存在的事件对象
 
         Example:
-            >>> event_manager = _EventManager()
-            >>> event = event_manager.create_event("position_query_rb2605")
-            >>> # 使用事件进行线程同步
+            event_manager = _EventManager()
+            event = event_manager.create_event("position_query_rb2605")
+            使用事件进行线程同步
         """
         with self._lock:
             if event_id in self._events:
@@ -291,13 +283,13 @@ class _EventManager:
             KeyError: 事件不存在时抛出
 
         Example:
-            >>> event_manager = _EventManager()
-            >>> event = event_manager.create_event("test_event")
-            >>> # 在另一个线程中等待
-            >>> if event_manager.wait_event("test_event", timeout=5.0):
-            >>>     print("事件已触发")
-            >>> else:
-            >>>     print("等待超时")
+            event_manager = _EventManager()
+            event = event_manager.create_event("test_event")
+            在另一个线程中等待
+            if event_manager.wait_event("test_event", timeout=5.0):
+                print("事件已触发")
+            else:
+                print("等待超时")
         """
         with self._lock:
             if event_id not in self._events:
@@ -328,10 +320,10 @@ class _EventManager:
             event_id: 事件唯一标识符
 
         Example:
-            >>> event_manager = _EventManager()
-            >>> event = event_manager.create_event("test_event")
-            >>> # 在另一个线程中触发事件
-            >>> event_manager.set_event("test_event")
+            event_manager = _EventManager()
+            event = event_manager.create_event("test_event")
+            在另一个线程中触发事件
+            event_manager.set_event("test_event")
         """
         # 优化：使用 get() 代替 in 检查，减少字典查找次数
         with self._lock:
@@ -353,10 +345,10 @@ class _EventManager:
             event_id: 事件唯一标识符
 
         Example:
-            >>> event_manager = _EventManager()
-            >>> event = event_manager.create_event("test_event")
-            >>> # 使用完毕后清理
-            >>> event_manager.clear_event("test_event")
+            event_manager = _EventManager()
+            event = event_manager.create_event("test_event")
+            使用完毕后清理
+            event_manager.clear_event("test_event")
         """
         # 优化：使用 pop() 代替 in + del，减少字典查找次数
         with self._lock:
@@ -373,12 +365,12 @@ class _EventManager:
         该方法通常在系统停止时调用，用于清理所有事件资源。
 
         Example:
-            >>> event_manager = _EventManager()
-            >>> # 创建多个事件
-            >>> event_manager.create_event("event1")
-            >>> event_manager.create_event("event2")
-            >>> # 清理所有事件
-            >>> event_manager.clear_all()
+            event_manager = _EventManager()
+            创建多个事件
+            event_manager.create_event("event1")
+            event_manager.create_event("event2")
+            清理所有事件
+            event_manager.clear_all()
         """
         with self._lock:
             event_count = len(self._events)
