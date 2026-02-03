@@ -11,6 +11,7 @@ dependencies = [
     "chinese-days>=0.0.1",
     "configparser>=7.2.0",
     "fastapi>=0.118.0",
+    "hypothesis>=6.151.4",
     "loguru>=0.7.3",
     "msgpack>=1.1.2",
     "orjson>=3.11.7",
@@ -19,6 +20,7 @@ dependencies = [
     "psutil>=7.1.0",
     "pydantic[email]>=2.12.0",
     "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
     "python-jose[cryptography]>=3.5.0",
     "python-multipart>=0.0.20",
     "pyyaml>=6.0.2",
@@ -200,6 +202,7 @@ source = ["src"]
 
 # 排除的文件
 omit = [
+    "*/ctp/*",
     "*/tests/*",
     "*/test_*.py",
     "*/__pycache__/*",
