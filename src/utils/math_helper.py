@@ -12,6 +12,10 @@ import sys
 
 
 class MathHelper:
+    """
+    数学辅助类
+    """
+
     @staticmethod
     def adjust_price(price: float) -> float:
         """

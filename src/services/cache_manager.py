@@ -9,7 +9,6 @@
 @Description: Redis 缓存管理器 - 提供统一的缓存操作接口
 """
 
-import asyncio
 from collections.abc import AsyncIterator
 from typing import Any
 

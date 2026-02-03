@@ -15,13 +15,10 @@ import time
 from collections import defaultdict, deque
 from typing import Any
 
-try:
-    from .config import AlertsConfig, GlobalConfig, MetricsConfig
-    from .log import logger
-except ImportError:
-    from log import logger
+import psutil
 
-    from config import AlertsConfig, GlobalConfig, MetricsConfig
+from .config import AlertsConfig, GlobalConfig, MetricsConfig
+from .log import logger
 
 
 class MetricsCollector:
@@ -446,7 +443,8 @@ class MetricsCollector:
         self._last_alert_time[alert_type] = current_time
         logger.warning(message, tag="metrics_alert")
 
-    def _collect_system_metrics(self) -> dict[str, float]:
+    @staticmethod
+    def _collect_system_metrics() -> dict[str, float]:
         """
         收集系统资源使用情况
 
@@ -461,8 +459,6 @@ class MetricsCollector:
         metrics = {}
 
         try:
-            import psutil
-
             # CPU 使用率
             cpu_percent = psutil.cpu_percent(interval=0.1)
             metrics["cpu_percent"] = cpu_percent
