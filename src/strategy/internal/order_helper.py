@@ -9,7 +9,7 @@
 @Description: 订单处理辅助模块 - 处理订单提交、智能平仓等逻辑
 """
 
-class _OrderHelper:
+class OrderHelper:
     """
     订单处理辅助类
 
@@ -165,13 +165,12 @@ class _OrderHelper:
 
     @staticmethod
     def split_close_orders(
-        action: str, volume: int, today_pos: int, his_pos: int, total_pos: int
+        volume: int, today_pos: int, his_pos: int, total_pos: int
     ) -> list:
         """
         智能拆分平仓订单（优先平昨仓，再平今仓）
 
         Args:
-            action: 交易动作（pingduo 或 pingkong）
             volume: 平仓数量
             today_pos: 今仓数量
             his_pos: 昨仓数量
