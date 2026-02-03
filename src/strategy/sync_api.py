@@ -6,114 +6,95 @@
 @Author     : Lumosylva
 @Email      : donnymoving@gmail.com
 @Software   : PyCharm
-@Description: 同步策略 API - 同步阻塞式策略编写接口
+@Description:
 
-模块概述
-本模块提供同步阻塞式策略编写接口，封装了 CTP API 的复杂性，让策略开发者可以使用简单的同步调用方式编写量化交易策略。
+    同步策略 API - 同步阻塞式策略编写接口
 
-重构后的架构
-本模块经过模块化重构，将原来的单一大文件拆分为多个职责清晰的模块：
+    模块概述
+    本模块提供同步阻塞式策略编写接口，封装了 CTP API 的复杂性，让策略开发者可以使用简单的同步调用方式编写量化交易策略。
 
-主模块（sync_api.py）
+    主模块（sync_api.py）
 
-- 提供 SyncStrategyApi 公共接口
-- 组合内部组件（缓存、事件循环、插件管理器）
-- 实现同步 API 方法（get_quote, open_close 等）
-- 协调各组件之间的交互
+    - 提供 SyncStrategyApi 公共接口
+    - 组合内部组件（缓存、事件循环、插件管理器）
+    - 实现同步 API 方法（get_quote, open_close 等）
+    - 协调各组件之间的交互
 
-内部模块（internal/）
+    内部模块（internal/）
 
-- data_models.py: Quote 和 Position 数据类
-- cache_manager.py: 通用缓存管理器和行情/持仓缓存
-- event_manager.py: 统一的线程同步事件管理
-- event_loop_thread.py: 后台异步事件循环线程
-- plugin.py: 可扩展的插件系统
-- order_helper.py: 订单处理辅助函数
-- instrument_helper.py: 合约信息处理辅助函数
+    - data_models.py: Quote 和 Position 数据类
+    - cache_manager.py: 通用缓存管理器和行情/持仓缓存
+    - event_manager.py: 统一的线程同步事件管理
+    - event_loop_thread.py: 后台异步事件循环线程
+    - plugin.py: 可扩展的插件系统
+    - order_helper.py: 订单处理辅助函数
+    - instrument_helper.py: 合约信息处理辅助函数
 
-模块化的好处
+    快速开始
 
-1. **代码可维护性提升**
-   - 每个模块不超过 300 行，职责单一
-   - 清晰的模块边界，易于理解和修改
+    基本用法::
 
-2. **代码复用性提高**
-   - 通用缓存管理器消除了重复代码
-   - 统一的事件管理器简化了线程同步逻辑
+        from src.strategy.sync_api import SyncStrategyApi
 
-3. **可扩展性增强**
-   - 插件系统支持在不修改核心代码的情况下扩展功能
-   - 清晰的接口定义便于添加新功能
+        # 初始化 API（自动连接和登录）
+        api = SyncStrategyApi(
+            user_id="your_user_id",
+            password="your_password",
+            config_path="config.yaml"
+        )
 
-4. **测试更容易**
-   - 每个模块可以独立测试
-   - 模块化的测试结构提高了测试覆盖率
+        # 获取行情
+        quote = api.get_quote("rb2605")
+        print(f"最新价: {quote.LastPrice}")
 
-快速开始
+        # 获取持仓
+        position = api.get_position("rb2605")
+        print(f"多头持仓: {position.pos_long}")
 
-基本用法::
+        # 开仓
+        result = api.open_close("rb2605", "kaiduo", 1, 3500.0)
+        if result["success"]:
+            print(f"订单成功: {result['order_ref']}")
 
-    from src.strategy.sync_api import SyncStrategyApi
+        # 停止服务
+        api.stop()
 
-    # 初始化 API（自动连接和登录）
-    api = SyncStrategyApi(
-        user_id="your_user_id",
-        password="your_password",
-        config_path="config.yaml"
-    )
+    使用插件扩展功能::
 
-    # 获取行情
-    quote = api.get_quote("rb2605")
-    print(f"最新价: {quote.LastPrice}")
+        from src.strategy.sync_api import SyncStrategyApi, StrategyPlugin
 
-    # 获取持仓
-    position = api.get_position("rb2605")
-    print(f"多头持仓: {position.pos_long}")
+        class LoggingPlugin(StrategyPlugin):
+            def on_init(self, api):
+                print("插件初始化")
 
-    # 开仓
-    result = api.open_close("rb2605", "kaiduo", 1, 3500.0)
-    if result["success"]:
-        print(f"订单成功: {result['order_ref']}")
+            def on_quote(self, quote):
+                print(f"收到行情: {quote.InstrumentID} @ {quote.LastPrice}")
+                return quote
 
-    # 停止服务
-    api.stop()
+        api = SyncStrategyApi("user_id", "password")
+        api.register_plugin(LoggingPlugin())
 
-使用插件扩展功能::
+    运行策略::
 
-    from src.strategy.sync_api import SyncStrategyApi, StrategyPlugin
+        def my_strategy():
+            while True:
+                quote = api.get_quote("rb2605")
+                # 策略逻辑...
+                time.sleep(1)
 
-    class LoggingPlugin(StrategyPlugin):
-        def on_init(self, api):
-            print("插件初始化")
+        # 在后台线程运行策略
+        thread = api.run_strategy(my_strategy)
 
-        def on_quote(self, quote):
-            print(f"收到行情: {quote.InstrumentID} @ {quote.LastPrice}")
-            return quote
+    向后兼容性
 
-    api = SyncStrategyApi("user_id", "password")
-    api.register_plugin(LoggingPlugin())
+    重构完全保持了向后兼容性，所有现有的策略代码无需修改即可运行。
+    公共 API 接口（SyncStrategyApi、Quote、Position）保持不变。
 
-运行策略::
+    更多信息
 
-    def my_strategy():
-        while True:
-            quote = api.get_quote("rb2605")
-            # 策略逻辑...
-            time.sleep(1)
-
-    # 在后台线程运行策略
-    thread = api.run_strategy(my_strategy)
-
-向后兼容性
-
-重构完全保持了向后兼容性，所有现有的策略代码无需修改即可运行。
-公共 API 接口（SyncStrategyApi、Quote、Position）保持不变。
-
-更多信息
-
-- 插件开发指南: 参见 examples/plugins/README.md
-- 性能优化指南: 参见 docs/performance_tuning_guide_CN.md
-- 故障排除: 参见 docs/troubleshooting_CN.md
+    - 插件开发指南: 参见 examples/plugins/README.md
+    - 性能优化指南: 参见 docs/performance_tuning_guide_CN.md
+    - 故障排除: 参见 docs/troubleshooting_CN.md
 """
 
 import threading
@@ -127,7 +108,6 @@ from loguru import logger
 # 缓存管理：行情缓存和持仓缓存
 from .internal.cache_manager import _PositionCache, _QuoteCache
 
-# ===== 内部模块导入 =====
 # 数据模型：Quote 和 Position 数据类
 from .internal.data_models import Position, Quote
 
@@ -328,8 +308,23 @@ class SyncStrategyApi:
 
         logger.info("SyncStrategyApi 初始化完成，CTP 连接成功")
 
+    @staticmethod
+    def _map_action_to_ctp(action: str, close_today: bool = False) -> tuple:
+        """映射 action 参数到 CTP 的 Direction 和 CombOffsetFlag"""
+        from .internal.order_helper import _OrderHelper
+
+        return _OrderHelper.map_action_to_ctp(action, close_today)
+
+    @staticmethod
+    def _get_exchange_id(instrument_id: str) -> str:
+        """根据合约代码推断交易所ID"""
+        from .internal.order_helper import _OrderHelper
+
+        return _OrderHelper.get_exchange_id(instrument_id)
+
+    @staticmethod
     def _generate_order_unique_id(
-        self, front_id: int, session_id: int, order_ref: str
+        front_id: int, session_id: int, order_ref: str
     ) -> str:
         """
         生成订单唯一标识符
@@ -342,31 +337,9 @@ class SyncStrategyApi:
         Returns:
             订单唯一标识符，格式: "{front_id}_{session_id}_{order_ref}"
         """
-        return f"{front_id}_{session_id}_{order_ref}"
+        from .internal.order_helper import _OrderHelper
 
-    def _parse_order_unique_id(self, unique_id: str) -> tuple[int, int, str]:
-        """
-        解析订单唯一标识符
-
-        Args:
-            unique_id: 订单唯一标识符
-
-        Returns:
-            (front_id, session_id, order_ref) 元组
-
-        Raises:
-            ValueError: 如果标识符格式不正确
-        """
-        try:
-            parts = unique_id.split("_")
-            if len(parts) != 3:
-                raise ValueError(f"无效的订单唯一标识符格式: {unique_id}")
-            front_id = int(parts[0])
-            session_id = int(parts[1])
-            order_ref = parts[2]
-            return front_id, session_id, order_ref
-        except (ValueError, IndexError) as e:
-            raise ValueError(f"解析订单唯一标识符失败: {unique_id}, 错误: {e}")
+        return _OrderHelper.generate_order_unique_id(front_id, session_id, order_ref)
 
     def _generate_order_ref(self) -> str:
         """
@@ -776,10 +749,10 @@ class SyncStrategyApi:
 
             # 获取订单信息对象
             order_info = self._pending_orders[unique_id]
-            
+
             # 添加响应记录
             order_info.add_response(response)
-            
+
             # 提取订单状态信息
             if order_data:
                 # 从 RtnOrder 中提取状态
@@ -787,10 +760,10 @@ class SyncStrategyApi:
                 status_msg = order_data.get("StatusMsg", "")
                 volume_traded = order_data.get("VolumeTraded", 0)
                 volume_total = order_data.get("VolumeTotal", order_info.volume)
-                
+
                 # 转换为 OrderStatus 枚举
                 new_status = OrderStatus.from_ctp_status(ctp_status)
-                
+
                 # 更新订单状态
                 order_info.update_status(
                     new_status=new_status,
@@ -798,29 +771,29 @@ class SyncStrategyApi:
                     volume_traded=volume_traded,
                     volume_total=volume_total,
                 )
-                
+
                 logger.info(
                     f"[订单响应] 订单状态更新: {unique_id} -> "
                     f"{new_status.get_description()} "
                     f"(已成交: {volume_traded}/{order_info.volume})"
                 )
-                
+
             elif is_error:
                 # 处理错误响应
                 rsp_info = response.get("RspInfo", {})
                 error_id = rsp_info.get("ErrorID", -1) if rsp_info else -1
                 error_msg = rsp_info.get("ErrorMsg", "未知错误") if rsp_info else "未知错误"
-                
+
                 order_info.set_error(error_id, error_msg)
-                
+
                 logger.error(
                     f"[订单响应] 订单录入错误: {unique_id} - "
                     f"[{error_id}] {error_msg}"
                 )
-            
+
             # 判断是否为首次响应（需要通知等待线程）
             is_first_response = len(order_info.order_responses) == 1
-            
+
             if is_first_response:
                 # 首次响应：缓存响应并通知等待线程
                 self._order_responses[unique_id] = response
@@ -832,7 +805,7 @@ class SyncStrategyApi:
                     f"[订单响应] 后续响应（第 {len(order_info.order_responses)} 次）: "
                     f"{unique_id} - {order_info.status.get_description()}"
                 )
-            
+
             # 如果订单达到最终状态，移至已完成列表
             if order_info.is_final():
                 logger.info(
@@ -840,11 +813,11 @@ class SyncStrategyApi:
                     f"{order_info.status.get_description()}"
                 )
                 logger.debug(f"[订单响应] {order_info.get_status_history_str()}")
-                
+
                 # 移至已完成列表
                 self._completed_orders[unique_id] = order_info
                 del self._pending_orders[unique_id]
-                
+
                 logger.debug(
                     f"[订单响应] 订单已移至已完成列表，"
                     f"当前活跃订单数: {len(self._pending_orders)}"
@@ -884,18 +857,18 @@ class SyncStrategyApi:
                 self._front_id = rsp_user_login.get("FrontID")
                 self._session_id = rsp_user_login.get("SessionID")
                 max_order_ref = rsp_user_login.get("MaxOrderRef", "")
-                
+
                 logger.info(
                     f"[登录成功] 缓存会话信息: FrontID={self._front_id}, "
                     f"SessionID={self._session_id}, MaxOrderRef={max_order_ref}"
                 )
-                
+
                 # 初始化订单计数器（使用 MaxOrderRef + 1）
                 if max_order_ref and max_order_ref.isdigit():
                     with self._order_ref_lock:
                         self._order_ref_counter = int(max_order_ref)
                         logger.info(f"[登录成功] 初始化订单计数器: {self._order_ref_counter}")
-            
+
             # 登录响应不需要进一步处理，直接返回
             return
 
@@ -964,11 +937,13 @@ class SyncStrategyApi:
                     "[TD回调-合约查询] 查询结束（IsLast=True），开始通知等待线程"
                 )
                 # 通知等待该合约查询的线程
-                if instrument_data and instrument_id:
-                    logger.info(
-                        f"[TD回调-合约查询] 找到请求的合约: {instrument_id}，通知查询完成"
-                    )
-                    self._event_manager.set_event(f"instrument_query_{instrument_id}")
+                if instrument_data:
+                    instrument_id = instrument_data.get("InstrumentID")
+                    if instrument_id:
+                        logger.info(
+                            f"[TD回调-合约查询] 找到请求的合约: {instrument_id}，通知查询完成"
+                        )
+                        self._event_manager.set_event(f"instrument_query_{instrument_id}")
                 else:
                     logger.warning(
                         "[TD回调-合约查询] 查询结束但未找到合约数据，通知查询失败"
@@ -1199,10 +1174,10 @@ class SyncStrategyApi:
             RuntimeError: 订阅失败或其他错误
 
         Example:
-            >>> api = SyncStrategyApi()
-            >>> api.connect("user_id", "password")
-            >>> quote = api.get_quote("rb2505")
-            >>> print(f"最新价: {quote.LastPrice}")
+            api = SyncStrategyApi()
+            api.connect("user_id", "password")
+            quote = api.get_quote("rb2505")
+            print(f"最新价: {quote.LastPrice}")
         """
         # 使用配置的超时值（如果未指定）
         if timeout is None:
@@ -1260,10 +1235,10 @@ class SyncStrategyApi:
             Position 对象，包含多空持仓信息。如果查询超时或失败，返回空持仓对象。
 
         Example:
-            >>> api = SyncStrategyApi()
-            >>> api.connect("user_id", "password")
-            >>> position = api.get_position("rb2505")
-            >>> print(f"多头持仓: {position.pos_long}, 空头持仓: {position.pos_short}")
+            api = SyncStrategyApi()
+            api.connect("user_id", "password")
+            position = api.get_position("rb2505")
+            print(f"多头持仓: {position.pos_long}, 空头持仓: {position.pos_short}")
         """
         # 使用配置的超时值（如果未指定）
         if timeout is None:
@@ -1341,11 +1316,11 @@ class SyncStrategyApi:
             RuntimeError: 订阅失败或其他错误
 
         Example:
-            >>> api = SyncStrategyApi()
-            >>> api.connect("user_id", "password")
-            >>> # 等待行情更新
-            >>> quote = api.wait_quote_update("rb2505", timeout=10.0)
-            >>> print(f"收到新行情: {quote.LastPrice}")
+            api = SyncStrategyApi()
+            api.connect("user_id", "password")
+            等待行情更新
+            quote = api.wait_quote_update("rb2505", timeout=10.0)
+            print(f"收到新行情: {quote.LastPrice}")
         """
         if instrument_id == "":
             raise Exception("wait_quote_update 中请求合约代码不能为空字符串")
@@ -1389,18 +1364,6 @@ class SyncStrategyApi:
             # 如果缓存中也没有，返回空行情对象
             logger.warning(f"缓存中也没有行情数据，返回空行情对象: {instrument_id}")
             return Quote(InstrumentID=instrument_id)
-
-    def _map_action_to_ctp(self, action: str, close_today: bool = False) -> tuple:
-        """映射 action 参数到 CTP 的 Direction 和 CombOffsetFlag"""
-        from .internal.order_helper import _OrderHelper
-
-        return _OrderHelper.map_action_to_ctp(action, close_today)
-
-    def _get_exchange_id(self, instrument_id: str) -> str:
-        """根据合约代码推断交易所ID"""
-        from .internal.order_helper import _OrderHelper
-
-        return _OrderHelper.get_exchange_id(instrument_id)
 
     def open_close(
         self,
@@ -1677,7 +1640,7 @@ class SyncStrategyApi:
         close_today: bool,
         block: bool,
         timeout: float,
-    ) -> dict:
+    ) -> dict | None:
         """
         提交单笔订单（内部方法）
 
@@ -1699,7 +1662,7 @@ class SyncStrategyApi:
 
         # 映射 action 到 CTP 参数
         direction, comb_offset_flag = self._map_action_to_ctp(
-            action, close_today=close_today
+            action=action, close_today=close_today
         )
 
         # 获取交易所ID
@@ -1783,7 +1746,7 @@ class SyncStrategyApi:
                     offset_flag=comb_offset_flag,
                     submit_time=__import__("time").time(),
                 )
-                
+
                 with self._order_response_lock:
                     self._pending_orders[unique_id] = order_info
 
@@ -1865,9 +1828,9 @@ class SyncStrategyApi:
                 with self._order_response_lock:
                     if unique_id in self._order_responses:
                         del self._order_responses[unique_id]
-                    # 确保从待处理列表中移除（如果还在的话）
-                    if unique_id in self._pending_orders:
-                        del self._pending_orders[unique_id]
+                # 注意：不要删除 _pending_orders 中的订单
+                # 订单的生命周期管理由 _handle_order_response() 负责
+                # 只有在订单达到最终状态时才会从 _pending_orders 中移除
 
         else:
             # 不阻塞，立即返回
@@ -1912,17 +1875,17 @@ class SyncStrategyApi:
             RuntimeError: 如果达到最大策略数量限制
 
         Example:
-            >>> api = SyncStrategyApi()
-            >>> api.connect("user_id", "password")
-            >>>
-            >>> def my_strategy(symbol):
-            >>>     while True:
-            >>>         quote = api.get_quote(symbol)
-            >>>         print(f"价格: {quote.LastPrice}")
-            >>>         time.sleep(1)
-            >>>
-            >>> thread = api.run_strategy(my_strategy, "rb2505")
-            >>> # 策略在后台运行
+            api = SyncStrategyApi()
+            api.connect("user_id", "password")
+
+            def my_strategy(symbol):
+                while True:
+                    quote = api.get_quote(symbol)
+                    print(f"价格: {quote.LastPrice}")
+                    time.sleep(1)
+
+            thread = api.run_strategy(my_strategy, "rb2505")
+            策略在后台运行
         """
         logger.info(f"启动策略: {strategy_func.__name__}")
 
@@ -1990,10 +1953,10 @@ class SyncStrategyApi:
             字典，键为策略名称，值为线程对象
 
         Example:
-            >>> api = SyncStrategyApi()
-            >>> strategies = api.get_running_strategies()
-            >>> for name, thread in strategies.items():
-            >>>     print(f"策略: {name}, 运行中: {thread.is_alive()}")
+            api = SyncStrategyApi()
+            strategies = api.get_running_strategies()
+            for name, thread in strategies.items():
+                print(f"策略: {name}, 运行中: {thread.is_alive()}")
         """
         with self._strategy_lock:
             # 返回副本，避免外部修改
@@ -2002,17 +1965,17 @@ class SyncStrategyApi:
     def get_order_info(self, unique_id: str) -> OrderInfo | None:
         """
         获取订单信息
-        
+
         Args:
             unique_id: 订单唯一标识符 (FrontID_SessionID_OrderRef)
-            
+
         Returns:
             OrderInfo 对象，如果订单不存在则返回 None
-            
+
         Example:
-            >>> result = api.open_close("rb2605", "kaiduo", 1, 3500.0)
-            >>> order_info = api.get_order_info(result["unique_id"])
-            >>> print(order_info.get_status_summary())
+            result = api.open_close("rb2605", "kaiduo", 1, 3500.0)
+            order_info = api.get_order_info(result["unique_id"])
+            print(order_info.get_status_summary())
         """
         with self._order_response_lock:
             # 先在活跃订单中查找
@@ -2022,42 +1985,42 @@ class SyncStrategyApi:
             if unique_id in self._completed_orders:
                 return self._completed_orders[unique_id]
         return None
-    
+
     def get_active_orders(self) -> dict[str, OrderInfo]:
         """
         获取所有活跃订单（未完成的订单）
-        
+
         Returns:
             字典，键为订单唯一标识符，值为 OrderInfo 对象
-            
+
         Example:
-            >>> active_orders = api.get_active_orders()
-            >>> for unique_id, order_info in active_orders.items():
-            >>>     print(order_info.get_status_summary())
+            active_orders = api.get_active_orders()
+            for unique_id, order_info in active_orders.items():
+                print(order_info.get_status_summary())
         """
         with self._order_response_lock:
             return dict(self._pending_orders)
-    
+
     def get_completed_orders(self, limit: int | None = None) -> dict[str, OrderInfo]:
         """
         获取已完成订单历史
-        
+
         Args:
             limit: 返回的最大订单数量，None 表示返回全部
-            
+
         Returns:
             字典，键为订单唯一标识符，值为 OrderInfo 对象
-            
+
         Example:
-            >>> # 获取最近 10 个已完成订单
-            >>> completed = api.get_completed_orders(limit=10)
-            >>> for unique_id, order_info in completed.items():
-            >>>     print(order_info.get_status_summary())
+            获取最近 10 个已完成订单
+            completed = api.get_completed_orders(limit=10)
+            for unique_id, order_info in completed.items():
+                print(order_info.get_status_summary())
         """
         with self._order_response_lock:
             if limit is None:
                 return dict(self._completed_orders)
-            
+
             # 按时间排序，返回最近的 N 个
             sorted_orders = sorted(
                 self._completed_orders.items(),
@@ -2065,52 +2028,52 @@ class SyncStrategyApi:
                 reverse=True
             )
             return dict(sorted_orders[:limit])
-    
+
     def clear_completed_orders(self, keep_recent: int = 100) -> int:
         """
         清理已完成订单历史
-        
+
         为了避免内存占用过大，可以定期清理已完成订单历史。
         默认保留最近 100 个订单。
-        
+
         Args:
             keep_recent: 保留最近的订单数量
-            
+
         Returns:
             清理的订单数量
-            
+
         Example:
-            >>> # 清理已完成订单，只保留最近 50 个
-            >>> cleared = api.clear_completed_orders(keep_recent=50)
-            >>> print(f"清理了 {cleared} 个订单")
+            清理已完成订单，只保留最近 50 个
+            cleared = api.clear_completed_orders(keep_recent=50)
+            print(f"清理了 {cleared} 个订单")
         """
         with self._order_response_lock:
             total_count = len(self._completed_orders)
-            
+
             if total_count <= keep_recent:
                 logger.debug(
                     f"已完成订单数量({total_count})未超过保留数量({keep_recent})，无需清理"
                 )
                 return 0
-            
+
             # 按时间排序，保留最近的 N 个
             sorted_orders = sorted(
                 self._completed_orders.items(),
                 key=lambda x: x[1].last_update_time,
                 reverse=True
             )
-            
+
             # 保留最近的订单
             orders_to_keep = dict(sorted_orders[:keep_recent])
-            
+
             # 清理旧订单
             cleared_count = total_count - len(orders_to_keep)
             self._completed_orders = orders_to_keep
-            
+
             logger.info(
                 f"清理已完成订单: 清理 {cleared_count} 个，保留 {len(orders_to_keep)} 个"
             )
-            
+
             return cleared_count
 
     def register_plugin(self, plugin: StrategyPlugin) -> None:
