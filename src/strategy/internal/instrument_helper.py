@@ -3,8 +3,8 @@
 @ProjectName: homalos-webctp
 @FileName   : instrument_helper.py
 @Date       : 2025/12/20
-@Author     : Kiro AI Assistant
-@Email      : -
+@Author     : Lumosylva
+@Email      : donnymoving@gmail.com
 @Software   : PyCharm
 @Description: 合约信息处理辅助模块 - 处理合约查询、缓存等逻辑
 """
