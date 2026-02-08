@@ -38,10 +38,10 @@ def test_session_info(api: SyncStrategyApi):
     try:
         # 尝试获取会话信息
         front_id, session_id = api._get_session_info()
-        logger.info(f"✅ 会话信息已缓存: FrontID={front_id}, SessionID={session_id}")
+        logger.info(f"会话信息已缓存: FrontID={front_id}, SessionID={session_id}")
         return True
     except RuntimeError as e:
-        logger.error(f"❌ 获取会话信息失败: {e}")
+        logger.error(f"获取会话信息失败: {e}")
         return False
 
 
@@ -73,7 +73,7 @@ def test_single_order_success(api: SyncStrategyApi, symbol: str):
 
         # 检查结果
         if result["success"]:
-            logger.info("✅ 订单提交成功!")
+            logger.info("订单提交成功!")
             logger.info(f"  订单引用: {result.get('order_ref', 'N/A')}")
             logger.info(f"  唯一标识符: {result.get('unique_id', 'N/A')}")
             logger.info(f"  FrontID: {result.get('front_id', 'N/A')}")
@@ -84,13 +84,13 @@ def test_single_order_success(api: SyncStrategyApi, symbol: str):
             logger.info(f"  价格: {result.get('price', 'N/A')}")
             return True, result
         else:
-            logger.warning("⚠️ 订单提交失败（这可能是预期的）")
+            logger.warning("订单提交失败（这可能是预期的）")
             logger.warning(f"  错误代码: {result.get('error_id', 'N/A')}")
             logger.warning(f"  错误信息: {result.get('error_msg', 'N/A')}")
             return False, result
 
     except Exception as e:
-        logger.error(f"❌ 订单提交异常: {e}", exc_info=True)
+        logger.error(f"订单提交异常: {e}", exc_info=True)
         return False, None
 
 
@@ -122,18 +122,18 @@ def test_single_order_fail(api: SyncStrategyApi, symbol: str):
 
         # 检查结果
         if not result["success"]:
-            logger.info("✅ 订单被正确拒绝（符合预期）")
+            logger.info("订单被正确拒绝（符合预期）")
             logger.info(f"  错误代码: {result.get('error_id', 'N/A')}")
             logger.info(f"  错误信息: {result.get('error_msg', 'N/A')}")
-            logger.info("✅ 错误响应匹配机制工作正常")
+            logger.info("错误响应匹配机制工作正常")
             return True, result
         else:
-            logger.warning("⚠️ 订单意外成功（不符合预期）")
+            logger.warning("订单意外成功（不符合预期）")
             logger.warning(f"  订单引用: {result.get('order_ref', 'N/A')}")
             return False, result
 
     except Exception as e:
-        logger.error(f"❌ 订单提交异常: {e}", exc_info=True)
+        logger.error(f"订单提交异常: {e}", exc_info=True)
         return False, None
 
 
@@ -165,28 +165,28 @@ def test_concurrent_orders(api: SyncStrategyApi, symbol: str):
                 block=True,
                 timeout=10.0
             )
-            
+
             results.append(result)
-            
+
             if result["success"]:
-                logger.info(f"  ✅ 第 {i+1} 笔订单成功: unique_id={result.get('unique_id', 'N/A')}")
+                logger.info(f"  第 {i+1} 笔订单成功: unique_id={result.get('unique_id', 'N/A')}")
             else:
-                logger.warning(f"  ⚠️ 第 {i+1} 笔订单失败: {result.get('error_msg', 'N/A')}")
-            
+                logger.warning(f"  第 {i+1} 笔订单失败: {result.get('error_msg', 'N/A')}")
+
             # 短暂延迟，避免频繁请求
             time.sleep(0.5)
-            
+
         except Exception as e:
-            logger.error(f"  ❌ 第 {i+1} 笔订单异常: {e}")
+            logger.error(f"  第 {i+1} 笔订单异常: {e}")
             results.append(None)
-    
+
     # 检查唯一标识符是否都不同
     unique_ids = [r.get('unique_id') for r in results if r and r.get('success')]
     if len(unique_ids) == len(set(unique_ids)):
-        logger.info(f"✅ 所有订单的唯一标识符都不同（共 {len(unique_ids)} 个）")
+        logger.info(f"所有订单的唯一标识符都不同（共 {len(unique_ids)} 个）")
         return True
     else:
-        logger.error(f"❌ 发现重复的唯一标识符！")
+        logger.error(f"发现重复的唯一标识符！")
         return False
 
 
@@ -196,7 +196,7 @@ def main():
     logger.info("单笔订单测试 - 验证任务 1.1 修复效果")
     logger.info("=" * 80)
 
-    
+
     # 创建 API 实例并连接
     api = SyncStrategyApi(
         user_id=CONFIG["user_id"],
@@ -208,57 +208,57 @@ def main():
 
     try:
         symbol = STRATEGY_PARAMS["symbol"]
-        
+
         # 等待一下，确保登录完成
         logger.info("等待登录完成...")
         time.sleep(2)
-        
+
         # 测试结果统计
         test_results = {}
-        
+
         # 测试 1: 会话信息缓存
         test_results["session_info"] = test_session_info(api)
         time.sleep(1)
-        
+
         # 测试 2: 单笔订单（成功场景）
         success, result = test_single_order_success(api, symbol)
         test_results["single_order_success"] = success
         time.sleep(2)
-        
+
         # 测试 3: 单笔订单（失败场景）
         success, result = test_single_order_fail(api, symbol)
         test_results["single_order_fail"] = success
         time.sleep(2)
-        
+
         # 测试 4: 并发订单
         test_results["concurrent_orders"] = test_concurrent_orders(api, symbol)
-        
+
         # 输出测试总结
         logger.info("=" * 80)
         logger.info("测试总结")
         logger.info("=" * 80)
-        
+
         for test_name, result in test_results.items():
-            status = "✅ 通过" if result else "❌ 失败"
+            status = "通过" if result else "❌ 失败"
             logger.info(f"{test_name}: {status}")
-        
+
         # 计算通过率
         passed = sum(1 for r in test_results.values() if r)
         total = len(test_results)
         pass_rate = (passed / total) * 100 if total > 0 else 0
-        
+
         logger.info("=" * 80)
         logger.info(f"测试通过率: {passed}/{total} ({pass_rate:.1f}%)")
         logger.info("=" * 80)
-        
+
         if pass_rate == 100:
             logger.info("🎉 所有测试通过！任务 1.1 修复成功！")
         else:
-            logger.warning("⚠️ 部分测试失败，请检查日志")
-        
+            logger.warning("部分测试失败，请检查日志")
+
     except Exception as e:
         logger.error(f"测试过程中发生异常: {e}", exc_info=True)
-        
+
     finally:
         # 停止服务
         logger.info("停止 API 服务...")
